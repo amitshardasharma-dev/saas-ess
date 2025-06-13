@@ -1,0 +1,262 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+:root {
+  --radius: 1.5rem;
+  
+  /* Fluid Modern Theme - Light Mode */
+  --background: linear-gradient(135deg, #fafbff 0%, #f1f5f9 100%);
+  --foreground: #1e293b;
+  --card: rgba(255, 255, 255, 0.7);
+  --card-foreground: #1e293b;
+  --popover: rgba(255, 255, 255, 0.9);
+  --popover-foreground: #1e293b;
+  
+  /* Primary: Modern Teal/Cyan */
+  --primary: #0891b2;
+  --primary-foreground: #ffffff;
+  
+  /* Secondary: Soft Blue */
+  --secondary: rgba(224, 242, 254, 0.5);
+  --secondary-foreground: #0891b2;
+  
+  /* Muted: Light Blue-Gray */
+  --muted: rgba(241, 245, 249, 0.6);
+  --muted-foreground: #64748b;
+  
+  /* Accent: Vibrant Cyan */
+  --accent: #06b6d4;
+  --accent-foreground: #ffffff;
+  
+  /* Destructive: Modern Red */
+  --destructive: #ef4444;
+  
+  /* Borders: Very Subtle */
+  --border: rgba(226, 232, 240, 0.3);
+  --input: rgba(226, 232, 240, 0.5);
+  --ring: #06b6d4;
+  
+  /* Charts: Fresh Color Palette */
+  --chart-1: #0891b2;  /* Teal */
+  --chart-2: #10b981;  /* Emerald */
+  --chart-3: #8b5cf6;  /* Purple */
+  --chart-4: #f59e0b;  /* Amber */
+  --chart-5: #ef4444;  /* Red */
+  
+  /* Sidebar */
+  --sidebar: rgba(255, 255, 255, 0.8);
+  --sidebar-foreground: #1e293b;
+  --sidebar-primary: #0891b2;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: rgba(224, 242, 254, 0.5);
+  --sidebar-accent-foreground: #0891b2;
+  --sidebar-border: rgba(226, 232, 240, 0.2);
+  --sidebar-ring: #06b6d4;
+}
+
+.dark {
+  /* Fluid Modern Theme - Dark Mode */
+  --background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  --foreground: #f8fafc;
+  --card: rgba(30, 41, 59, 0.7);
+  --card-foreground: #f8fafc;
+  --popover: rgba(30, 41, 59, 0.9);
+  --popover-foreground: #f8fafc;
+  
+  /* Primary: Bright Cyan for dark mode */
+  --primary: #22d3ee;
+  --primary-foreground: #0f172a;
+  
+  /* Secondary: Dark Blue */
+  --secondary: rgba(51, 65, 85, 0.5);
+  --secondary-foreground: #22d3ee;
+  
+  /* Muted: Dark Blue-Gray */
+  --muted: rgba(51, 65, 85, 0.6);
+  --muted-foreground: #94a3b8;
+  
+  /* Accent: Vibrant Cyan */
+  --accent: #06b6d4;
+  --accent-foreground: #0f172a;
+  
+  /* Destructive: Bright Red */
+  --destructive: #f87171;
+  
+  /* Borders: Very Subtle Dark */
+  --border: rgba(51, 65, 85, 0.3);
+  --input: rgba(51, 65, 85, 0.5);
+  --ring: #22d3ee;
+  
+  /* Charts: Dark Mode Palette */
+  --chart-1: #22d3ee;  /* Bright Cyan */
+  --chart-2: #34d399;  /* Bright Emerald */
+  --chart-3: #a78bfa;  /* Bright Purple */
+  --chart-4: #fbbf24;  /* Bright Amber */
+  --chart-5: #f87171;  /* Bright Red */
+  
+  /* Sidebar */
+  --sidebar: rgba(30, 41, 59, 0.8);
+  --sidebar-foreground: #f8fafc;
+  --sidebar-primary: #22d3ee;
+  --sidebar-primary-foreground: #0f172a;
+  --sidebar-accent: rgba(51, 65, 85, 0.5);
+  --sidebar-accent-foreground: #22d3ee;
+  --sidebar-border: rgba(51, 65, 85, 0.2);
+  --sidebar-ring: #22d3ee;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  
+  body {
+    background: var(--background);
+    color: hsl(var(--foreground));
+    font-feature-settings: "cv11", "ss01";
+    font-variation-settings: "opsz" 850;
+  }
+  
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    @apply w-2;
+  }
+  
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    @apply bg-primary/20 rounded-full;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-primary/40;
+  }
+}
+
+/* Fluid design utilities */
+@layer utilities {
+  .fluid-bg {
+    background: linear-gradient(135deg, 
+      hsl(var(--primary)/0.05) 0%, 
+      hsl(var(--accent)/0.02) 50%,
+      hsl(var(--primary)/0.05) 100%);
+  }
+  
+  .flowing-card {
+    background: var(--card);
+    backdrop-filter: blur(20px);
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius);
+    box-shadow: 0 8px 32px hsl(var(--primary)/0.05);
+  }
+  
+  .floating-element {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border: none;
+    border-radius: 2rem;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  }
+  
+  .metric-bubble {
+    background: linear-gradient(135deg, 
+      rgba(255, 255, 255, 0.9) 0%, 
+      rgba(255, 255, 255, 0.7) 100%);
+    backdrop-filter: blur(15px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 2rem;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08);
+  }
+  
+  .dark .metric-bubble {
+    background: linear-gradient(135deg, 
+      rgba(30, 41, 59, 0.9) 0%, 
+      rgba(30, 41, 59, 0.7) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  
+  .content-flow {
+    background: rgba(255, 255, 255, 0.4);
+    backdrop-filter: blur(12px);
+    border: none;
+    border-radius: 1.5rem;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+  }
+  
+  .dark .content-flow {
+    background: rgba(30, 41, 59, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+  
+  .accent-glow {
+    position: relative;
+  }
+  
+  .accent-glow::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    background: linear-gradient(45deg, hsl(var(--primary)), hsl(var(--accent)));
+    border-radius: inherit;
+    opacity: 0.1;
+    z-index: -1;
+    filter: blur(8px);
+  }
+  
+  .hover-lift {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  .hover-lift:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+  }
+  
+  .organic-border {
+    border-radius: 1.5rem 0.5rem 1.5rem 0.5rem;
+  }
+}
