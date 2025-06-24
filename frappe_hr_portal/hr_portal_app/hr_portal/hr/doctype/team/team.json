@@ -1,0 +1,115 @@
+{
+  "doctype": "DocType",
+  "name": "Team",
+  "module": "HR",
+  "creation": "2025-06-13 14:43:50.163588",
+  "modified": "2025-06-13 14:43:50.163588",
+  "modified_by": "Administrator",
+  "owner": "Administrator",
+  "engine": "InnoDB",
+  "row_format": "Dynamic",
+  "allow_rename": 1,
+  "index_web_pages_for_search": 1,
+  "sort_field": "modified",
+  "sort_order": "DESC",
+  "autoname": "field:team_name",
+
+  "field_order": [
+    "section_break_team_details",
+    "team_name",
+    "department",
+    "column_break_1",
+    "team_leader",
+    "active",
+    "section_break_description",
+    "description"
+  ],
+
+  "fields": [
+    {
+      "fieldname": "section_break_team_details",
+      "label": "Team Details",
+      "fieldtype": "Section Break"
+    },
+    {
+      "fieldname": "team_name",
+      "label": "Team Name",
+      "fieldtype": "Data",
+      "reqd": 1,
+      "unique": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "department",
+      "label": "Department",
+      "fieldtype": "Link",
+      "options": "Department",
+      "reqd": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "column_break_1",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "team_leader",
+      "label": "Team Leader",
+      "fieldtype": "Link",
+      "options": "Employee",
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "active",
+      "label": "Active",
+      "fieldtype": "Check",
+      "default": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "section_break_description",
+      "label": "Additional Information",
+      "fieldtype": "Section Break"
+    },
+    {
+      "fieldname": "description",
+      "label": "Description",
+      "fieldtype": "Small Text"
+    }
+  ],
+
+  "permissions": [
+    {
+      "role": "System Manager",
+      "read": 1,
+      "write": 1,
+      "create": 1,
+      "delete": 1,
+      "email": 1,
+      "print": 1,
+      "export": 1,
+      "report": 1,
+      "share": 1
+    },
+    {
+      "role": "HR Manager",
+      "read": 1,
+      "write": 1,
+      "create": 1,
+      "delete": 1,
+      "email": 1,
+      "print": 1,
+      "report": 1
+    },
+    {
+      "role": "HR User",
+      "read": 1,
+      "create": 1,
+      "write": 1,
+      "delete": 0
+    }
+  ],
+
+  "actions": [],
+  "links": [],
+  "states": []
+} 

@@ -1,0 +1,1083 @@
+here is business central login details
+
+ https://login.microsoftonline.com/70fb81b7-1888-4a4b-82f3-37db79b32274/oauth2/v2.0/token
+
+ client_id 59f30e3b-8841-47b6-b602-8312ca9be7b4
+ client_secret REDACTED_CLIENT_SECRET
+ grant_type client_credentials
+ scope https://api.businesscentral.dynamics.com/.default
+
+ for getting emloyee data from BC 
+
+ https://api.businesscentral.dynamics.com/v2.0/70fb81b7-1888-4a4b-82f3-37db79b32274/Sandbox/ODataV4/Company('CRONUS%20HR')/Employees
+
+ AUthorization use Barear Token which is generated from above login details
+
+
+
+ sampple data 
+
+ {
+    "@odata.context": "https://api.businesscentral.dynamics.com/v2.0/70fb81b7-1888-4a4b-82f3-37db79b32274/Sandbox/ODataV4/$metadata#Company('CRONUS%20HR')/Employees",
+    "value": [
+        {
+            "@odata.etag": "W/\"JzE5OzI0NTA4MTM5ODMzODEzNTA1MTcxOzAwOyc=\"",
+            "No": "EMP01",
+            "FullName": "Guru A A",
+            "First_Name": "Guru",
+            "Middle_Name": "A",
+            "Last_Name": "A",
+            "ITDEmployment_Date": "2019-01-01",
+            "ITDLast_Pay_Period": "2025-01",
+            "ITDNext_Pay_Period": "2025-01",
+            "Initials": "",
+            "Job_Title": "",
+            "Post_Code": "",
+            "Country_Region_Code": "",
+            "Phone_No": "",
+            "Extension": "",
+            "Mobile_Phone_No": "",
+            "E_Mail": "",
+            "Statistics_Group_Code": "",
+            "Resource_No": "",
+            "Privacy_Blocked": false,
+            "Search_Name": "GURU",
+            "Balance_LCY": 0,
+            "Comment": false,
+            "Global_Dimension_1_Filter": "",
+            "Global_Dimension_2_Filter": "",
+            "Date_Filter": "",
+            "Currency_Filter": ""
+        },
+        {
+            "@odata.etag": "W/\"JzE5OzU3MDkwNzUyOTU4MjI0ODE1MTQxOzAwOyc=\"",
+            "No": "EMP02",
+            "FullName": "Jnanesh A B",
+            "First_Name": "Jnanesh",
+            "Middle_Name": "A",
+            "Last_Name": "B",
+            "ITDEmployment_Date": "2025-01-01",
+            "ITDLast_Pay_Period": "2025-01",
+            "ITDNext_Pay_Period": "2025-01",
+            "Initials": "",
+            "Job_Title": "",
+            "Post_Code": "",
+            "Country_Region_Code": "",
+            "Phone_No": "",
+            "Extension": "",
+            "Mobile_Phone_No": "",
+            "E_Mail": "",
+            "Statistics_Group_Code": "",
+            "Resource_No": "",
+            "Privacy_Blocked": false,
+            "Search_Name": "JNANESH",
+            "Balance_LCY": 0,
+            "Comment": false,
+            "Global_Dimension_1_Filter": "",
+            "Global_Dimension_2_Filter": "",
+            "Date_Filter": "",
+            "Currency_Filter": ""
+        },
+        {
+            "@odata.etag": "W/\"JzE5OzY3MDM4MDc3MjQ3MTc2NjY4NDcxOzAwOyc=\"",
+            "No": "EMP03",
+            "FullName": "Chandan A C",
+            "First_Name": "Chandan",
+            "Middle_Name": "A",
+            "Last_Name": "C",
+            "ITDEmployment_Date": "2025-01-01",
+            "ITDLast_Pay_Period": "2025-01",
+            "ITDNext_Pay_Period": "2025-01",
+            "Initials": "",
+            "Job_Title": "",
+            "Post_Code": "",
+            "Country_Region_Code": "",
+            "Phone_No": "",
+            "Extension": "",
+            "Mobile_Phone_No": "",
+            "E_Mail": "",
+            "Statistics_Group_Code": "",
+            "Resource_No": "",
+            "Privacy_Blocked": false,
+            "Search_Name": "CHANDAN",
+            "Balance_LCY": 0,
+            "Comment": false,
+            "Global_Dimension_1_Filter": "",
+            "Global_Dimension_2_Filter": "",
+            "Date_Filter": "",
+            "Currency_Filter": ""
+        },
+        {
+            "@odata.etag": "W/\"JzE5OzU5ODQwMzEyODE5OTkxMTYxMzUxOzAwOyc=\"",
+            "No": "EMP04",
+            "FullName": "Mohan A A",
+            "First_Name": "Mohan",
+            "Middle_Name": "A",
+            "Last_Name": "A",
+            "ITDEmployment_Date": "2025-01-01",
+            "ITDLast_Pay_Period": "2025-01",
+            "ITDNext_Pay_Period": "2025-01",
+            "Initials": "",
+            "Job_Title": "",
+            "Post_Code": "",
+            "Country_Region_Code": "",
+            "Phone_No": "",
+            "Extension": "",
+            "Mobile_Phone_No": "",
+            "E_Mail": "",
+            "Statistics_Group_Code": "",
+            "Resource_No": "",
+            "Privacy_Blocked": false,
+            "Search_Name": "MOHAN",
+            "Balance_LCY": 0,
+            "Comment": false,
+            "Global_Dimension_1_Filter": "",
+            "Global_Dimension_2_Filter": "",
+            "Date_Filter": "",
+            "Currency_Filter": ""
+        },
+        {
+            "@odata.etag": "W/\"JzE5OzgyMzMyNjQwMDcwNzc5NTgyOTAxOzAwOyc=\"",
+            "No": "EMP05",
+            "FullName": "Aakash A B",
+            "First_Name": "Aakash",
+            "Middle_Name": "A",
+            "Last_Name": "B",
+            "ITDEmployment_Date": "2025-01-01",
+            "ITDLast_Pay_Period": "2025-01",
+            "ITDNext_Pay_Period": "2025-01",
+            "Initials": "",
+            "Job_Title": "",
+            "Post_Code": "",
+            "Country_Region_Code": "",
+            "Phone_No": "",
+            "Extension": "",
+            "Mobile_Phone_No": "",
+            "E_Mail": "",
+            "Statistics_Group_Code": "",
+            "Resource_No": "",
+            "Privacy_Blocked": false,
+            "Search_Name": "AAKASH",
+            "Balance_LCY": 0,
+            "Comment": false,
+            "Global_Dimension_1_Filter": "",
+            "Global_Dimension_2_Filter": "",
+            "Date_Filter": "",
+            "Currency_Filter": ""
+        },
+        {
+            "@odata.etag": "W/\"JzIwOzE2MjY3NjU3NTcwMjc4MjM3NzQ5MTswMDsn\"",
+            "No": "EMP06",
+            "FullName": "Anupriya A C",
+            "First_Name": "Anupriya",
+            "Middle_Name": "A",
+            "Last_Name": "C",
+            "ITDEmployment_Date": "2025-01-01",
+            "ITDLast_Pay_Period": "2025-01",
+            "ITDNext_Pay_Period": "2025-01",
+            "Initials": "",
+            "Job_Title": "",
+            "Post_Code": "",
+            "Country_Region_Code": "",
+            "Phone_No": "",
+            "Extension": "",
+            "Mobile_Phone_No": "",
+            "E_Mail": "",
+            "Statistics_Group_Code": "",
+            "Resource_No": "",
+            "Privacy_Blocked": false,
+            "Search_Name": "ANUPRIYA",
+            "Balance_LCY": 0,
+            "Comment": false,
+            "Global_Dimension_1_Filter": "",
+            "Global_Dimension_2_Filter": "",
+            "Date_Filter": "",
+            "Currency_Filter": ""
+        },
+        {
+            "@odata.etag": "W/\"JzIwOzEyNjAxNDAxNzY2MjYwNDcxNzk4MTswMDsn\"",
+            "No": "EMP07",
+            "FullName": "Padmini A A",
+            "First_Name": "Padmini",
+            "Middle_Name": "A",
+            "Last_Name": "A",
+            "ITDEmployment_Date": "2025-01-01",
+            "ITDLast_Pay_Period": "2025-01",
+            "ITDNext_Pay_Period": "2025-01",
+            "Initials": "",
+            "Job_Title": "",
+            "Post_Code": "",
+            "Country_Region_Code": "",
+            "Phone_No": "",
+            "Extension": "",
+            "Mobile_Phone_No": "",
+            "E_Mail": "",
+            "Statistics_Group_Code": "",
+            "Resource_No": "",
+            "Privacy_Blocked": false,
+            "Search_Name": "PADMINI",
+            "Balance_LCY": 0,
+            "Comment": false,
+            "Global_Dimension_1_Filter": "",
+            "Global_Dimension_2_Filter": "",
+            "Date_Filter": "",
+            "Currency_Filter": ""
+        },
+        {
+            "@odata.etag": "W/\"JzIwOzExODQ1MTc5NDk2NjQ3MjAzODMzMTswMDsn\"",
+            "No": "EMP08",
+            "FullName": "Arun A B",
+            "First_Name": "Arun",
+            "Middle_Name": "A",
+            "Last_Name": "B",
+            "ITDEmployment_Date": "2025-01-01",
+            "ITDLast_Pay_Period": "2025-01",
+            "ITDNext_Pay_Period": "2025-01",
+            "Initials": "",
+            "Job_Title": "",
+            "Post_Code": "",
+            "Country_Region_Code": "",
+            "Phone_No": "",
+            "Extension": "",
+            "Mobile_Phone_No": "",
+            "E_Mail": "",
+            "Statistics_Group_Code": "",
+            "Resource_No": "",
+            "Privacy_Blocked": false,
+            "Search_Name": "ARUN",
+            "Balance_LCY": 0,
+            "Comment": false,
+            "Global_Dimension_1_Filter": "",
+            "Global_Dimension_2_Filter": "",
+            "Date_Filter": "",
+            "Currency_Filter": ""
+        },
+        {
+            "@odata.etag": "W/\"JzE5OzM1Mzk4NjExMzA1MDQ4Mjc0NTIxOzAwOyc=\"",
+            "No": "EMP09",
+            "FullName": "Kiran A C",
+            "First_Name": "Kiran",
+            "Middle_Name": "A",
+            "Last_Name": "C",
+            "ITDEmployment_Date": "2025-01-01",
+            "ITDLast_Pay_Period": "2025-01",
+            "ITDNext_Pay_Period": "2025-01",
+            "Initials": "",
+            "Job_Title": "",
+            "Post_Code": "",
+            "Country_Region_Code": "",
+            "Phone_No": "",
+            "Extension": "",
+            "Mobile_Phone_No": "",
+            "E_Mail": "",
+            "Statistics_Group_Code": "",
+            "Resource_No": "",
+            "Privacy_Blocked": false,
+            "Search_Name": "KIRAN",
+            "Balance_LCY": 0,
+            "Comment": false,
+            "Global_Dimension_1_Filter": "",
+            "Global_Dimension_2_Filter": "",
+            "Date_Filter": "",
+            "Currency_Filter": ""
+        },
+        {
+            "@odata.etag": "W/\"JzE5OzgwMTE4NDM1MzUzNDA1MzA5OTQxOzAwOyc=\"",
+            "No": "EMP10",
+            "FullName": "Ritesh A A",
+            "First_Name": "Ritesh",
+            "Middle_Name": "A",
+            "Last_Name": "A",
+            "ITDEmployment_Date": "2025-01-01",
+            "ITDLast_Pay_Period": "2025-01",
+            "ITDNext_Pay_Period": "2025-01",
+            "Initials": "",
+            "Job_Title": "",
+            "Post_Code": "",
+            "Country_Region_Code": "",
+            "Phone_No": "",
+            "Extension": "",
+            "Mobile_Phone_No": "",
+            "E_Mail": "",
+            "Statistics_Group_Code": "",
+            "Resource_No": "",
+            "Privacy_Blocked": false,
+            "Search_Name": "RITESH",
+            "Balance_LCY": 0,
+            "Comment": false,
+            "Global_Dimension_1_Filter": "",
+            "Global_Dimension_2_Filter": "",
+            "Date_Filter": "",
+            "Currency_Filter": ""
+        },
+        {
+            "@odata.etag": "W/\"JzE5OzM5OTg5ODEwOTg5ODMwMTQxODAxOzAwOyc=\"",
+            "No": "EMP11",
+            "FullName": "Ramesh g g",
+            "First_Name": "Ramesh",
+            "Middle_Name": "g",
+            "Last_Name": "g",
+            "ITDEmployment_Date": "0001-01-01",
+            "ITDLast_Pay_Period": "",
+            "ITDNext_Pay_Period": "",
+            "Initials": "",
+            "Job_Title": "",
+            "Post_Code": "656434",
+            "Country_Region_Code": "",
+            "Phone_No": "86765643",
+            "Extension": "",
+            "Mobile_Phone_No": "",
+            "E_Mail": "",
+            "Statistics_Group_Code": "",
+            "Resource_No": "",
+            "Privacy_Blocked": false,
+            "Search_Name": "",
+            "Balance_LCY": 0,
+            "Comment": false,
+            "Global_Dimension_1_Filter": "",
+            "Global_Dimension_2_Filter": "",
+            "Date_Filter": "",
+            "Currency_Filter": ""
+        },
+        {
+            "@odata.etag": "W/\"JzE5OzUyNDE5NzYyNDEwNTg4MDg2NjcxOzAwOyc=\"",
+            "No": "EMP12",
+            "FullName": "Sachin m m",
+            "First_Name": "Sachin",
+            "Middle_Name": "m",
+            "Last_Name": "m",
+            "ITDEmployment_Date": "0001-01-01",
+            "ITDLast_Pay_Period": "",
+            "ITDNext_Pay_Period": "",
+            "Initials": "",
+            "Job_Title": "",
+            "Post_Code": "6543",
+            "Country_Region_Code": "",
+            "Phone_No": "87567453",
+            "Extension": "",
+            "Mobile_Phone_No": "",
+            "E_Mail": "",
+            "Statistics_Group_Code": "",
+            "Resource_No": "",
+            "Privacy_Blocked": false,
+            "Search_Name": "",
+            "Balance_LCY": 0,
+            "Comment": false,
+            "Global_Dimension_1_Filter": "",
+            "Global_Dimension_2_Filter": "",
+            "Date_Filter": "",
+            "Currency_Filter": ""
+        },
+        {
+            "@odata.etag": "W/\"JzE5OzMxNzk1MTM1NTg1MTk1NzYzMzkxOzAwOyc=\"",
+            "No": "EMP13",
+            "FullName": "Sahil c g",
+            "First_Name": "Sahil",
+            "Middle_Name": "c",
+            "Last_Name": "g",
+            "ITDEmployment_Date": "0001-01-01",
+            "ITDLast_Pay_Period": "",
+            "ITDNext_Pay_Period": "",
+            "Initials": "",
+            "Job_Title": "",
+            "Post_Code": "235235",
+            "Country_Region_Code": "",
+            "Phone_No": "756435432",
+            "Extension": "",
+            "Mobile_Phone_No": "",
+            "E_Mail": "",
+            "Statistics_Group_Code": "",
+            "Resource_No": "",
+            "Privacy_Blocked": false,
+            "Search_Name": "",
+            "Balance_LCY": 0,
+            "Comment": false,
+            "Global_Dimension_1_Filter": "",
+            "Global_Dimension_2_Filter": "",
+            "Date_Filter": "",
+            "Currency_Filter": ""
+        },
+        {
+            "@odata.etag": "W/\"JzIwOzEyNzM4NTgxMDMxODUwMTg3NjQzMTswMDsn\"",
+            "No": "EMP14",
+            "FullName": "suresh m m",
+            "First_Name": "suresh",
+            "Middle_Name": "m",
+            "Last_Name": "m",
+            "ITDEmployment_Date": "0001-01-01",
+            "ITDLast_Pay_Period": "",
+            "ITDNext_Pay_Period": "",
+            "Initials": "",
+            "Job_Title": "",
+            "Post_Code": "345325",
+            "Country_Region_Code": "",
+            "Phone_No": "6346366346",
+            "Extension": "",
+            "Mobile_Phone_No": "",
+            "E_Mail": "",
+            "Statistics_Group_Code": "",
+            "Resource_No": "",
+            "Privacy_Blocked": false,
+            "Search_Name": "",
+            "Balance_LCY": 0,
+            "Comment": false,
+            "Global_Dimension_1_Filter": "",
+            "Global_Dimension_2_Filter": "",
+            "Date_Filter": "",
+            "Currency_Filter": ""
+        },
+        {
+            "@odata.etag": "W/\"JzIwOzEzMDUxMTg2MjIyMjA3MDA4NzExMTswMDsn\"",
+            "No": "EMP15",
+            "FullName": "Kiran g g",
+            "First_Name": "Kiran",
+            "Middle_Name": "g",
+            "Last_Name": "g",
+            "ITDEmployment_Date": "0001-01-01",
+            "ITDLast_Pay_Period": "",
+            "ITDNext_Pay_Period": "",
+            "Initials": "",
+            "Job_Title": "",
+            "Post_Code": "54324",
+            "Country_Region_Code": "",
+            "Phone_No": "756543543",
+            "Extension": "",
+            "Mobile_Phone_No": "",
+            "E_Mail": "",
+            "Statistics_Group_Code": "",
+            "Resource_No": "",
+            "Privacy_Blocked": false,
+            "Search_Name": "",
+            "Balance_LCY": 0,
+            "Comment": false,
+            "Global_Dimension_1_Filter": "",
+            "Global_Dimension_2_Filter": "",
+            "Date_Filter": "",
+            "Currency_Filter": ""
+        },
+        {
+            "@odata.etag": "W/\"JzIwOzE3MDI4ODY1NDI3ODkxMjc3NzQ1MTswMDsn\"",
+            "No": "EMP16",
+            "FullName": "Arun s v",
+            "First_Name": "Arun",
+            "Middle_Name": "s",
+            "Last_Name": "v",
+            "ITDEmployment_Date": "0001-01-01",
+            "ITDLast_Pay_Period": "",
+            "ITDNext_Pay_Period": "",
+            "Initials": "",
+            "Job_Title": "",
+            "Post_Code": "543432",
+            "Country_Region_Code": "",
+            "Phone_No": "876676464",
+            "Extension": "",
+            "Mobile_Phone_No": "",
+            "E_Mail": "",
+            "Statistics_Group_Code": "",
+            "Resource_No": "",
+            "Privacy_Blocked": false,
+            "Search_Name": "",
+            "Balance_LCY": 0,
+            "Comment": false,
+            "Global_Dimension_1_Filter": "",
+            "Global_Dimension_2_Filter": "",
+            "Date_Filter": "",
+            "Currency_Filter": ""
+        },
+        {
+            "@odata.etag": "W/\"JzE5OzI5MjE1MDk2ODcyNTA0NjEzOTUxOzAwOyc=\"",
+            "No": "EMP17",
+            "FullName": "Manoj d g",
+            "First_Name": "Manoj",
+            "Middle_Name": "d",
+            "Last_Name": "g",
+            "ITDEmployment_Date": "0001-01-01",
+            "ITDLast_Pay_Period": "",
+            "ITDNext_Pay_Period": "",
+            "Initials": "",
+            "Job_Title": "",
+            "Post_Code": "64643",
+            "Country_Region_Code": "",
+            "Phone_No": "6543526564656",
+            "Extension": "",
+            "Mobile_Phone_No": "",
+            "E_Mail": "",
+            "Statistics_Group_Code": "",
+            "Resource_No": "",
+            "Privacy_Blocked": false,
+            "Search_Name": "",
+            "Balance_LCY": 0,
+            "Comment": false,
+            "Global_Dimension_1_Filter": "",
+            "Global_Dimension_2_Filter": "",
+            "Date_Filter": "",
+            "Currency_Filter": ""
+        },
+        {
+            "@odata.etag": "W/\"JzE5OzM0MDc1NTAxNjE5NDIzMjA4MjMxOzAwOyc=\"",
+            "No": "EMP18",
+            "FullName": "Prashanth j j",
+            "First_Name": "Prashanth",
+            "Middle_Name": "j",
+            "Last_Name": "j",
+            "ITDEmployment_Date": "0001-01-01",
+            "ITDLast_Pay_Period": "",
+            "ITDNext_Pay_Period": "",
+            "Initials": "",
+            "Job_Title": "",
+            "Post_Code": "JVHC",
+            "Country_Region_Code": "",
+            "Phone_No": "867546",
+            "Extension": "",
+            "Mobile_Phone_No": "",
+            "E_Mail": "",
+            "Statistics_Group_Code": "",
+            "Resource_No": "",
+            "Privacy_Blocked": false,
+            "Search_Name": "",
+            "Balance_LCY": 0,
+            "Comment": false,
+            "Global_Dimension_1_Filter": "",
+            "Global_Dimension_2_Filter": "",
+            "Date_Filter": "",
+            "Currency_Filter": ""
+        },
+        {
+            "@odata.etag": "W/\"JzE4OzcxNDM3MTI1NDQ3MTkyNDkzNTE7MDA7Jw==\"",
+            "No": "EMP19",
+            "FullName": "Dheresh s v",
+            "First_Name": "Dheresh",
+            "Middle_Name": "s",
+            "Last_Name": "v",
+            "ITDEmployment_Date": "0001-01-01",
+            "ITDLast_Pay_Period": "",
+            "ITDNext_Pay_Period": "",
+            "Initials": "",
+            "Job_Title": "",
+            "Post_Code": "5324",
+            "Country_Region_Code": "",
+            "Phone_No": "8766743",
+            "Extension": "",
+            "Mobile_Phone_No": "",
+            "E_Mail": "",
+            "Statistics_Group_Code": "",
+            "Resource_No": "",
+            "Privacy_Blocked": false,
+            "Search_Name": "",
+            "Balance_LCY": 0,
+            "Comment": false,
+            "Global_Dimension_1_Filter": "",
+            "Global_Dimension_2_Filter": "",
+            "Date_Filter": "",
+            "Currency_Filter": ""
+        }
+    ]
+}
+
+
+and to sync to up with frappe on this docytype Employee-5200
+
+
+and use token Authorization token as token 8206c949960b40f:890c60a2337ab2e
+
+
+Authentication 
+There are two ways to authenticate through Frappe REST API. Token based authentication and password based authentication.
+
+1. Token Based Authentication 
+A token is a pair of API Key and API Secret. To generate these tokens follow these steps:
+
+Go to User list and open a user.
+Click on the "Settings" tab. (skip this step if you don't see tabs)
+Expand the API Access section and click on Generate Keys.
+You will get a popup with the API Secret. Copy this value and keep it somewhere safe (Password Manager).
+You will also see another field "API Key" in this section.
+The token is generated by concatenating api_key and api_secret with a colon :. Pass the string token api_key:api_secret to the Authorization header in the request.
+
+fetch('http://<base-url>/api/method/frappe.auth.get_logged_user', {
+    headers: {
+        'Authorization': 'token api_key:api_secret'
+    }
+})
+.then(r => r.json())
+.then(r => {
+    console.log(r);
+})
+
+
+
+
+Create 
+Create a new document by sending a POST request to /api/resource/:doctype. Send the document as JSON in the Request Body.
+
+POST /api/resource/:doctype
+
+# Body
+{"description": "New ToDo"}
+
+Response
+
+{
+  "data": {
+    "name": "af2e2d0e33",
+    "owner": "Administrator",
+    "creation": "2019-06-03 14:19:00.281026",
+    "modified": "2019-06-03 14:19:00.281026",
+    "modified_by": "Administrator",
+    "idx": 0,
+    "docstatus": 0,
+    "status": "Open",
+    "priority": "Medium",
+    "description": "New ToDo",
+    "doctype": "ToDo"
+  }
+}
+
+Read 
+Get a document by sending a GET request to /api/resource/:doctype/:name.
+
+GET /api/resource/:doctype/:name
+
+Response
+
+{
+  "data": {
+    "name": "bf2e760e13",
+    "owner": "Administrator",
+    "creation": "2019-06-03 14:19:00.281026",
+    "modified": "2019-06-03 14:19:00.281026",
+    "modified_by": "Administrator",
+    "idx": 0,
+    "docstatus": 0,
+    "status": "Open",
+    "priority": "Medium",
+    "description": "<p>Test description</p>",
+    "doctype": "ToDo"
+  }
+}
+
+Update 
+Update a document by sending a PUT request to /api/resource/:doctype/:name. You don't need to send the whole document, instead you can just send the fields that you want to update.
+
+PUT /api/resource/:doctype/:name
+
+# Body
+{"description": "New description"}
+
+Response
+
+{
+  "data": {
+    "name": "bf2e760e13",
+    "owner": "Administrator",
+    "creation": "2019-06-03 14:19:00.281026",
+    "modified": "2019-06-03 14:21:00.785117",
+    "modified_by": "Administrator",
+    "idx": 0,
+    "docstatus": 0,
+    "status": "Open",
+    "priority": "Medium",
+    "description": "New description",
+    "doctype": "ToDo"
+  }
+}
+
+and here is json of doctype Employee-5200
+
+{
+ "doctype": "DocType",
+ "name": "Employee - 5200",
+ "module": "HR",
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "fields": [
+  {
+   "fieldname": "basic_details_tab",
+   "fieldtype": "Tab Break",
+   "label": "Basic Details"
+  },
+  {
+   "fieldname": "basic_section",
+   "fieldtype": "Section Break",
+   "label": "basic_details_section"
+  },
+  {
+   "fieldname": "No",
+   "fieldtype": "Data",
+   "label": "Employee ID",
+   "reqd": 1,
+   "unique": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "FullName",
+   "fieldtype": "Data",
+   "label": "Full Name",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "First_Name",
+   "fieldtype": "Data",
+   "label": "First Name"
+  },
+  {
+   "fieldname": "Middle_Name",
+   "fieldtype": "Data",
+   "label": "Middle Name"
+  },
+  {
+   "fieldname": "Last_Name",
+   "fieldtype": "Data",
+   "label": "Last Name"
+  },
+  {
+   "fieldname": "Initials",
+   "fieldtype": "Data",
+   "label": "Initials"
+  },
+  {
+   "fieldname": "Job_Title",
+   "fieldtype": "Data",
+   "label": "Job Title"
+  },
+  {
+   "fieldname": "E_Mail",
+   "fieldtype": "Data",
+   "label": "Email Address",
+   "options": "Email"
+  },
+  {
+   "fieldname": "Mobile_Phone_No",
+   "fieldtype": "Data",
+   "label": "Mobile Number"
+  },
+  {
+   "fieldname": "Phone_No",
+   "fieldtype": "Data",
+   "label": "Phone No (Office)"
+  },
+  {
+   "fieldname": "Extension",
+   "fieldtype": "Data",
+   "label": "Extension"
+  },
+  {
+   "fieldname": "Post_Code",
+   "fieldtype": "Data",
+   "label": "Post Code"
+  },
+  {
+   "fieldname": "Country_Region_Code",
+   "fieldtype": "Data",
+   "label": "Country Code"
+  },
+  {
+   "fieldname": "Search_Name",
+   "fieldtype": "Data",
+   "label": "Search Name"
+  },
+  {
+   "fieldname": "employment_info_tab",
+   "fieldtype": "Tab Break",
+   "label": "Employment Info"
+  },
+  {
+   "fieldname": "employment_section",
+   "fieldtype": "Section Break",
+   "label": "employment_info_section"
+  },
+  {
+   "fieldname": "Department_ID",
+   "fieldtype": "Link",
+   "label": "Department",
+   "options": "Department"
+  },
+  {
+   "fieldname": "Position_ID",
+   "fieldtype": "Link",
+   "label": "Position",
+   "options": "Position"
+  },
+  {
+   "fieldname": "Grade_Code_ID",
+   "fieldtype": "Link",
+   "label": "Grade Code",
+   "options": "Grade Code"
+  },
+  {
+   "fieldname": "Pay_Period_ID",
+   "fieldtype": "Link",
+   "label": "Pay Period",
+   "options": "Pay Period"
+  },
+  {
+   "fieldname": "Reporting_Manager_ID",
+   "fieldtype": "Link",
+   "label": "Reporting Manager",
+   "options": "Employee"
+  },
+  {
+   "fieldname": "Site_Supervisor_No",
+   "fieldtype": "Link",
+   "label": "Site Supervisor",
+   "options": "Employee"
+  },
+  {
+   "fieldname": "ITDEmployment_Date",
+   "fieldtype": "Date",
+   "label": "Date of Joining"
+  },
+  {
+   "fieldname": "ITDLast_Pay_Period",
+   "fieldtype": "Data",
+   "label": "Last Pay Period"
+  },
+  {
+   "fieldname": "ITDNext_Pay_Period",
+   "fieldtype": "Data",
+   "label": "Next Pay Period"
+  },
+  {
+   "fieldname": "employment_type",
+   "fieldtype": "Select",
+   "label": "Employee Type",
+   "options": "Full-time\nPart-time\nIntern\nContract"
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Employee Status",
+   "options": "Active\nInactive\nOn Leave\nResigned"
+  },
+  {
+   "fieldname": "personal_details_tab",
+   "fieldtype": "Tab Break",
+   "label": "Personal Details"
+  },
+  {
+   "fieldname": "personal_section",
+   "fieldtype": "Section Break",
+   "label": "personal_info_section"
+  },
+  {
+   "fieldname": "date_of_birth",
+   "fieldtype": "Date",
+   "label": "Date of Birth"
+  },
+  {
+   "fieldname": "national_id",
+   "fieldtype": "Data",
+   "label": "National ID"
+  },
+  {
+   "fieldname": "pan_number",
+   "fieldtype": "Data",
+   "label": "PAN Number"
+  },
+  {
+   "fieldname": "passport_number",
+   "fieldtype": "Data",
+   "label": "Passport Number"
+  },
+  {
+   "fieldname": "emergency_contact",
+   "fieldtype": "Data",
+   "label": "Emergency Contact Name"
+  },
+  {
+   "fieldname": "emergency_phone",
+   "fieldtype": "Data",
+   "label": "Emergency Contact No"
+  },
+  {
+   "fieldname": "marital_status",
+   "fieldtype": "Select",
+   "label": "Marital Status",
+   "options": "Single\nMarried\nOther"
+  },
+  {
+   "fieldname": "address_tab",
+   "fieldtype": "Tab Break",
+   "label": "Address"
+  },
+  {
+   "fieldname": "address_section",
+   "fieldtype": "Section Break",
+   "label": "address_section"
+  },
+  {
+   "fieldname": "current_address",
+   "fieldtype": "Small Text",
+   "label": "Current Address"
+  },
+  {
+   "fieldname": "permanent_address",
+   "fieldtype": "Small Text",
+   "label": "Permanent Address"
+  },
+  {
+   "fieldname": "legal_tab",
+   "fieldtype": "Tab Break",
+   "label": "Legal/Compliance"
+  },
+  {
+   "fieldname": "legal_section",
+   "fieldtype": "Section Break",
+   "label": "legal_section"
+  },
+  {
+   "fieldname": "Privacy_Blocked",
+   "fieldtype": "Check",
+   "label": "Privacy Blocked"
+  },
+  {
+   "fieldname": "Comment",
+   "fieldtype": "Check",
+   "label": "Comments Exist"
+  },
+  {
+   "fieldname": "Balance_LCY",
+   "fieldtype": "Currency",
+   "label": "Balance LCY"
+  },
+  {
+   "fieldname": "integration_tab",
+   "fieldtype": "Tab Break",
+   "label": "Sync & Integration"
+  },
+  {
+   "fieldname": "integration_section",
+   "fieldtype": "Section Break",
+   "label": "integration_section"
+  },
+  {
+   "fieldname": "bc_employee_id",
+   "fieldtype": "Data",
+   "label": "Business Central ID"
+  },
+  {
+   "fieldname": "last_bc_sync",
+   "fieldtype": "Datetime",
+   "label": "Last Synced At"
+  },
+  {
+   "fieldname": "bc_sync_status",
+   "fieldtype": "Select",
+   "label": "Sync Status",
+   "options": "Synced\nPending\nFailed"
+  },
+  {
+   "fieldname": "odata_etag",
+   "fieldtype": "Data",
+   "label": "OData ETag"
+  },
+  {
+   "fieldname": "documents_tab",
+   "fieldtype": "Tab Break",
+   "label": "Documents"
+  },
+  {
+   "fieldname": "documents_section",
+   "fieldtype": "Section Break",
+   "label": "documents_section"
+  },
+  {
+   "fieldname": "employee_documents",
+   "fieldtype": "Table",
+   "label": "Documents",
+   "options": "Employee Document"
+  }
+ ],
+ "field_order": [
+  "basic_details_tab",
+  "basic_section",
+  "No",
+  "FullName",
+  "First_Name",
+  "Middle_Name",
+  "Last_Name",
+  "Initials",
+  "Job_Title",
+  "E_Mail",
+  "Mobile_Phone_No",
+  "Phone_No",
+  "Extension",
+  "Post_Code",
+  "Country_Region_Code",
+  "Search_Name",
+  "employment_info_tab",
+  "employment_section",
+  "Department_ID",
+  "Position_ID",
+  "Grade_Code_ID",
+  "Pay_Period_ID",
+  "Reporting_Manager_ID",
+  "Site_Supervisor_No",
+  "ITDEmployment_Date",
+  "ITDLast_Pay_Period",
+  "ITDNext_Pay_Period",
+  "employment_type",
+  "status",
+  "personal_details_tab",
+  "personal_section",
+  "date_of_birth",
+  "national_id",
+  "pan_number",
+  "passport_number",
+  "emergency_contact",
+  "emergency_phone",
+  "marital_status",
+  "address_tab",
+  "address_section",
+  "current_address",
+  "permanent_address",
+  "legal_tab",
+  "legal_section",
+  "Privacy_Blocked",
+  "Comment",
+  "Balance_LCY",
+  "integration_tab",
+  "integration_section",
+  "bc_employee_id",
+  "last_bc_sync",
+  "bc_sync_status",
+  "odata_etag",
+  "documents_tab",
+  "documents_section",
+  "employee_documents"
+ ],
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR User Manager",
+   "select": 1,
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Hr User",
+   "share": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "index_web_pages_for_search": 1,
+ "grid_page_length": 50,
+ "actions": [],
+ "allow_rename": 1,
+ "engine": "InnoDB",
+ "links": [],
+ "states": []
+}

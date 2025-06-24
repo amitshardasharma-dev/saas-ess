@@ -1,0 +1,67 @@
+{
+ "charts": [
+  {
+   "chart_name": "Leave Type",
+   "label": "Leave Summary"
+  },
+  {
+   "chart_name": "ltdc chart",
+   "label": "Leave"
+  }
+ ],
+ "content": "[{\"id\":\"9BsZKEZemF\",\"type\":\"custom_block\",\"data\":{\"custom_block_name\":\"Leave Management HTML Block\",\"col\":12}},{\"id\":\"brMFp0Yvko\",\"type\":\"paragraph\",\"data\":{\"text\":\"<b>Your Shortcuts</b>\",\"col\":12}},{\"id\":\"mpbmNHGlqJ\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Leave Applications\",\"col\":3}},{\"id\":\"LPPoSOrln1\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"New Leave Applicaton\",\"col\":3}},{\"id\":\"AnxaH_6G0R\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"3Ns2oUQeLP\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Leave Summary\",\"col\":12}},{\"id\":\"RpMw0rTjpb\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"VuTTee2kAV\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Leave\",\"col\":12}},{\"id\":\"ZwiI-b3TwX\",\"type\":\"quick_list\",\"data\":{\"quick_list_name\":\"Recent Leave Applications\",\"col\":12}}]",
+ "creation": "2025-05-29 22:29:10.715231",
+ "custom_blocks": [
+  {
+   "custom_block_name": "Leave Management HTML Block",
+   "label": "Leave Management HTML Block"
+  }
+ ],
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "for_user": "",
+ "hide_custom": 0,
+ "icon": "share",
+ "idx": 0,
+ "indicator_color": "",
+ "is_hidden": 0,
+ "label": "Leave Management",
+ "links": [],
+ "modified": "2025-06-03 06:17:24.541750",
+ "modified_by": "Administrator",
+ "module": "HR",
+ "name": "Leave Management",
+ "number_cards": [],
+ "owner": "Administrator",
+ "parent_page": "",
+ "public": 1,
+ "quick_lists": [
+  {
+   "document_type": "Leave Application",
+   "label": "Recent Leave Applications",
+   "quick_list_filter": "[]"
+  }
+ ],
+ "restrict_to_domain": "",
+ "roles": [],
+ "sequence_id": 17.1,
+ "shortcuts": [
+  {
+   "color": "Grey",
+   "doc_view": "New",
+   "label": "New Leave Applicaton",
+   "link_to": "Leave Application",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Leave Applications",
+   "link_to": "Leave Application",
+   "stats_filter": "[]",
+   "type": "DocType"
+  }
+ ],
+ "title": "Leave Management"
+}

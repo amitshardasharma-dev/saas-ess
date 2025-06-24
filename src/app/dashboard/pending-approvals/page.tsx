@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
+import { useEmployee } from '@/hooks/use-employee'
 import { 
 	Clock, 
 	CheckCircle, 
@@ -21,9 +22,10 @@ import {
 	FileText,
 	Eye,
 	ThumbsUp,
-	ThumbsDown
+	ThumbsDown,
+	ShieldX
 } from 'lucide-react'
-import toast from 'react-hot-toast'
+import { safeToast } from '@/utils/safe-toast'
 
 interface PendingApproval {
 	name: string
@@ -40,6 +42,7 @@ interface PendingApproval {
 
 export default function PendingApprovalsPage() {
 	const router = useRouter()
+	const { hasLeaveApprovalAccess, loading: employeeLoading } = useEmployee()
 	const [pendingApprovals, setPendingApprovals] = useState<PendingApproval[]>([])
 	const [isLoading, setIsLoading] = useState(true)
 	const [error, setError] = useState<string | null>(null)
@@ -104,7 +107,7 @@ export default function PendingApprovalsPage() {
 
 			if (response.ok) {
 				const data = await response.json()
-				toast.success(data.message || `Leave application ${approvalAction}d successfully`)
+				safeToast.success(data.message || `Leave application ${approvalAction}d successfully`)
 				
 				// Remove the processed approval from the list
 				setPendingApprovals(prev => prev.filter(approval => approval.name !== selectedApproval.name))
@@ -114,11 +117,11 @@ export default function PendingApprovalsPage() {
 				setRemarks('')
 			} else {
 				const errorData = await response.json()
-				toast.error(errorData.error || `Failed to ${approvalAction} leave application`)
+				safeToast.error(errorData.error || `Failed to ${approvalAction} leave application`)
 			}
 		} catch (error) {
 			console.error('Error processing approval:', error)
-			toast.error(`An error occurred while ${approvalAction === 'approve' ? 'approving' : 'rejecting'} the application`)
+			safeToast.error(`An error occurred while ${approvalAction === 'approve' ? 'approving' : 'rejecting'} the application`)
 		} finally {
 			setProcessingApproval(null)
 		}
@@ -141,7 +144,29 @@ export default function PendingApprovalsPage() {
 		router.push(`/dashboard/leave-applications/${leaveId}`)
 	}
 
-	if (isLoading) {
+	// Check for access permission
+	if (!employeeLoading && !hasLeaveApprovalAccess) {
+		return (
+			<DashboardLayout>
+				<div className="container mx-auto px-4 py-6">
+					<div className="flex items-center justify-center min-h-[400px]">
+						<div className="text-center">
+							<ShieldX className="h-12 w-12 mx-auto mb-4 text-red-500" />
+							<h2 className="text-xl font-semibold mb-2">Access Restricted</h2>
+							<p className="text-sm text-muted-foreground mb-4">
+								You don't have permission to access the approval features.
+							</p>
+							<p className="text-xs text-muted-foreground">
+								Contact your administrator if you believe this is an error.
+							</p>
+						</div>
+					</div>
+				</div>
+			</DashboardLayout>
+		)
+	}
+
+	if (isLoading || employeeLoading) {
 		return (
 			<DashboardLayout>
 				<div className="container mx-auto px-4 py-6">

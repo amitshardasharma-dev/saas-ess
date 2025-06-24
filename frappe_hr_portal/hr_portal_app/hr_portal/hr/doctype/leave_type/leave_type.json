@@ -1,0 +1,236 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "LEAVETYPE.##",
+ "creation": "2025-05-30 06:40:00",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "bc_leave_code",
+  "description",
+  "leave_mapping_code",
+  "leave_type",
+  "unit_of_measure_code",
+  "eligible_days",
+  "once_in_service",
+  "only_for_local",
+  "min_period_of_service",
+  "min_period_of_ser_in_months",
+  "min_per_of_ser_for_settmnt",
+  "approve_one_time",
+  "leave_applicable_to_gender",
+  "al_carry_fwd_days",
+  "exceed_eligibility_check",
+  "supporting_documents_required",
+  "max_no_of_times_in_service",
+  "allow_date_type",
+  "calculated_on",
+  "applicable_to",
+  "deduct_lop_days",
+  "al_entittled_taken_any_time",
+  "without_pay",
+  "sync_information_tab",
+  "last_bc_sync",
+  "bc_sync_status",
+  "odata_etag"
+ ],
+ "fields": [
+  {
+   "fieldname": "bc_leave_code",
+   "fieldtype": "Data",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Leave Code",
+   "reqd": 1
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Data",
+   "label": "Description"
+  },
+  {
+   "default": "0",
+   "fieldname": "without_pay",
+   "fieldtype": "Check",
+   "label": "Without Pay"
+  },
+  {
+   "fieldname": "leave_applicable_to_gender",
+   "fieldtype": "Select",
+   "label": "Applicable Gender",
+   "options": "Both\nMale\nFemale"
+  },
+  {
+   "fieldname": "leave_mapping_code",
+   "fieldtype": "Data",
+   "label": "Leave Mapping Code"
+  },
+  {
+   "fieldname": "leave_type",
+   "fieldtype": "Data",
+   "label": "Leave Type"
+  },
+  {
+   "fieldname": "unit_of_measure_code",
+   "fieldtype": "Data",
+   "label": "Unit of Measure Code"
+  },
+  {
+   "fieldname": "eligible_days",
+   "fieldtype": "Float",
+   "label": "Eligible Days"
+  },
+  {
+   "default": "0",
+   "fieldname": "once_in_service",
+   "fieldtype": "Check",
+   "label": "Once In Service"
+  },
+  {
+   "default": "0",
+   "fieldname": "only_for_local",
+   "fieldtype": "Check",
+   "label": "Only for Local"
+  },
+  {
+   "fieldname": "min_period_of_service",
+   "fieldtype": "Int",
+   "label": "Min Period of Service (Days)"
+  },
+  {
+   "fieldname": "min_period_of_ser_in_months",
+   "fieldtype": "Int",
+   "label": "Min Period of Service (Months)"
+  },
+  {
+   "fieldname": "min_per_of_ser_for_settmnt",
+   "fieldtype": "Int",
+   "label": "Min Service for Settlement"
+  },
+  {
+   "default": "0",
+   "fieldname": "approve_one_time",
+   "fieldtype": "Check",
+   "label": "Approve One Time"
+  },
+  {
+   "fieldname": "al_carry_fwd_days",
+   "fieldtype": "Float",
+   "label": "Carry Forward Days"
+  },
+  {
+   "default": "0",
+   "fieldname": "exceed_eligibility_check",
+   "fieldtype": "Check",
+   "label": "Exceed Eligibility Check"
+  },
+  {
+   "default": "0",
+   "fieldname": "supporting_documents_required",
+   "fieldtype": "Check",
+   "label": "Supporting Documents Required"
+  },
+  {
+   "fieldname": "max_no_of_times_in_service",
+   "fieldtype": "Int",
+   "label": "Max No of Times in Service"
+  },
+  {
+   "fieldname": "allow_date_type",
+   "fieldtype": "Select",
+   "label": "Allow Date Type",
+   "options": "Allow Past and Future Date\nAllow Future Date Only"
+  },
+  {
+   "fieldname": "calculated_on",
+   "fieldtype": "Select",
+   "label": "Calculated On",
+   "options": "Calendar Days\nWorking Days"
+  },
+  {
+   "fieldname": "applicable_to",
+   "fieldtype": "Select",
+   "label": "Applicable To",
+   "options": "Both\nLocal\nExpat"
+  },
+  {
+   "default": "0",
+   "fieldname": "deduct_lop_days",
+   "fieldtype": "Check",
+   "label": "Deduct LOP Days"
+  },
+  {
+   "fieldname": "al_entittled_taken_any_time",
+   "fieldtype": "Data",
+   "label": "AL Entitled Taken Any Time"
+  },
+  {
+   "fieldname": "sync_information_tab",
+   "fieldtype": "Tab Break",
+   "label": "Sync Information"
+  },
+  {
+   "fieldname": "last_bc_sync",
+   "fieldtype": "Datetime",
+   "label": "Last Bc Sync"
+  },
+  {
+   "fieldname": "bc_sync_status",
+   "fieldtype": "Data",
+   "label": "Sync Status"
+  },
+  {
+   "fieldname": "odata_etag",
+   "fieldtype": "Data",
+   "label": "Odata Etag"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2025-06-02 00:58:34.700141",
+ "modified_by": "Administrator",
+ "module": "HR",
+ "name": "Leave Type",
+ "naming_rule": "Autoincrement",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Hr User",
+   "share": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Leave Approver",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

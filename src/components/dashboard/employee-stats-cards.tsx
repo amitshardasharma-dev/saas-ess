@@ -8,10 +8,20 @@ interface EmployeeStatsCardsProps {
 }
 
 export function EmployeeStatsCards({ stats }: EmployeeStatsCardsProps) {
+	// Ensure all stats values are numbers to prevent rendering objects
+	const safeStats = {
+		myPendingLeaveApplications: typeof stats.myPendingLeaveApplications === 'number' ? stats.myPendingLeaveApplications : 0,
+		myPendingExpenseClaims: typeof stats.myPendingExpenseClaims === 'number' ? stats.myPendingExpenseClaims : 0,
+		totalLeaveTaken: typeof stats.totalLeaveTaken === 'number' ? stats.totalLeaveTaken : 0,
+		totalLeaveRemaining: typeof stats.totalLeaveRemaining === 'number' ? stats.totalLeaveRemaining : 0,
+		recentApplications: typeof stats.recentApplications === 'number' ? stats.recentApplications : 0,
+		approvedThisMonth: typeof stats.approvedThisMonth === 'number' ? stats.approvedThisMonth : 0
+	}
+
 	const metrics = [
 		{
 			title: "Pending Leave",
-			value: stats.myPendingLeaveApplications,
+			value: safeStats.myPendingLeaveApplications,
 			subtitle: "Awaiting approval",
 			icon: Clock,
 			color: "from-amber-400 to-amber-600",
@@ -20,7 +30,7 @@ export function EmployeeStatsCards({ stats }: EmployeeStatsCardsProps) {
 		},
 		{
 			title: "Pending Expenses",
-			value: stats.myPendingExpenseClaims,
+			value: safeStats.myPendingExpenseClaims,
 			subtitle: "Under review",
 			icon: Clock,
 			color: "from-blue-400 to-blue-600",
@@ -29,7 +39,7 @@ export function EmployeeStatsCards({ stats }: EmployeeStatsCardsProps) {
 		},
 		{
 			title: "Leave Taken",
-			value: stats.totalLeaveTaken,
+			value: safeStats.totalLeaveTaken,
 			subtitle: "Days this year",
 			icon: Calendar,
 			color: "from-red-400 to-red-600",
@@ -38,7 +48,7 @@ export function EmployeeStatsCards({ stats }: EmployeeStatsCardsProps) {
 		},
 		{
 			title: "Leave Remaining",
-			value: stats.totalLeaveRemaining,
+			value: safeStats.totalLeaveRemaining,
 			subtitle: "Days available",
 			icon: CheckCircle,
 			color: "from-green-400 to-green-600",
@@ -47,7 +57,7 @@ export function EmployeeStatsCards({ stats }: EmployeeStatsCardsProps) {
 		},
 		{
 			title: "Recent Apps",
-			value: stats.recentApplications,
+			value: safeStats.recentApplications,
 			subtitle: "Last 30 days",
 			icon: TrendingUp,
 			color: "from-purple-400 to-purple-600",
@@ -56,7 +66,7 @@ export function EmployeeStatsCards({ stats }: EmployeeStatsCardsProps) {
 		},
 		{
 			title: "Monthly Approved",
-			value: stats.approvedThisMonth,
+			value: safeStats.approvedThisMonth,
 			subtitle: "This month",
 			icon: Star,
 			color: "from-teal-400 to-teal-600",

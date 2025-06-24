@@ -1,0 +1,64 @@
+
+🏗️  SETTING UP TEST DATA FOR FRONTEND INTEGRATION
+============================================================
+✅ Using existing test employees:
+   guru -> EMP000001 (Guru)
+   jnanesh -> EMP000002 (Jnanesh)
+   sahil -> EMP000013 (Sahil)
+
+✅ Found 0 existing approval rules:
+   ⚠️  No approval rules found - you may need to create some for testing
+
+✅ Test data setup complete
+
+🚀 STARTING FRONTEND INTEGRATION TESTING
+============================================================
+This simulates exactly how the Next.js frontend will interact with Frappe
+============================================================
+
+👤 TESTING EMPLOYEE DASHBOARD APIs
+==================================================
+
+📋 API: Get Employee Leave Applications
+✅ Found 4 leave applications
+
+🏷️  API: Get Available Leave Types
+✅ Found 9 leave types
+
+📤 TESTING LEAVE SUBMISSION WORKFLOW
+==================================================
+
+🔍 API: Preview Approval Chain
+✅ Approval chain preview successful
+   Levels: 0
+
+📝 API: Submit Leave Application
+❌ Submission failed: (1054, "Unknown column 'team' in 'SELECT'")
+
+👔 TESTING MANAGER DASHBOARD APIs
+==================================================
+
+⏳ API: Get Pending Approvals
+✅ Found 0 pending approvals
+
+✅ TESTING APPROVAL WORKFLOW APIs
+==================================================
+⚠️  No test leave application available for approval testing
+
+📋 GENERATING FRONTEND SPECIFICATION
+==================================================
+
+============================================================
+🎉 FRONTEND INTEGRATION TESTING COMPLETE
+============================================================
+
+📊 SUMMARY:
+   API Endpoints Tested: 4
+   Error Scenarios: 1
+
+📋 NEXT STEPS FOR FRONTEND ENGINEER:
+   1. Use the API endpoints and data structures documented above
+   2. Implement error handling for all documented scenarios
+   3. Set up real-time WebSocket connections for notifications
+   4. Test against this Frappe backend using the exact API calls shown
+{"api_base_url": "http://hr.portal:8000", "authentication": {"method": "Token-based", "header": "Authorization: token <api_key>:<api_secret>", "login_endpoint": "/api/method/login"}, "api_endpoints": {"employee_leave_applications": {"endpoint": "/api/resource/Leave Application", "method": "GET", "filters": {"link_lmbb": "EMP000001"}, "response_example": [{"name": "LEAVE000011", "leave_type": "LEAVETYPE02", "from_date": "2025-06-18", "till_date": "2025-06-18", "total_leave_days": 0.0, "workflow_state": "Pending Approval", "creation": "2025-06-12 20:43:12.287115", "leave_reason": "testing ", "half_day": 0, "half_day_date": null}, {"name": "LEAVE000010", "leave_type": "LEAVETYPE02", "from_date": "2025-06-17", "till_date": "2025-06-17", "total_leave_days": 0.0, "workflow_state": "Rejected", "creation": "2025-06-12 19:37:09.853534", "leave_reason": "workent work", "half_day": 0, "half_day_date": null}, {"name": "LEAVE000009", "leave_type": "LEAVETYPE01", "from_date": "2025-06-16", "till_date": "2025-06-18", "total_leave_days": 0.0, "workflow_state": "Approved", "creation": "2025-06-12 19:29:53.832487", "leave_reason": "Urgent Personal work", "half_day": 0, "half_day_date": null}]}, "leave_types": {"endpoint": "/api/resource/Leave Type", "method": "GET", "response_example": [{"name": "LEAVETYPE09", "bc_leave_code": "PL", "description": null, "leave_type": null, "eligible_days": 5.0}, {"name": "LEAVETYPE08", "bc_leave_code": "SL", "description": null, "leave_type": null, "eligible_days": 5.0}, {"name": "LEAVETYPE03", "bc_leave_code": "LOP", "description": null, "leave_type": " ", "eligible_days": 5.0}, {"name": "LEAVETYPE04", "bc_leave_code": "P", "description": null, "leave_type": " ", "eligible_days": 5.0}, {"name": "LEAVETYPE05", "bc_leave_code": "PH", "description": null, "leave_type": " ", "eligible_days": 12.0}, {"name": "LEAVETYPE07", "bc_leave_code": "W/OFF", "description": null, "leave_type": " ", "eligible_days": 5.0}, {"name": "LEAVETYPE01", "bc_leave_code": "AL", "description": null, "leave_type": " ", "eligible_days": 5.0}, {"name": "LEAVETYPE02", "bc_leave_code": "CL", "description": null, "leave_type": " ", "eligible_days": 10.0}, {"name": "LEAVETYPE06", "bc_leave_code": "SL", "description": null, "leave_type": " ", "eligible_days": 12.0}]}, "preview_approval_chain": {"endpoint": "/api/method/hr_portal.hr.doctype.leave_application.leave_application_api.preview_approval_chain", "method": "POST", "payload": {"employee": "EMP000001", "leave_type": "Annual Leave", "total_leave_days": 5, "from_date": "2024-01-15", "to_date": "2024-01-19"}, "response_example": {"error": "No approval rule found", "message": "No approval rule configured for Annual Leave with 1 days"}}, "pending_approvals": {"endpoint": "/api/method/hr_portal.hr.doctype.leave_application.leave_application_api.get_pending_approvals", "method": "POST", "payload": {"approver": "EMP000002"}, "response_example": []}}, "error_handling": {"submit_leave_application": "(1054, \"Unknown column 'team' in 'SELECT'\")"}, "workflows": {"employee_leave_submission": ["1. Preview approval chain", "2. Submit leave application", "3. Real-time notification to approvers", "4. Track approval status"], "manager_approval_process": ["1. Get pending approvals", "2. Review leave details", "3. Approve/Reject with remarks", "4. System processes next level or completion"]}}

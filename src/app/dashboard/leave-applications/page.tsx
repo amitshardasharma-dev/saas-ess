@@ -1,11 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
+import { Pagination, PaginationInfo } from '@/components/ui/pagination'
 import { 
 	CalendarDays, 
 	Clock, 
@@ -20,9 +21,11 @@ import {
 	Eye,
 	Loader2,
 	RefreshCw,
-	ChevronRight
+	ChevronRight,
+	Settings
 } from 'lucide-react'
 import { MyLeaveApplication } from '@/types/dashboard'
+import { useAuthStore } from '@/stores/auth'
 
 interface LeaveType {
 	name: string
@@ -37,17 +40,27 @@ interface LeaveType {
 
 export default function LeaveApplicationsPage() {
 	const router = useRouter()
+	const { user } = useAuthStore()
 	const [applications, setApplications] = useState<MyLeaveApplication[]>([])
 	const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([])
 	const [isLoading, setIsLoading] = useState(true)
 	const [error, setError] = useState<string | null>(null)
 	const [searchTerm, setSearchTerm] = useState('')
 	const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all')
+	
+	// Pagination state
+	const [currentPage, setCurrentPage] = useState(1)
+	const [itemsPerPage, setItemsPerPage] = useState(10)
 
 	useEffect(() => {
 		loadApplications()
 		loadLeaveTypes()
 	}, [])
+
+	// Reset to first page when filters change
+	useEffect(() => {
+		setCurrentPage(1)
+	}, [searchTerm, statusFilter, itemsPerPage])
 
 	const loadLeaveTypes = async () => {
 		try {
@@ -65,9 +78,30 @@ export default function LeaveApplicationsPage() {
 		setIsLoading(true)
 		setError(null)
 		try {
-			const response = await fetch('/api/leave-applications')
+			console.log('Leave Applications Page: Current user:', user)
+			console.log('Leave Applications Page: Fetching applications...')
+			
+			// Add cache-busting and ensure fresh data
+			const response = await fetch('/api/leave-applications', {
+				cache: 'no-cache',
+				headers: {
+					'Cache-Control': 'no-cache',
+					'Pragma': 'no-cache'
+				}
+			})
+			console.log('Leave Applications Page: Response status:', response.status)
 			if (response.ok) {
 				const data = await response.json()
+				console.log('Leave Applications Page: Received data:', data)
+				
+				// Verify user context matches
+				if (user && data.user_context) {
+					console.log('Leave Applications Page: User context verification:', {
+						currentUser: user.email || user.name,
+						dataUser: data.user_context
+					})
+				}
+				
 				if (data.leave_applications) {
 					// Convert API response to MyLeaveApplication format
 					const convertedApps: MyLeaveApplication[] = data.leave_applications.map((app: any) => ({
@@ -157,13 +191,40 @@ export default function LeaveApplicationsPage() {
 		})
 	}
 
-	const filteredApplications = applications.filter(app => {
-		const matchesSearch = app.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-							 app.reason.toLowerCase().includes(searchTerm.toLowerCase()) ||
-							 formatLeaveType(app.leaveType).toLowerCase().includes(searchTerm.toLowerCase())
-		const matchesStatus = statusFilter === 'all' || app.status === statusFilter
-		return matchesSearch && matchesStatus
-	})
+	// Filter and paginate data
+	const { filteredApplications, paginatedApplications, totalPages } = useMemo(() => {
+		// Apply filters
+		const filtered = applications.filter(app => {
+			const matchesSearch = app.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+								 app.reason.toLowerCase().includes(searchTerm.toLowerCase()) ||
+								 formatLeaveType(app.leaveType).toLowerCase().includes(searchTerm.toLowerCase())
+			const matchesStatus = statusFilter === 'all' || app.status === statusFilter
+			return matchesSearch && matchesStatus
+		})
+
+		// Calculate pagination
+		const totalPages = Math.ceil(filtered.length / itemsPerPage)
+		const startIndex = (currentPage - 1) * itemsPerPage
+		const endIndex = startIndex + itemsPerPage
+		const paginated = filtered.slice(startIndex, endIndex)
+
+		return {
+			filteredApplications: filtered,
+			paginatedApplications: paginated,
+			totalPages
+		}
+	}, [applications, searchTerm, statusFilter, currentPage, itemsPerPage, leaveTypes])
+
+	const handlePageChange = (page: number) => {
+		setCurrentPage(page)
+		// Scroll to top when page changes
+		window.scrollTo({ top: 0, behavior: 'smooth' })
+	}
+
+	const handleItemsPerPageChange = (newItemsPerPage: number) => {
+		setItemsPerPage(newItemsPerPage)
+		setCurrentPage(1)
+	}
 
 	const handleViewDetails = (applicationId: string) => {
 		router.push(`/dashboard/leave-applications/${applicationId}`)
@@ -267,9 +328,39 @@ export default function LeaveApplicationsPage() {
 									<option value="rejected">Rejected</option>
 								</select>
 							</div>
+
+							{/* Items per page */}
+							<div className="flex items-center space-x-2">
+								<Settings className="h-4 w-4 text-muted-foreground" />
+								<select
+									value={itemsPerPage}
+									onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
+									className="px-3 py-2 border border-input rounded-md bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+								>
+									<option value={5}>5 per page</option>
+									<option value={10}>10 per page</option>
+									<option value={20}>20 per page</option>
+									<option value={50}>50 per page</option>
+								</select>
+							</div>
 						</div>
 					</CardContent>
 				</Card>
+
+				{/* Pagination Info */}
+				{filteredApplications.length > 0 && (
+					<div className="flex items-center justify-between mb-4">
+						<PaginationInfo
+							currentPage={currentPage}
+							itemsPerPage={itemsPerPage}
+							totalItems={filteredApplications.length}
+							itemName="leave applications"
+						/>
+						<div className="text-sm text-muted-foreground">
+							Total: {applications.length} applications
+						</div>
+					</div>
+				)}
 
 				{/* Applications List */}
 				{filteredApplications.length === 0 ? (
@@ -295,7 +386,7 @@ export default function LeaveApplicationsPage() {
 					</Card>
 				) : (
 					<div className="space-y-4">
-						{filteredApplications.map((application) => (
+						{paginatedApplications.map((application) => (
 							<Card 
 								key={application.id} 
 								className="hover:shadow-md transition-shadow cursor-pointer"
@@ -350,10 +441,19 @@ export default function LeaveApplicationsPage() {
 					</div>
 				)}
 
-				{/* Summary Footer */}
-				{filteredApplications.length > 0 && (
-					<div className="mt-6 text-center text-sm text-muted-foreground">
-						Showing {filteredApplications.length} of {applications.length} leave applications
+				{/* Pagination Controls */}
+				{totalPages > 1 && (
+					<div className="mt-6 flex flex-col items-center space-y-4">
+						<Pagination
+							currentPage={currentPage}
+							totalPages={totalPages}
+							onPageChange={handlePageChange}
+							showFirstLast={true}
+							maxVisiblePages={5}
+						/>
+						<div className="text-xs text-muted-foreground">
+							Page {currentPage} of {totalPages}
+						</div>
 					</div>
 				)}
 			</div>

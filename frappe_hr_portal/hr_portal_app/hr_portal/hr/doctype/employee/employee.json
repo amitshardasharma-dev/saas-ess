@@ -1,0 +1,333 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "EMP.######",
+ "creation": "2025-05-31 05:44:00.801983",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "first_name",
+  "middle_name",
+  "last_name",
+  "full_name",
+  "initials",
+  "job_title",
+  "e_mail",
+  "mobile_phone_no",
+  "phone_no",
+  "extension",
+  "postal_code",
+  "country_region_code",
+  "search_name",
+  "employment_info_tab",
+  "department_id",
+  "position_id",
+  "grade_code_id",
+  "pay_period_id",
+  "reporting_manager_id",
+  "site_supervisor_no",
+  "itdemployment_date",
+  "itdlastpay_period",
+  "itdnextpay_period",
+  "employment_type",
+  "status",
+  "personal_detail_tab",
+  "date_of_birth",
+  "national_id",
+  "pan_number",
+  "passport_number",
+  "emergency_contact",
+  "marital_status",
+  "address_tab",
+  "current_address",
+  "permanent_address",
+  "compliance_tab",
+  "privacy_blocked",
+  "balance_icy",
+  "comment",
+  "sync_integration_tab",
+  "bc_employee_id",
+  "last_bc_sync",
+  "bc_sync_status",
+  "odata_etag",
+  "web_user_tab",
+  "user_id"
+ ],
+ "fields": [
+  {
+   "fieldname": "first_name",
+   "fieldtype": "Data",
+   "label": "First Name"
+  },
+  {
+   "fieldname": "last_name",
+   "fieldtype": "Data",
+   "label": "Last Name"
+  },
+  {
+   "fieldname": "employment_info_tab",
+   "fieldtype": "Tab Break",
+   "label": "Employment Info"
+  },
+  {
+   "fieldname": "itdemployment_date",
+   "fieldtype": "Data",
+   "label": "ITD Employment Date"
+  },
+  {
+   "fieldname": "full_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Full Name"
+  },
+  {
+   "fieldname": "middle_name",
+   "fieldtype": "Data",
+   "label": "Middle Name"
+  },
+  {
+   "fieldname": "initials",
+   "fieldtype": "Data",
+   "label": "Initials"
+  },
+  {
+   "fieldname": "job_title",
+   "fieldtype": "Data",
+   "label": "Job Title"
+  },
+  {
+   "fieldname": "e_mail",
+   "fieldtype": "Data",
+   "label": "Email"
+  },
+  {
+   "fieldname": "mobile_phone_no",
+   "fieldtype": "Phone",
+   "label": "Mobile Phone No"
+  },
+  {
+   "fieldname": "phone_no",
+   "fieldtype": "Data",
+   "label": "Phone No"
+  },
+  {
+   "fieldname": "extension",
+   "fieldtype": "Data",
+   "label": "Extension"
+  },
+  {
+   "fieldname": "postal_code",
+   "fieldtype": "Data",
+   "label": "Postal Code"
+  },
+  {
+   "fieldname": "country_region_code",
+   "fieldtype": "Data",
+   "label": "Country Region Code"
+  },
+  {
+   "fieldname": "search_name",
+   "fieldtype": "Data",
+   "label": "Search Name"
+  },
+  {
+   "fieldname": "department_id",
+   "fieldtype": "Data",
+   "label": "Department_ID"
+  },
+  {
+   "fieldname": "position_id",
+   "fieldtype": "Data",
+   "label": "Position_ID"
+  },
+  {
+   "fieldname": "grade_code_id",
+   "fieldtype": "Data",
+   "label": "Grade_Code_ID"
+  },
+  {
+   "fieldname": "pay_period_id",
+   "fieldtype": "Data",
+   "label": "Pay Period ID"
+  },
+  {
+   "fieldname": "reporting_manager_id",
+   "fieldtype": "Link",
+   "in_filter": 1,
+   "label": "Reporting Manager ID",
+   "options": "Employee"
+  },
+  {
+   "fieldname": "site_supervisor_no",
+   "fieldtype": "Data",
+   "label": "Site Supervisor No"
+  },
+  {
+   "fieldname": "employment_type",
+   "fieldtype": "Data",
+   "label": "Employment Type"
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Data",
+   "label": "Status"
+  },
+  {
+   "fieldname": "itdlastpay_period",
+   "fieldtype": "Data",
+   "label": "ITD Last Pay Period"
+  },
+  {
+   "fieldname": "itdnextpay_period",
+   "fieldtype": "Data",
+   "label": "ITD Next Pay Period"
+  },
+  {
+   "fieldname": "sync_integration_tab",
+   "fieldtype": "Tab Break",
+   "label": "Sync Integration"
+  },
+  {
+   "fieldname": "bc_employee_id",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "BC Employee ID"
+  },
+  {
+   "fieldname": "last_bc_sync",
+   "fieldtype": "Data",
+   "label": "Last Sync"
+  },
+  {
+   "fieldname": "bc_sync_status",
+   "fieldtype": "Data",
+   "label": "Sync Status"
+  },
+  {
+   "fieldname": "odata_etag",
+   "fieldtype": "Data",
+   "label": "Odata Etag"
+  },
+  {
+   "fieldname": "compliance_tab",
+   "fieldtype": "Tab Break",
+   "label": "Compliance"
+  },
+  {
+   "fieldname": "comment",
+   "fieldtype": "Data",
+   "label": "Comment"
+  },
+  {
+   "fieldname": "balance_icy",
+   "fieldtype": "Int",
+   "label": "Balance LCY"
+  },
+  {
+   "fieldname": "address_tab",
+   "fieldtype": "Tab Break",
+   "label": "Address"
+  },
+  {
+   "fieldname": "current_address",
+   "fieldtype": "Data",
+   "label": "Current Address"
+  },
+  {
+   "fieldname": "permanent_address",
+   "fieldtype": "Data",
+   "label": "Permanent Address"
+  },
+  {
+   "fieldname": "personal_detail_tab",
+   "fieldtype": "Tab Break",
+   "label": "Personal Detail"
+  },
+  {
+   "fieldname": "date_of_birth",
+   "fieldtype": "Date",
+   "label": "Date Of Birth"
+  },
+  {
+   "fieldname": "national_id",
+   "fieldtype": "Data",
+   "label": "National ID"
+  },
+  {
+   "fieldname": "pan_number",
+   "fieldtype": "Data",
+   "label": "Pan Number"
+  },
+  {
+   "fieldname": "passport_number",
+   "fieldtype": "Data",
+   "label": "Passport Number"
+  },
+  {
+   "fieldname": "emergency_contact",
+   "fieldtype": "Data",
+   "label": "Emergency Contact"
+  },
+  {
+   "fieldname": "marital_status",
+   "fieldtype": "Data",
+   "label": "Marital Status"
+  },
+  {
+   "fieldname": "privacy_blocked",
+   "fieldtype": "Data",
+   "label": "Privacy Blocked"
+  },
+  {
+   "fieldname": "web_user_tab",
+   "fieldtype": "Tab Break",
+   "label": "Web User"
+  },
+  {
+   "fieldname": "user_id",
+   "fieldtype": "Link",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "User ID",
+   "options": "User"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2025-06-01 21:16:34.489508",
+ "modified_by": "Administrator",
+ "module": "HR",
+ "name": "Employee",
+ "naming_rule": "Autoincrement",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Hr User",
+   "share": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

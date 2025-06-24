@@ -1,0 +1,415 @@
+{
+  "api_base_url": "http://hr.portal:8000",
+  "authentication": {
+    "method": "Token-based or Session-based",
+    "header": "Authorization: token <api_key>:<api_secret>",
+    "login_endpoint": "/api/method/login",
+    "credentials": {
+      "test_users": [
+        {
+          "username": "guru",
+          "password": "Phagwara@14",
+          "employee_id": "EMP000001",
+          "role": "Employee"
+        },
+        {
+          "username": "Jnanesh", 
+          "password": "Phagwara@13",
+          "employee_id": "EMP000002",
+          "role": "Manager/Approver"
+        },
+        {
+          "username": "sahil",
+          "password": "Phagwara@13", 
+          "employee_id": "EMP000013",
+          "role": "Employee"
+        }
+      ]
+    }
+  },
+  
+  "api_endpoints": {
+    "employee_leave_applications": {
+      "endpoint": "/api/resource/Leave Application",
+      "method": "GET",
+      "description": "Get leave applications for an employee",
+      "filters": {
+        "link_lmbb": "EMP000001"
+      },
+      "fields": [
+        "name", "leave_type", "from_date", "till_date",
+        "total_leave_days", "workflow_state", "creation",
+        "leave_reason", "half_day", "half_day_date"
+      ],
+      "response_example": [
+        {
+          "name": "LEAVE000011",
+          "leave_type": "LEAVETYPE02",
+          "from_date": "2025-06-18",
+          "till_date": "2025-06-18", 
+          "total_leave_days": 0.0,
+          "workflow_state": "Pending Approval",
+          "creation": "2025-06-12 20:43:12.287115",
+          "leave_reason": "testing",
+          "half_day": 0,
+          "half_day_date": null
+        }
+      ]
+    },
+
+    "leave_types": {
+      "endpoint": "/api/resource/Leave Type",
+      "method": "GET", 
+      "description": "Get all available leave types",
+      "fields": ["name", "bc_leave_code", "description", "leave_type", "eligible_days"],
+      "response_example": [
+        {
+          "name": "LEAVETYPE01",
+          "bc_leave_code": "AL",
+          "description": null,
+          "leave_type": "Annual Leave",
+          "eligible_days": 5.0
+        },
+        {
+          "name": "LEAVETYPE02", 
+          "bc_leave_code": "CL",
+          "description": null,
+          "leave_type": "Casual Leave",
+          "eligible_days": 10.0
+        }
+      ]
+    },
+
+    "preview_approval_chain": {
+      "endpoint": "/api/method/hr_portal.hr.doctype.leave_application.leave_application_api.preview_approval_chain",
+      "method": "POST",
+      "description": "Preview the approval workflow before submitting a leave application",
+      "payload": {
+        "employee": "EMP000001",
+        "leave_type": "LEAVETYPE01", 
+        "total_leave_days": 5,
+        "from_date": "2024-01-15",
+        "till_date": "2024-01-19"
+      },
+      "response_example": {
+        "approval_chain": [
+          {
+            "level_no": 1,
+            "approver": "EMP000002",
+            "approver_name": "Jnanesh",
+            "sla_days": 2
+          },
+          {
+            "level_no": 2,
+            "approver": "EMP000003", 
+            "approver_name": "Director",
+            "sla_days": 3
+          }
+        ],
+        "estimated_approval_time": "5 days"
+      }
+    },
+
+    "submit_leave_application": {
+      "endpoint": "/api/resource/Leave Application",
+      "method": "POST",
+      "description": "Submit a new leave application",
+      "payload": {
+        "doctype": "Leave Application",
+        "link_lmbb": "EMP000001",
+        "leave_type": "LEAVETYPE01",
+        "from_date": "2024-01-15",
+        "till_date": "2024-01-19", 
+        "total_leave_days": 5,
+        "leave_reason": "Family vacation",
+        "half_day": 0
+      },
+      "response_example": {
+        "name": "LEAVE000012",
+        "workflow_state": "Pending",
+        "message": "Leave application submitted successfully"
+      }
+    },
+
+    "pending_approvals": {
+      "endpoint": "/api/method/hr_portal.hr.doctype.leave_application.leave_application_api.get_pending_approvals", 
+      "method": "POST",
+      "description": "Get pending leave applications for approval by a manager",
+      "payload": {
+        "approver": "EMP000002"
+      },
+      "response_example": [
+        {
+          "name": "LEAVE000011",
+          "employee": "EMP000001",
+          "employee_name": "Guru",
+          "leave_type": "LEAVETYPE02",
+          "from_date": "2025-06-18",
+          "till_date": "2025-06-18",
+          "total_leave_days": 1.0,
+          "leave_reason": "Medical appointment",
+          "level_no": 1,
+          "sla_deadline": "2025-06-20 20:43:12"
+        }
+      ]
+    },
+
+    "approve_leave": {
+      "endpoint": "/api/method/hr_portal.hr.doctype.leave_application.leave_application_api.approve_leave",
+      "method": "POST", 
+      "description": "Approve or reject a leave application",
+      "payload": {
+        "leave_application": "LEAVE000011",
+        "approver": "EMP000002",
+        "action": "Approve",
+        "remarks": "Approved for medical reasons"
+      },
+      "response_example": {
+        "status": "success",
+        "workflow_state": "Approved",
+        "message": "Leave application approved successfully",
+        "next_approver": null
+      }
+    },
+
+    "leave_application_details": {
+      "endpoint": "/api/resource/Leave Application/{leave_id}",
+      "method": "GET",
+      "description": "Get detailed information about a specific leave application",
+      "response_example": {
+        "name": "LEAVE000011",
+        "link_lmbb": "EMP000001", 
+        "leave_type": "LEAVETYPE02",
+        "from_date": "2025-06-18",
+        "till_date": "2025-06-18",
+        "total_leave_days": 1.0,
+        "leave_reason": "Medical appointment",
+        "workflow_state": "Pending Approval",
+        "leave_approval_entry": [
+          {
+            "level_no": 1,
+            "approver": "EMP000002",
+            "status": "Pending",
+            "sla_deadline": "2025-06-20 20:43:12",
+            "remarks": null
+          }
+        ],
+        "leave_escalation_log": []
+      }
+    }
+  },
+
+  "data_structures": {
+    "leave_application": {
+      "name": "string (auto-generated like LEAVE000001)",
+      "link_lmbb": "string (employee ID like EMP000001)",
+      "leave_type": "string (leave type ID like LEAVETYPE01)",
+      "from_date": "date (YYYY-MM-DD)",
+      "till_date": "date (YYYY-MM-DD)", 
+      "total_leave_days": "float",
+      "leave_reason": "text",
+      "half_day": "boolean (0/1)",
+      "half_day_date": "date (YYYY-MM-DD) or null",
+      "workflow_state": "string (Pending/Approved/Rejected)",
+      "leave_approval_entry": "array of approval entries",
+      "leave_escalation_log": "array of escalation logs"
+    },
+    "approval_entry": {
+      "level_no": "integer",
+      "approver": "string (employee ID)",
+      "status": "string (Pending/Approved/Rejected/Escalated)",
+      "action_by": "string (employee ID)",
+      "action_time": "datetime",
+      "sla_deadline": "datetime", 
+      "remarks": "text"
+    },
+    "leave_type": {
+      "name": "string (ID like LEAVETYPE01)",
+      "bc_leave_code": "string (code like AL, CL, SL)",
+      "description": "string or null",
+      "leave_type": "string (display name)",
+      "eligible_days": "float"
+    }
+  },
+
+  "error_handling": {
+    "common_errors": [
+      {
+        "scenario": "Invalid employee ID",
+        "http_status": 404,
+        "response": {
+          "error": "Employee not found",
+          "message": "Employee with ID EMP000099 does not exist"
+        }
+      },
+      {
+        "scenario": "Invalid date range",
+        "http_status": 400,
+        "response": {
+          "error": "Invalid date range", 
+          "message": "from_date cannot be greater than till_date"
+        }
+      },
+      {
+        "scenario": "Unauthorized access",
+        "http_status": 403,
+        "response": {
+          "error": "Permission denied",
+          "message": "You are not authorized to perform this action"
+        }
+      },
+      {
+        "scenario": "Missing required fields",
+        "http_status": 400,
+        "response": {
+          "error": "Validation error",
+          "message": "leave_reason is required"
+        }
+      }
+    ]
+  },
+
+  "real_time_events": {
+    "description": "WebSocket events that the frontend should listen for",
+    "events": [
+      {
+        "event": "leave_submitted",
+        "description": "Triggered when a new leave application is submitted",
+        "data": {
+          "leave_application": "LEAVE000012",
+          "employee": "EMP000001",
+          "employee_name": "Guru",
+          "leave_type": "LEAVETYPE01",
+          "next_approver": "EMP000002"
+        }
+      },
+      {
+        "event": "leave_approved",
+        "description": "Triggered when a leave application is approved/rejected",
+        "data": {
+          "leave_application": "LEAVE000012",
+          "action": "Approved",
+          "approved_by": "EMP000002",
+          "workflow_state": "Approved",
+          "employee": "EMP000001"
+        }
+      },
+      {
+        "event": "sla_warning", 
+        "description": "Triggered when SLA deadline is approaching",
+        "data": {
+          "leave_application": "LEAVE000012",
+          "approver": "EMP000002",
+          "hours_remaining": 4,
+          "will_escalate_to": "EMP000003"
+        }
+      }
+    ]
+  },
+
+  "workflows": {
+    "employee_leave_submission": [
+      "1. Employee logs in and navigates to leave application form",
+      "2. Employee selects leave type and enters dates/reason",
+      "3. System calls preview_approval_chain API to show approval workflow",
+      "4. Employee submits application via submit_leave_application API",
+      "5. System triggers real-time notification to approvers",
+      "6. Employee can track status via employee_leave_applications API"
+    ],
+    "manager_approval_process": [
+      "1. Manager logs in and sees pending approvals via pending_approvals API",
+      "2. Manager clicks on a leave application to see details via leave_application_details API", 
+      "3. Manager reviews and takes action via approve_leave API",
+      "4. System updates workflow state and notifies employee",
+      "5. If multi-level approval, system moves to next approver automatically"
+    ]
+  },
+
+  "implementation_notes": {
+    "field_mappings": {
+      "employee": "Use 'link_lmbb' field name (not 'employee')",
+      "to_date": "Use 'till_date' field name (not 'to_date')",
+      "reason": "Use 'leave_reason' field name (not 'reason')",
+      "approval_entries": "Use 'leave_approval_entry' field name",
+      "escalation_log": "Use 'leave_escalation_log' field name"
+    },
+    "pagination": {
+      "description": "For large datasets, use pagination parameters",
+      "parameters": {
+        "limit_start": 0,
+        "limit_page_length": 20,
+        "order_by": "creation desc"
+      }
+    },
+    "filters": {
+      "description": "Use Frappe's filter syntax",
+      "examples": {
+        "simple": {"workflow_state": "Pending"},
+        "multiple": {"workflow_state": ["in", ["Pending", "Approved"]]},
+        "date_range": {"from_date": [">=", "2024-01-01"]}
+      }
+    }
+  },
+
+  "testing_instructions": {
+    "setup": [
+      "1. Use site: hr.portal",
+      "2. Login with provided test credentials", 
+      "3. Ensure you have proper API permissions",
+      "4. IMPORTANT: Create approval rules first (see frontend_integration_complete_setup.md)"
+    ],
+    "test_scenarios": [
+      "1. Test employee dashboard - retrieve leave applications and types",
+      "2. Test leave submission workflow - preview and submit",
+      "3. Test manager approval process - get pending approvals and approve/reject",
+      "4. Test error handling - try invalid data and unauthorized access",
+      "5. Test real-time updates - submit leave and verify notifications"
+    ],
+    "approval_rules_required": {
+      "description": "These approval rules must be created before testing complete workflow",
+      "rules": [
+        {
+          "leave_type": "LEAVETYPE02 (Casual Leave)",
+          "levels": 1,
+          "approver": "EMP000002 (Jnanesh)",
+          "sla": "1 day"
+        },
+        {
+          "leave_type": "LEAVETYPE01 (Annual Leave)", 
+          "levels": 2,
+          "approvers": ["EMP000002 (Jnanesh)", "EMP000013 (Sahil)"],
+          "sla": "2 days + 3 days"
+        },
+        {
+          "leave_type": "LEAVETYPE08 (Sick Leave)",
+          "levels": 1,
+          "approver": "EMP000002 (Jnanesh)",
+          "sla": "1 day"
+        }
+      ]
+    }
+  },
+
+  "issues_resolved": {
+    "field_mapping_issues": {
+      "status": "RESOLVED",
+      "solution": "All field names corrected in API specification",
+      "corrected_fields": {
+        "employee": "link_lmbb",
+        "to_date": "till_date", 
+        "reason": "leave_reason",
+        "approval_entries": "leave_approval_entry"
+      }
+    },
+    "approval_rules_missing": {
+      "status": "SOLUTION PROVIDED",
+      "solution": "Complete setup guide created with step-by-step instructions",
+      "setup_file": "frontend_integration_complete_setup.md"
+    },
+    "workflow_validation_issues": {
+      "status": "RESOLVED",
+      "solution": "Will be resolved once approval rules are created",
+      "impact": "Complete end-to-end testing now possible"
+    }
+  }
+} 

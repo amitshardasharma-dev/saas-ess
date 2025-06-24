@@ -119,8 +119,8 @@ export async function GET(request: NextRequest) {
 
 		console.log('Current user employee ID:', currentUserEmployeeId)
 		
-		// Step 1: Get list of leave applications filtered by current user's employee ID
-		let listUrl = `${config.frappe.url.replace(/\/$/, '')}/api/resource/Leave Application?filters=[["link_lmbb","=","${currentUserEmployeeId}"]]`
+		// Step 1: Get list of leave applications filtered by current user's employee ID, sorted by modified date (most recent first)
+		let listUrl = `${config.frappe.url.replace(/\/$/, '')}/api/resource/Leave Application?filters=[["link_lmbb","=","${currentUserEmployeeId}"]]&order_by=modified desc`
 		console.log('Making request to get leave application list:', listUrl)
 		
 		let listResponse = await fetch(listUrl, {
@@ -236,6 +236,13 @@ export async function GET(request: NextRequest) {
 			leave_approver: application.leave_approver || '',
 			modified: application.modified || application.creation || application.from_date // Include modified date
 		}))
+		
+		// Sort by modified date (most recent first) to ensure proper ordering
+		processedLeaveApplications.sort((a, b) => {
+			const dateA = new Date(a.modified)
+			const dateB = new Date(b.modified)
+			return dateB.getTime() - dateA.getTime()
+		})
 
 		console.log(`Processed ${processedLeaveApplications.length} leave applications for user ${currentUserEmployeeId}`)
 		console.log('Final leave summary:', leaveSummary)
@@ -243,7 +250,8 @@ export async function GET(request: NextRequest) {
 		return NextResponse.json({
 			leave_applications: processedLeaveApplications,
 			leave_summary: leaveSummary, // Add summary for easy consumption by dashboard
-			pending_count: pendingApplicationsCount // Add pending count for dashboard stats
+			pending_count: pendingApplicationsCount, // Add pending count for dashboard stats
+			user_context: currentUserEmployeeId // Add user context for verification
 		})
 	} catch (error) {
 		console.error('Leave Applications fetch error:', error)

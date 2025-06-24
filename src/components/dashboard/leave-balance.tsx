@@ -177,14 +177,57 @@ const getLeaveTypeConfig = (leaveType: string, index: number) => {
 export function LeaveBalanceComponent({ balances }: LeaveBalanceComponentProps) {
 	const [viewMode, setViewMode] = useState<ViewMode>('cards')
 
-	const chartData = balances.map(balance => ({
+	// Ensure balances is an array and filter out invalid entries
+	const safeBalances = Array.isArray(balances) 
+		? balances.filter(balance => 
+			balance && 
+			typeof balance === 'object' && 
+			typeof balance.leaveType === 'string' &&
+			typeof balance.taken === 'number' &&
+			typeof balance.remaining === 'number' &&
+			typeof balance.totalAllowed === 'number'
+		)
+		: []
+
+	// If no valid balances, show empty state
+	if (safeBalances.length === 0) {
+		return (
+			<div className="flowing-card p-8">
+				<div className="flex items-center justify-between mb-8">
+					<div className="flex items-center space-x-4">
+						<div className="floating-element p-3">
+							<Calendar className="h-6 w-6 text-primary" />
+						</div>
+						<div>
+							<h2 className="text-xl font-bold text-foreground flex items-center space-x-2">
+								<span>Leave Balance Overview</span>
+								<Sparkles className="h-5 w-5 text-primary" />
+							</h2>
+							<p className="text-sm text-muted-foreground">
+								Your leave entitlements and usage
+							</p>
+						</div>
+					</div>
+				</div>
+				<div className="text-center py-12">
+					<Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-40" />
+					<p className="text-sm font-semibold text-muted-foreground mb-1">No leave balance data available</p>
+					<p className="text-xs text-muted-foreground">
+						Leave balance information will appear here once available
+					</p>
+				</div>
+			</div>
+		)
+	}
+
+	const chartData = safeBalances.map(balance => ({
 		name: balance.leaveType,
 		taken: balance.taken,
 		remaining: balance.remaining,
 		total: balance.totalAllowed
 	}))
 
-	const pieDataTaken = balances.map((balance, index) => {
+	const pieDataTaken = safeBalances.map((balance, index) => {
 		const config = getLeaveTypeConfig(balance.leaveType, index)
 		return {
 			name: balance.leaveType,
@@ -193,18 +236,18 @@ export function LeaveBalanceComponent({ balances }: LeaveBalanceComponentProps) 
 		}
 	})
 
-	const pieDataRemaining = balances.map((balance, index) => {
+	const pieDataRemaining = safeBalances.map((balance, index) => {
 		const config = getLeaveTypeConfig(balance.leaveType, index)
 		return {
 			name: balance.leaveType,
 			value: balance.remaining,
-			color: config?.accent || `hsl(${(index * 137.5) % 360}, 70%, 70%)`
+			color: config?.accent || `hsl(${(index * 137.5) % 360}, 70%, 50%)`
 		}
 	})
 
 	const renderCardsView = () => (
 		<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4 gap-6">
-			{balances.map((balance, index) => {
+			{safeBalances.map((balance, index) => {
 				const config = getLeaveTypeConfig(balance.leaveType, index)
 				const IconComponent = config?.icon || Calendar
 				const usagePercentage = (balance.taken / balance.totalAllowed) * 100

@@ -53,7 +53,20 @@ const fetchLeaveTypes = async (): Promise<FrappeLeaveTypeData[]> => {
 		}
 
 		const data = await response.json()
-		return data.leave_types || []
+		
+		// Ensure we have the expected data structure
+		if (typeof data !== 'object' || data === null) {
+			console.error('Invalid response format from leave types API:', data)
+			return []
+		}
+		
+		// Check if the response contains error fields that might be rendered
+		if (data.message && data.workflow_state) {
+			console.error('API returned error object instead of data:', data)
+			return []
+		}
+		
+		return Array.isArray(data.leave_types) ? data.leave_types : []
 	} catch (error) {
 		console.error('Error fetching leave types:', error)
 		return []
@@ -105,10 +118,23 @@ const fetchLeaveApplications = async (): Promise<{ applications: FrappeLeaveAppl
 		}
 
 		const data = await response.json()
+		
+		// Ensure we have the expected data structure
+		if (typeof data !== 'object' || data === null) {
+			console.error('Invalid response format from leave applications API:', data)
+			return { applications: [], summary: {}, pendingCount: 0 }
+		}
+		
+		// Check if the response contains error fields that might be rendered
+		if (data.message && data.workflow_state) {
+			console.error('API returned error object instead of data:', data)
+			return { applications: [], summary: {}, pendingCount: 0 }
+		}
+		
 		return {
-			applications: data.leave_applications || [],
-			summary: data.leave_summary || {},
-			pendingCount: data.pending_count || 0
+			applications: Array.isArray(data.leave_applications) ? data.leave_applications : [],
+			summary: typeof data.leave_summary === 'object' && data.leave_summary !== null ? data.leave_summary : {},
+			pendingCount: typeof data.pending_count === 'number' ? data.pending_count : 0
 		}
 	} catch (error) {
 		console.error('Error fetching leave applications:', error)
@@ -478,51 +504,78 @@ export const generateRemainingLeaveChartData = async (): Promise<LeaveTypeData[]
 
 // Calculate employee dashboard statistics
 export const getEmployeeDashboardStats = async (): Promise<EmployeeDashboardStats> => {
-	const leaveBalances = await combineLeaveData()
-	const leaveApplicationsData = await fetchLeaveApplications()
-	
-	const totalLeaveTaken = leaveBalances.reduce((sum: number, leave: LeaveBalance) => sum + leave.taken, 0)
-	const totalLeaveRemaining = leaveBalances.reduce((sum: number, leave: LeaveBalance) => sum + leave.remaining, 0)
-	
-	// Use real pending count from Frappe instead of dummy data
-	const myPendingLeaveApplications = leaveApplicationsData.pendingCount
-	
-	// Keep dummy data for expense claims for now (until we implement expense claims API)
-	const myPendingExpenseClaims = myExpenseClaims.filter(claim => claim.status === 'pending').length
-	
-	// Calculate recent applications from real Frappe data (last 30 days)
-	const thirtyDaysAgo = new Date()
-	thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
-	const recentApplications = leaveApplicationsData.applications.filter(app => 
-		new Date(app.posting_date) >= thirtyDaysAgo
-	).length
-	
-	// Calculate approved this month from real Frappe data
-	const currentMonth = new Date().getMonth()
-	const currentYear = new Date().getFullYear()
-	const approvedThisMonth = leaveApplicationsData.applications.filter(app => 
-		app.leave_status === 'Approved' && 
-		app.posting_date &&
-		new Date(app.posting_date).getMonth() === currentMonth &&
-		new Date(app.posting_date).getFullYear() === currentYear
-	).length
-	
-	console.log('Dashboard Stats:', {
-		myPendingLeaveApplications,
-		myPendingExpenseClaims,
-		totalLeaveTaken,
-		totalLeaveRemaining,
-		recentApplications,
-		approvedThisMonth
-	})
-	
-	return {
-		myPendingLeaveApplications,
-		myPendingExpenseClaims,
-		totalLeaveTaken,
-		totalLeaveRemaining,
-		recentApplications,
-		approvedThisMonth
+	try {
+		const leaveBalances = await combineLeaveData()
+		const leaveApplicationsData = await fetchLeaveApplications()
+		
+		const totalLeaveTaken = leaveBalances.reduce((sum: number, leave: LeaveBalance) => {
+			const taken = typeof leave.taken === 'number' ? leave.taken : 0
+			return sum + taken
+		}, 0)
+		
+		const totalLeaveRemaining = leaveBalances.reduce((sum: number, leave: LeaveBalance) => {
+			const remaining = typeof leave.remaining === 'number' ? leave.remaining : 0
+			return sum + remaining
+		}, 0)
+		
+		// Use real pending count from Frappe instead of dummy data
+		const myPendingLeaveApplications = typeof leaveApplicationsData.pendingCount === 'number' 
+			? leaveApplicationsData.pendingCount 
+			: 0
+		
+		// Keep dummy data for expense claims for now (until we implement expense claims API)
+		const myPendingExpenseClaims = myExpenseClaims.filter(claim => claim.status === 'pending').length
+		
+		// Calculate recent applications from real Frappe data (last 30 days)
+		const thirtyDaysAgo = new Date()
+		thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+		const recentApplications = Array.isArray(leaveApplicationsData.applications) 
+			? leaveApplicationsData.applications.filter(app => 
+				app.posting_date && new Date(app.posting_date) >= thirtyDaysAgo
+			).length
+			: 0
+		
+		// Calculate approved this month from real Frappe data
+		const currentMonth = new Date().getMonth()
+		const currentYear = new Date().getFullYear()
+		const approvedThisMonth = Array.isArray(leaveApplicationsData.applications)
+			? leaveApplicationsData.applications.filter(app => 
+				app.leave_status === 'Approved' && 
+				app.posting_date &&
+				new Date(app.posting_date).getMonth() === currentMonth &&
+				new Date(app.posting_date).getFullYear() === currentYear
+			).length
+			: 0
+		
+		console.log('Dashboard Stats:', {
+			myPendingLeaveApplications,
+			myPendingExpenseClaims,
+			totalLeaveTaken,
+			totalLeaveRemaining,
+			recentApplications,
+			approvedThisMonth
+		})
+		
+		// Ensure all values are numbers
+		return {
+			myPendingLeaveApplications: typeof myPendingLeaveApplications === 'number' ? myPendingLeaveApplications : 0,
+			myPendingExpenseClaims: typeof myPendingExpenseClaims === 'number' ? myPendingExpenseClaims : 0,
+			totalLeaveTaken: typeof totalLeaveTaken === 'number' ? totalLeaveTaken : 0,
+			totalLeaveRemaining: typeof totalLeaveRemaining === 'number' ? totalLeaveRemaining : 0,
+			recentApplications: typeof recentApplications === 'number' ? recentApplications : 0,
+			approvedThisMonth: typeof approvedThisMonth === 'number' ? approvedThisMonth : 0
+		}
+	} catch (error) {
+		console.error('Error calculating dashboard stats:', error)
+		// Return safe default values
+		return {
+			myPendingLeaveApplications: 0,
+			myPendingExpenseClaims: 0,
+			totalLeaveTaken: 0,
+			totalLeaveRemaining: 0,
+			recentApplications: 0,
+			approvedThisMonth: 0
+		}
 	}
 }
 
@@ -536,18 +589,31 @@ const convertFrappeToMyLeaveApplications = async (): Promise<MyLeaveApplication[
 
 		// Create a map of leave type names for display
 		const leaveTypeMap = new Map<string, string>()
-		leaveTypes.forEach(lt => {
-			// Use description if available, otherwise use leave_mapping_code, otherwise use name
-			const displayName = lt.description && lt.description.trim() 
-				? lt.description.trim()
-				: lt.leave_mapping_code && lt.leave_mapping_code.trim()
-				? lt.leave_mapping_code.trim()
-				: lt.name
-			leaveTypeMap.set(lt.name, displayName)
-		})
+		if (Array.isArray(leaveTypes)) {
+			leaveTypes.forEach(lt => {
+				// Use description if available, otherwise use leave_mapping_code, otherwise use name
+				const displayName = lt.description && lt.description.trim() 
+					? lt.description.trim()
+					: lt.leave_mapping_code && lt.leave_mapping_code.trim()
+					? lt.leave_mapping_code.trim()
+					: lt.name
+				leaveTypeMap.set(lt.name, displayName)
+			})
+		}
+
+		// Ensure we have valid applications array
+		const applications = Array.isArray(leaveApplicationsData.applications) 
+			? leaveApplicationsData.applications 
+			: []
 
 		// Convert Frappe applications to MyLeaveApplication format
-		const myApplications: MyLeaveApplication[] = leaveApplicationsData.applications.map(app => {
+		const myApplications: MyLeaveApplication[] = applications.map(app => {
+			// Ensure app is an object and has required properties
+			if (!app || typeof app !== 'object') {
+				console.error('Invalid application data:', app)
+				return null
+			}
+
 			// Map workflow_state to our status format
 			let status: 'pending' | 'approved' | 'rejected' = 'pending'
 			if (app.leave_status === 'Approved') {
@@ -559,32 +625,39 @@ const convertFrappeToMyLeaveApplications = async (): Promise<MyLeaveApplication[
 			}
 
 			// Get display name for leave type
-			const leaveTypeDisplay = leaveTypeMap.get(app.leave_type) || app.leave_type
+			const leaveTypeDisplay = leaveTypeMap.get(app.leave_type) || app.leave_type || 'Unknown Leave Type'
 
+			// Ensure all required fields are strings/numbers
 			return {
-				id: app.name,
-				leaveType: leaveTypeDisplay,
-				fromDate: app.from_date,
-				toDate: app.to_date,
-				days: app.total_leave_days,
-				reason: app.description && app.description.trim() ? app.description.trim() : 'Personal leave',
+				id: typeof app.name === 'string' ? app.name : 'Unknown',
+				leaveType: typeof leaveTypeDisplay === 'string' ? leaveTypeDisplay : 'Unknown Leave Type',
+				fromDate: typeof app.from_date === 'string' ? app.from_date : new Date().toISOString().split('T')[0],
+				toDate: typeof app.to_date === 'string' ? app.to_date : new Date().toISOString().split('T')[0],
+				days: typeof app.total_leave_days === 'number' ? app.total_leave_days : 0,
+				reason: app.description && typeof app.description === 'string' && app.description.trim() 
+					? app.description.trim() 
+					: 'Personal leave',
 				status: status,
-				appliedDate: app.posting_date,
-				approvedBy: app.leave_approver || undefined,
-				approvedDate: status === 'approved' ? app.posting_date : undefined,
+				appliedDate: typeof app.posting_date === 'string' ? app.posting_date : new Date().toISOString().split('T')[0],
+				approvedBy: app.leave_approver && typeof app.leave_approver === 'string' ? app.leave_approver : undefined,
+				approvedDate: status === 'approved' && typeof app.posting_date === 'string' ? app.posting_date : undefined,
 				rejectionReason: status === 'rejected' ? 'Application was rejected' : undefined
 			}
-		})
+		}).filter(app => app !== null) as MyLeaveApplication[] // Remove any null entries
 
 		// Sort by applied date (most recent first)
-		myApplications.sort((a, b) => new Date(b.appliedDate).getTime() - new Date(a.appliedDate).getTime())
+		myApplications.sort((a, b) => {
+			const dateA = new Date(a.appliedDate)
+			const dateB = new Date(b.appliedDate)
+			return dateB.getTime() - dateA.getTime()
+		})
 
 		console.log('Converted Frappe applications to MyLeaveApplication format:', myApplications)
 		return myApplications
 	} catch (error) {
 		console.error('Error converting Frappe leave applications:', error)
-		// Return dummy data as fallback
-		return myLeaveApplications
+		// Return empty array instead of dummy data to prevent rendering issues
+		return []
 	}
 }
 

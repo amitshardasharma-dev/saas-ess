@@ -9,9 +9,9 @@ interface FrappeUser {
 	user_image?: string
 }
 
-interface FrappeUserResponse {
-	data: FrappeUser
-}
+// interface FrappeUserResponse {
+// 	data: FrappeUser
+// }
 
 export async function GET(request: NextRequest) {
 	try {
@@ -85,8 +85,9 @@ export async function GET(request: NextRequest) {
 			const user = userData.data
 			console.log('Found user:', user)
 			
-			// Try to get basic employee record with additional fields including bc_employee_id
-			const fields = encodeURIComponent('["name","user_id","bc_employee_id","employee_name"]')
+			// Try to get basic employee record with additional fields including approval permissions
+			// Note: employee_name field is not permitted in queries, so we exclude it from the filter query
+			const fields = encodeURIComponent('["name","user_id","bc_employee_id","leave_approval_enabled","expense_approval_enabled"]')
 			const filters = encodeURIComponent(`[["user_id","=","${authData.message}"]]`)
 			const employeeUrl = `${config.frappe.url.replace(/\/$/, '')}/api/resource/Employee?fields=${fields}&filters=${filters}`
 			
@@ -94,6 +95,8 @@ export async function GET(request: NextRequest) {
 			let employeeName = user.employee_id || user.employee || 'Unknown';
 			let bcEmployeeId = '';
 			let actualEmployeeName = '';
+			let leaveApprovalEnabled = 0;
+			let expenseApprovalEnabled = 0;
 			
 			console.log('User employee fields:', { 
 				employee_id: user.employee_id, 
@@ -110,21 +113,58 @@ export async function GET(request: NextRequest) {
 					},
 				})
 				
+				console.log('Employee API response status:', empResponse.status)
 				if (empResponse.ok) {
 					const empData = await empResponse.json()
+					console.log('Raw employee data from Frappe:', JSON.stringify(empData, null, 2))
+					
 					if (empData.data && empData.data.length > 0) {
 						const emp = empData.data[0]
 						employeeName = emp.name
 						bcEmployeeId = emp.bc_employee_id || ''
-						actualEmployeeName = emp.employee_name || ''
-						console.log('Employee record found:', { employeeName, bcEmployeeId, actualEmployeeName })
+						leaveApprovalEnabled = emp.leave_approval_enabled || 0
+						expenseApprovalEnabled = emp.expense_approval_enabled || 0
+						
+						console.log('Employee record found:', { 
+							employeeName, 
+							bcEmployeeId, 
+							leaveApprovalEnabled,
+							expenseApprovalEnabled
+						})
+						console.log('Raw approval values from Frappe:', {
+							leave_approval_enabled: emp.leave_approval_enabled,
+							expense_approval_enabled: emp.expense_approval_enabled
+						})
+						
+						// If we found the employee record, try to get the full name from direct fetch
+						try {
+							const directEmpResponse = await fetch(`${config.frappe.url.replace(/\/$/, '')}/api/resource/Employee/${employeeName}`, {
+								method: 'GET',
+								headers: {
+									...(cookieHeader && { Cookie: cookieHeader }),
+								},
+							})
+							
+							if (directEmpResponse.ok) {
+								const directEmpData = await directEmpResponse.json()
+								actualEmployeeName = directEmpData.data.first_name || directEmpData.data.full_name || ''
+								console.log('Got employee name from direct fetch:', actualEmployeeName)
+							}
+						} catch (directError) {
+							console.log('Direct employee fetch failed:', directError)
+						}
+					} else {
+						console.log('No employee records found in response')
 					}
+				} else {
+					const errorText = await empResponse.text()
+					console.log('Employee API error:', errorText)
 				}
 			} catch (empError) {
 				console.log('Employee record fetch failed, using user data:', empError)
 			}
 			
-			return NextResponse.json({
+			const responseData = {
 				employee: {
 					name: employeeName,
 					employee_name: actualEmployeeName || user.full_name || user.name || employeeName,
@@ -134,8 +174,22 @@ export async function GET(request: NextRequest) {
 					bc_employee_id: bcEmployeeId,
 					company: '', // Not available due to permissions
 					department: '', // Not available due to permissions
+					leave_approval_enabled: leaveApprovalEnabled,
+					expense_approval_enabled: expenseApprovalEnabled
 				}
-			})
+			}
+			
+			console.log('Final response data:', JSON.stringify(responseData, null, 2))
+			
+			const response = NextResponse.json(responseData)
+			
+			// Add cache-busting headers
+			response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
+			response.headers.set('Pragma', 'no-cache')
+			response.headers.set('Expires', '0')
+			response.headers.set('Surrogate-Control', 'no-store')
+			
+			return response
 		} else {
 			console.warn('No user data found for user:', authData.message)
 			return NextResponse.json(

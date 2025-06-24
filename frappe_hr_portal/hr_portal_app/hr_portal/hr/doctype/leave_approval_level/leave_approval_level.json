@@ -1,0 +1,146 @@
+{
+  "doctype": "DocType",
+  "name": "Leave Approval Level",
+  "module": "HR",
+  "creation": "2025-06-13 14:43:50.163588",
+  "modified": "2025-06-13 14:43:50.163588",
+  "modified_by": "Administrator",
+  "owner": "Administrator",
+  "engine": "InnoDB",
+  "row_format": "Dynamic",
+  "istable": 1,
+  "index_web_pages_for_search": 1,
+  "sort_field": "modified",
+  "sort_order": "DESC",
+
+  "field_order": [
+    "level_no",
+    "approver_type",
+    "column_break_1",
+    "approver_employee",
+    "approver_role",
+    "section_break_delegation",
+    "sla_days",
+    "column_break_2",
+    "delegate_to_employee",
+    "delegate_to_role",
+    "delegate_level_no",
+    "section_break_options",
+    "mandatory"
+  ],
+
+  "fields": [
+    {
+      "fieldname": "level_no",
+      "label": "Level Number",
+      "fieldtype": "Int",
+      "reqd": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "approver_type",
+      "label": "Approver Type",
+      "fieldtype": "Select",
+      "options": "Employee\nRole",
+      "reqd": 1,
+      "in_list_view": 1,
+      "default": "Employee"
+    },
+    {
+      "fieldname": "column_break_1",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "approver_employee",
+      "label": "Approver Employee",
+      "fieldtype": "Link",
+      "options": "Employee",
+      "depends_on": "eval:doc.approver_type=='Employee'",
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "approver_role",
+      "label": "Approver Role",
+      "fieldtype": "Link",
+      "options": "Role",
+      "depends_on": "eval:doc.approver_type=='Role'",
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "section_break_delegation",
+      "label": "Delegation & SLA",
+      "fieldtype": "Section Break"
+    },
+    {
+      "fieldname": "sla_days",
+      "label": "SLA Days",
+      "fieldtype": "Int",
+      "description": "Number of days after which approval will be delegated if not acted upon"
+    },
+    {
+      "fieldname": "column_break_2",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "delegate_to_employee",
+      "label": "Delegate to Employee",
+      "fieldtype": "Link",
+      "options": "Employee",
+      "description": "Employee to delegate approval to when SLA is breached"
+    },
+    {
+      "fieldname": "delegate_to_role",
+      "label": "Delegate to Role",
+      "fieldtype": "Link",
+      "options": "Role",
+      "description": "Role to delegate approval to when SLA is breached"
+    },
+    {
+      "fieldname": "delegate_level_no",
+      "label": "Delegate to Level",
+      "fieldtype": "Int",
+      "description": "Jump to a specific level when SLA is breached"
+    },
+    {
+      "fieldname": "section_break_options",
+      "label": "Options",
+      "fieldtype": "Section Break"
+    },
+    {
+      "fieldname": "mandatory",
+      "label": "Mandatory",
+      "fieldtype": "Check",
+      "default": 1,
+      "in_list_view": 1,
+      "description": "Whether this approval level is mandatory"
+    }
+  ],
+
+  "permissions": [
+    {
+      "role": "System Manager",
+      "read": 1,
+      "write": 1,
+      "create": 1,
+      "delete": 1
+    },
+    {
+      "role": "HR Manager",
+      "read": 1,
+      "write": 1,
+      "create": 1,
+      "delete": 0
+    },
+    {
+      "role": "HR User",
+      "read": 1,
+      "create": 0,
+      "write": 0,
+      "delete": 0
+    }
+  ],
+
+  "actions": [],
+  "links": [],
+  "states": []
+} 

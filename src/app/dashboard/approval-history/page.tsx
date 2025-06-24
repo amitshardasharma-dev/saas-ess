@@ -1,10 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
+import { useEmployee } from '@/hooks/use-employee'
+import { Pagination, PaginationInfo } from '@/components/ui/pagination'
 import { 
 	Calendar, 
 	Clock, 
@@ -12,14 +14,15 @@ import {
 	FileText, 
 	CheckCircle, 
 	XCircle, 
-	Eye, 
 	Award,
 	Search,
 	Filter,
 	CalendarDays,
 	Loader2,
 	RefreshCw,
-	ChevronRight
+	ChevronRight,
+	ShieldX,
+	Settings
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { leaveService, ApprovalHistoryItem } from '@/services/leave'
@@ -37,17 +40,27 @@ interface LeaveType {
 }
 
 export default function ApprovalHistoryPage() {
+	const { hasLeaveApprovalAccess, loading: employeeLoading } = useEmployee()
 	const [approvalHistory, setApprovalHistory] = useState<ApprovalHistoryItem[]>([])
 	const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([])
 	const [isLoading, setIsLoading] = useState(true)
 	const [error, setError] = useState<string | null>(null)
 	const [searchTerm, setSearchTerm] = useState('')
 	const [statusFilter, setStatusFilter] = useState<'all' | 'approved' | 'rejected'>('all')
+	
+	// Pagination state
+	const [currentPage, setCurrentPage] = useState(1)
+	const [itemsPerPage, setItemsPerPage] = useState(10)
 
 	useEffect(() => {
 		loadApprovalHistory()
 		loadLeaveTypes()
 	}, [])
+
+	// Reset to first page when filters change
+	useEffect(() => {
+		setCurrentPage(1)
+	}, [searchTerm, statusFilter, itemsPerPage])
 
 	const loadLeaveTypes = async () => {
 		try {
@@ -125,16 +138,65 @@ export default function ApprovalHistoryPage() {
 		})
 	}
 
-	const filteredHistory = approvalHistory.filter(item => {
-		const matchesSearch = item.leave_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-							 item.employee_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-							 item.reason.toLowerCase().includes(searchTerm.toLowerCase()) ||
-							 formatLeaveType(item.leave_type).toLowerCase().includes(searchTerm.toLowerCase())
-		const matchesStatus = statusFilter === 'all' || item.my_action.toLowerCase() === statusFilter
-		return matchesSearch && matchesStatus
-	})
+	// Filter and paginate data
+	const { filteredHistory, paginatedHistory, totalPages } = useMemo(() => {
+		// Apply filters
+		const filtered = approvalHistory.filter(item => {
+			const matchesSearch = item.leave_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+								 item.employee_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+								 item.reason.toLowerCase().includes(searchTerm.toLowerCase()) ||
+								 formatLeaveType(item.leave_type).toLowerCase().includes(searchTerm.toLowerCase())
+			const matchesStatus = statusFilter === 'all' || item.my_action.toLowerCase() === statusFilter
+			return matchesSearch && matchesStatus
+		})
 
-	if (isLoading) {
+		// Calculate pagination
+		const totalPages = Math.ceil(filtered.length / itemsPerPage)
+		const startIndex = (currentPage - 1) * itemsPerPage
+		const endIndex = startIndex + itemsPerPage
+		const paginated = filtered.slice(startIndex, endIndex)
+
+		return {
+			filteredHistory: filtered,
+			paginatedHistory: paginated,
+			totalPages
+		}
+	}, [approvalHistory, searchTerm, statusFilter, currentPage, itemsPerPage, leaveTypes])
+
+	const handlePageChange = (page: number) => {
+		setCurrentPage(page)
+		// Scroll to top when page changes
+		window.scrollTo({ top: 0, behavior: 'smooth' })
+	}
+
+	const handleItemsPerPageChange = (newItemsPerPage: number) => {
+		setItemsPerPage(newItemsPerPage)
+		setCurrentPage(1)
+	}
+
+	// Check for access permission
+	if (!employeeLoading && !hasLeaveApprovalAccess) {
+		return (
+			<DashboardLayout>
+				<div className="container mx-auto px-4 py-6">
+					<div className="flex items-center justify-center min-h-[400px]">
+						<div className="text-center">
+							<ShieldX className="h-12 w-12 mx-auto mb-4 text-red-500" />
+							<h2 className="text-xl font-semibold mb-2">Access Restricted</h2>
+							<p className="text-sm text-muted-foreground mb-4">
+								You don't have permission to access the approval features.
+							</p>
+							<p className="text-xs text-muted-foreground">
+								Contact your administrator if you believe this is an error.
+							</p>
+						</div>
+					</div>
+				</div>
+			</DashboardLayout>
+		)
+	}
+
+	if (isLoading || employeeLoading) {
 		return (
 			<DashboardLayout>
 				<div className="container mx-auto px-4 py-6">
@@ -230,9 +292,39 @@ export default function ApprovalHistoryPage() {
 									<option value="rejected">Rejected</option>
 								</select>
 							</div>
+
+							{/* Items per page */}
+							<div className="flex items-center space-x-2">
+								<Settings className="h-4 w-4 text-muted-foreground" />
+								<select
+									value={itemsPerPage}
+									onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
+									className="px-3 py-2 border border-input rounded-md bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+								>
+									<option value={5}>5 per page</option>
+									<option value={10}>10 per page</option>
+									<option value={20}>20 per page</option>
+									<option value={50}>50 per page</option>
+								</select>
+							</div>
 						</div>
 					</CardContent>
 				</Card>
+
+				{/* Pagination Info */}
+				{filteredHistory.length > 0 && (
+					<div className="flex items-center justify-between mb-4">
+						<PaginationInfo
+							currentPage={currentPage}
+							itemsPerPage={itemsPerPage}
+							totalItems={filteredHistory.length}
+							itemName="approval actions"
+						/>
+						<div className="text-sm text-muted-foreground">
+							Total: {approvalHistory.length} approval actions
+						</div>
+					</div>
+				)}
 
 				{/* Approval History List */}
 				{filteredHistory.length === 0 ? (
@@ -260,88 +352,96 @@ export default function ApprovalHistoryPage() {
 					</Card>
 				) : (
 					<div className="space-y-4">
-						{filteredHistory.map((item) => (
-							<Card 
+						{paginatedHistory.map((item) => (
+							<Link 
 								key={`${item.leave_id}-${item.action_date}`} 
-								className="hover:shadow-md transition-shadow"
+								href={`/dashboard/leave-applications/${item.leave_id}`}
+								className="block"
 							>
-								<CardContent className="p-4">
-									<div className="flex items-center justify-between">
-										<div className="flex-1">
-											<div className="flex items-center space-x-3 mb-2">
-												<h3 className="font-semibold text-foreground">{item.leave_id}</h3>
-												{getActionBadge(item.my_action)}
-												{item.approved_level && (
-													<Badge variant="outline" className="text-xs">
-														Level {item.approved_level}
-													</Badge>
+								<Card className="hover:shadow-md transition-shadow cursor-pointer">
+									<CardContent className="p-4">
+										<div className="flex items-center justify-between">
+											<div className="flex-1">
+												<div className="flex items-center space-x-3 mb-2">
+													<h3 className="font-semibold text-foreground">{item.leave_id}</h3>
+													{getActionBadge(item.my_action)}
+													{item.approved_level && (
+														<Badge variant="outline" className="text-xs">
+															Level {item.approved_level}
+														</Badge>
+													)}
+												</div>
+												
+												<div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+													<div className="flex items-center space-x-2">
+														<User className="h-4 w-4 text-muted-foreground" />
+														<span className="text-muted-foreground">Employee:</span>
+														<span className="font-medium">{item.employee_name}</span>
+													</div>
+													
+													<div className="flex items-center space-x-2">
+														<Calendar className="h-4 w-4 text-muted-foreground" />
+														<span className="text-muted-foreground">Leave Type:</span>
+														<span className="font-medium">{formatLeaveType(item.leave_type)}</span>
+													</div>
+													
+													<div className="flex items-center space-x-2">
+														<CalendarDays className="h-4 w-4 text-muted-foreground" />
+														<span className="text-muted-foreground">Duration:</span>
+														<span className="font-medium">
+															{formatDate(item.from_date)} - {formatDate(item.till_date)} 
+															({item.total_days} day{item.total_days !== 1 ? 's' : ''})
+														</span>
+													</div>
+												</div>
+												
+												<div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+													<div>
+														<p className="text-muted-foreground">
+															<span className="font-medium">Reason:</span> {item.reason || 'No reason provided'}
+														</p>
+													</div>
+													<div className="flex items-center space-x-2">
+														<Clock className="h-4 w-4 text-muted-foreground" />
+														<span className="text-muted-foreground">Action Date:</span>
+														<span className="font-medium">{formatDateTime(item.action_date)}</span>
+													</div>
+												</div>
+												
+												{item.remarks && (
+													<div className="mt-2">
+														<p className="text-sm text-muted-foreground">
+															<span className="font-medium">Your Remarks:</span> {item.remarks}
+														</p>
+													</div>
 												)}
 											</div>
 											
-											<div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-												<div className="flex items-center space-x-2">
-													<User className="h-4 w-4 text-muted-foreground" />
-													<span className="text-muted-foreground">Employee:</span>
-													<span className="font-medium">{item.employee_name}</span>
-												</div>
-												
-												<div className="flex items-center space-x-2">
-													<Calendar className="h-4 w-4 text-muted-foreground" />
-													<span className="text-muted-foreground">Leave Type:</span>
-													<span className="font-medium">{formatLeaveType(item.leave_type)}</span>
-												</div>
-												
-												<div className="flex items-center space-x-2">
-													<CalendarDays className="h-4 w-4 text-muted-foreground" />
-													<span className="text-muted-foreground">Duration:</span>
-													<span className="font-medium">
-														{formatDate(item.from_date)} - {formatDate(item.till_date)} 
-														({item.total_days} day{item.total_days !== 1 ? 's' : ''})
-													</span>
-												</div>
+											<div className="flex items-center space-x-2 ml-4">
+												{getActionIcon(item.my_action)}
+												<ChevronRight className="h-4 w-4 text-muted-foreground" />
 											</div>
-											
-											<div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-												<div>
-													<p className="text-muted-foreground">
-														<span className="font-medium">Reason:</span> {item.reason || 'No reason provided'}
-													</p>
-												</div>
-												<div className="flex items-center space-x-2">
-													<Clock className="h-4 w-4 text-muted-foreground" />
-													<span className="text-muted-foreground">Action Date:</span>
-													<span className="font-medium">{formatDateTime(item.action_date)}</span>
-												</div>
-											</div>
-											
-											{item.remarks && (
-												<div className="mt-2">
-													<p className="text-sm text-muted-foreground">
-														<span className="font-medium">Your Remarks:</span> {item.remarks}
-													</p>
-												</div>
-											)}
 										</div>
-										
-										<div className="flex items-center space-x-2 ml-4">
-											{getActionIcon(item.my_action)}
-											<Link href={`/dashboard/leave-applications/${item.leave_id}`}>
-												<Button variant="ghost" size="sm">
-													<Eye className="h-4 w-4" />
-												</Button>
-											</Link>
-										</div>
-									</div>
-								</CardContent>
-							</Card>
+									</CardContent>
+								</Card>
+							</Link>
 						))}
 					</div>
 				)}
 
-				{/* Summary Footer */}
-				{filteredHistory.length > 0 && (
-					<div className="mt-6 text-center text-sm text-muted-foreground">
-						Showing {filteredHistory.length} of {approvalHistory.length} approval actions
+				{/* Pagination Controls */}
+				{totalPages > 1 && (
+					<div className="mt-6 flex flex-col items-center space-y-4">
+						<Pagination
+							currentPage={currentPage}
+							totalPages={totalPages}
+							onPageChange={handlePageChange}
+							showFirstLast={true}
+							maxVisiblePages={5}
+						/>
+						<div className="text-xs text-muted-foreground">
+							Page {currentPage} of {totalPages}
+						</div>
 					</div>
 				)}
 			</div>

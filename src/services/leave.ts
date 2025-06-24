@@ -20,6 +20,8 @@ export interface Employee {
 	bc_employee_id?: string // BC Employee ID field
 	company: string
 	department: string
+	leave_approval_enabled?: number // 1 = enabled, 0 = disabled
+	expense_approval_enabled?: number // 1 = enabled, 0 = disabled
 }
 
 export interface LeaveApplicationData {

@@ -1,0 +1,13 @@
+{
+ "creation": "2025-06-01 16:44:30.004200",
+ "docstatus": 0,
+ "doctype": "Dashboard Chart Source",
+ "idx": 0,
+ "modified": "2025-06-01 16:44:30.004200",
+ "modified_by": "Administrator",
+ "module": "HR",
+ "name": "Leave Type",
+ "owner": "Administrator",
+ "source_name": "Leave Type",
+ "timeseries": 0
+}

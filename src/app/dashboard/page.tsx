@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Sparkles } from 'lucide-react'
+import { Sparkles, User, Building, Mail, Hash, Calendar } from 'lucide-react'
 import { Toaster } from 'react-hot-toast'
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -10,10 +10,13 @@ import config from '@/config/environment'
 
 // Employee dashboard components
 import { EmployeeStatsCards } from '@/components/dashboard/employee-stats-cards'
+import { useEmployee } from '@/hooks/use-employee'
 import { MyLeaveApplications } from '@/components/dashboard/my-leave-applications'
 import { MyExpenseClaims } from '@/components/dashboard/my-expense-claims'
 import { MyPayslips } from '@/components/dashboard/my-payslips'
 import { LeaveBalanceComponent } from '@/components/dashboard/leave-balance'
+import { PendingApprovalsSummary } from '@/components/dashboard/pending-approvals-summary'
+import { PendingExpenseApprovals } from '@/components/dashboard/pending-expense-approvals'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 
 // Employee dashboard data and types
@@ -50,6 +53,9 @@ export default function DashboardPage() {
 	const [myPayslips, setMyPayslips] = useState<PayslipData[]>([])
 	const [leaveBalances, setLeaveBalances] = useState<LeaveBalance[]>([])
 	const [isDashboardLoading, setIsDashboardLoading] = useState(true)
+	
+	// Get employee data for enhanced welcome section
+	const { employee, loading: employeeLoading } = useEmployee()
 
 	useEffect(() => {
 		// Check authentication status
@@ -66,6 +72,7 @@ export default function DashboardPage() {
 	const loadDashboardData = async () => {
 		try {
 			setIsDashboardLoading(true)
+			console.log('Dashboard Page: Current user:', user)
 			
 			// Load all employee dashboard data in parallel
 			const [stats, applications, claims, payslips, balances] = await Promise.all([
@@ -76,13 +83,54 @@ export default function DashboardPage() {
 				employeeDashboardService.getLeaveBalances()
 			])
 
-			setDashboardStats(stats)
-			setMyLeaveApplications(applications)
-			setMyExpenseClaims(claims)
-			setMyPayslips(payslips)
-			setLeaveBalances(balances)
+			// Validate that stats is a proper object with numeric values
+			if (stats && typeof stats === 'object' && !(stats as any).message && !(stats as any).workflow_state) {
+				setDashboardStats(stats)
+			} else {
+				console.error('Invalid stats data received:', stats)
+				setDashboardStats(null)
+			}
+
+			// Validate that applications is an array
+			if (Array.isArray(applications)) {
+				console.log('Dashboard Page: Received applications:', applications)
+				setMyLeaveApplications(applications)
+			} else {
+				console.error('Invalid applications data received:', applications)
+				setMyLeaveApplications([])
+			}
+
+			// Validate that claims is an array
+			if (Array.isArray(claims)) {
+				setMyExpenseClaims(claims)
+			} else {
+				console.error('Invalid claims data received:', claims)
+				setMyExpenseClaims([])
+			}
+
+			// Validate that payslips is an array
+			if (Array.isArray(payslips)) {
+				setMyPayslips(payslips)
+			} else {
+				console.error('Invalid payslips data received:', payslips)
+				setMyPayslips([])
+			}
+
+			// Validate that balances is an array
+			if (Array.isArray(balances)) {
+				setLeaveBalances(balances)
+			} else {
+				console.error('Invalid balances data received:', balances)
+				setLeaveBalances([])
+			}
 		} catch (error) {
 			console.error('Failed to load dashboard data:', error)
+			// Set safe default values
+			setDashboardStats(null)
+			setMyLeaveApplications([])
+			setMyExpenseClaims([])
+			setMyPayslips([])
+			setLeaveBalances([])
 		} finally {
 			setIsDashboardLoading(false)
 		}
@@ -110,19 +158,94 @@ export default function DashboardPage() {
 			
 			{/* Main Content with Modern Spacing */}
 			<div className="min-h-screen fluid-bg">
-				{/* Header with User Info */}
+				{/* Enhanced Header with Employee Info */}
 				<div className="border-b border-border bg-background/50 backdrop-blur-sm">
-					<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-						<div className="flex justify-between items-center">
-							<div>
-								<div className="flex items-center space-x-2">
-									<Sparkles className="h-5 w-5 text-primary" />
-									<span className="text-lg font-semibold text-foreground">
-										Welcome back, {user.full_name}
-									</span>
+					<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+						<div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
+							{/* Welcome Section */}
+							<div className="flex-1">
+								<div className="flex items-center space-x-3 mb-2">
+									<div className="p-2 bg-primary/10 rounded-xl">
+										<Sparkles className="h-6 w-6 text-primary" />
+									</div>
+									<div>
+										<h1 className="text-2xl font-bold text-foreground">
+											Welcome back, {user.full_name}
+										</h1>
+										<p className="text-muted-foreground">Have a productive day!</p>
+									</div>
 								</div>
-								<p className="text-sm text-muted-foreground">Have a productive day!</p>
 							</div>
+							
+							{/* Employee Details Card */}
+							{employee && !employeeLoading && (
+								<div className="bg-muted/30 backdrop-blur-sm rounded-2xl p-4 border border-border/50">
+									<div className="grid grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+										{employee.employee_id && (
+											<div className="flex items-center space-x-2">
+												<Hash className="h-4 w-4 text-primary" />
+												<div>
+													<p className="text-muted-foreground text-xs">Employee ID</p>
+													<p className="font-medium text-foreground">{employee.employee_id}</p>
+												</div>
+											</div>
+										)}
+										
+										{employee.bc_employee_id && (
+											<div className="flex items-center space-x-2">
+												<User className="h-4 w-4 text-primary" />
+												<div>
+													<p className="text-muted-foreground text-xs">BC Code</p>
+													<p className="font-medium text-foreground">{employee.bc_employee_id}</p>
+												</div>
+											</div>
+										)}
+										
+										{employee.user_id && (
+											<div className="flex items-center space-x-2">
+												<Mail className="h-4 w-4 text-primary" />
+												<div>
+													<p className="text-muted-foreground text-xs">Email</p>
+													<p className="font-medium text-foreground truncate max-w-32">{employee.user_id}</p>
+												</div>
+											</div>
+										)}
+										
+										{(employee.company || employee.department) && (
+											<div className="flex items-center space-x-2">
+												<Building className="h-4 w-4 text-primary" />
+												<div>
+													<p className="text-muted-foreground text-xs">
+														{employee.company && employee.department ? 'Dept' : employee.company ? 'Company' : 'Department'}
+													</p>
+													<p className="font-medium text-foreground truncate max-w-32">
+														{employee.department || employee.company || 'Not Set'}
+													</p>
+												</div>
+											</div>
+										)}
+									</div>
+								</div>
+							)}
+							
+							{/* Loading state for employee details */}
+							{employeeLoading && (
+								<div className="bg-muted/30 backdrop-blur-sm rounded-2xl p-4 border border-border/50">
+									<div className="animate-pulse">
+										<div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+											{[...Array(4)].map((_, i) => (
+												<div key={i} className="flex items-center space-x-2">
+													<div className="h-4 w-4 bg-muted rounded"></div>
+													<div className="space-y-1">
+														<div className="h-3 bg-muted rounded w-16"></div>
+														<div className="h-4 bg-muted rounded w-20"></div>
+													</div>
+												</div>
+											))}
+										</div>
+									</div>
+								</div>
+							)}
 						</div>
 					</div>
 				</div>
@@ -201,7 +324,7 @@ export default function DashboardPage() {
 
 						{/* Loading Applications, Claims, and Payslips */}
 						<div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-							{[...Array(3)].map((_, i) => (
+							{[...Array(5)].map((_, i) => (
 								<div key={i} className="flowing-card p-8">
 									<div className="animate-pulse">
 										<div className="flex items-center space-x-4 mb-8">
@@ -287,6 +410,12 @@ export default function DashboardPage() {
 							<div className="space-y-2">
 								<MyPayslips payslips={myPayslips} />
 							</div>
+						</div>
+
+						{/* Approval Sections Row - Only visible to users with approval access */}
+						<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+							<PendingApprovalsSummary />
+							<PendingExpenseApprovals />
 						</div>
 
 

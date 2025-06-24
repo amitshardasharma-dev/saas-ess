@@ -1,0 +1,13 @@
+{
+ "creation": "2025-06-01 16:22:43.321650",
+ "docstatus": 0,
+ "doctype": "Dashboard Chart Source",
+ "idx": 0,
+ "modified": "2025-06-01 16:22:43.321650",
+ "modified_by": "Administrator",
+ "module": "HR",
+ "name": "Leave Balance Chart Source",
+ "owner": "Administrator",
+ "source_name": "Leave Balance Chart Source",
+ "timeseries": 0
+}

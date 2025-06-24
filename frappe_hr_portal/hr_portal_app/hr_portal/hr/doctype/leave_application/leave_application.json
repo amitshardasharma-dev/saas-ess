@@ -1,0 +1,218 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "LEAVE.######",
+ "creation": "2025-05-29 22:04:11.431501",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "section_break_krnj",
+  "leave_type",
+  "amended_from",
+  "from_date",
+  "till_date",
+  "leave_reason",
+  "half_day",
+  "half_day_date",
+  "total_leave_days",
+  "column_break_employee",
+  "link_lmbb",
+  "team",
+  "department",
+  "section_break_workflow",
+  "leave_status",
+  "workflow_state",
+  "leave_approver",
+  "section_break_approval_tracking",
+  "leave_approval_entry",
+  "leave_escalation_log"
+ ],
+ "fields": [
+  {
+   "fieldname": "section_break_krnj",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Leave Application",
+   "print_hide": 1,
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "leave_type",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Leave Type",
+   "options": "Leave Type",
+   "reqd": 1
+  },
+  {
+   "fieldname": "from_date",
+   "fieldtype": "Date",
+   "label": "From Date "
+  },
+  {
+   "fieldname": "till_date",
+   "fieldtype": "Date",
+   "label": "Till Date"
+  },
+  {
+   "fieldname": "link_lmbb",
+   "fieldtype": "Link",
+   "in_filter": 1,
+   "label": "Employee",
+   "options": "Employee",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "leave_reason",
+   "fieldtype": "Small Text",
+   "label": "Reason for Leave",
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "half_day",
+   "fieldtype": "Check",
+   "label": "Half Day Leave?"
+  },
+  {
+   "depends_on": "eval:doc.half_day",
+   "fieldname": "half_day_date",
+   "fieldtype": "Date",
+   "label": "Half Day Date"
+  },
+  {
+   "fieldname": "total_leave_days",
+   "fieldtype": "Float",
+   "label": "Total Leave Days",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_employee",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "team",
+   "label": "Team",
+   "fieldtype": "Link",
+   "options": "Team",
+   "read_only": 1
+  },
+  {
+   "fieldname": "department",
+   "label": "Department",
+   "fieldtype": "Link",
+   "options": "Department",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_break_workflow",
+   "label": "Workflow Status",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "leave_status",
+   "fieldtype": "Select",
+   "label": "Leave Status",
+   "options": "Open\nApproved\nRejected\nCancelled",
+   "read_only": 1,
+   "allow_on_submit": 1
+  },
+  {
+   "fieldname": "workflow_state",
+   "label": "Workflow State",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "description": "Current workflow state (e.g., Pending-L1, Pending-L2, Approved)",
+   "allow_on_submit": 1
+  },
+  {
+   "fieldname": "leave_approver",
+   "fieldtype": "Link",
+   "label": "Leave Approver",
+   "options": "Employee",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "section_break_approval_tracking",
+   "label": "Approval Tracking",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "leave_approval_entry",
+   "label": "Approval Entries",
+   "fieldtype": "Table",
+   "options": "Leave Approval Entry",
+   "read_only": 1
+  },
+  {
+   "fieldname": "leave_escalation_log",
+   "label": "Escalation Log",
+   "fieldtype": "Table",
+   "options": "Leave Escalation Log",
+   "read_only": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "is_submittable": 1,
+ "links": [],
+ "modified": "2025-06-02 00:58:34.409456",
+ "modified_by": "Administrator",
+ "module": "HR",
+ "name": "Leave Application",
+ "naming_rule": "Autoincrement",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Leave Applier",
+   "select": 1,
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "cancel": 1,
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Leave Approver",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

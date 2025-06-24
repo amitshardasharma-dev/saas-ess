@@ -1,0 +1,13 @@
+{
+ "creation": "2025-06-02 09:36:31.451290",
+ "docstatus": 0,
+ "doctype": "Dashboard Chart Source",
+ "idx": 0,
+ "modified": "2025-06-02 09:36:31.451290",
+ "modified_by": "Administrator",
+ "module": "HR",
+ "name": "LTDC",
+ "owner": "Administrator",
+ "source_name": "LTDC",
+ "timeseries": 0
+}

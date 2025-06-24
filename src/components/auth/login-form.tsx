@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Eye, EyeOff, Loader2 } from 'lucide-react'
 import { z } from 'zod'
-import toast from 'react-hot-toast'
+import { safeToast } from '@/utils/safe-toast'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -66,10 +66,10 @@ export function LoginForm() {
 				pwd: formData.password,
 				remember_me: formData.rememberMe,
 			})
-			toast.success('Login successful!')
+			safeToast.success('Login successful!')
 			router.push('/dashboard')
 		} catch (err) {
-			toast.error(err instanceof Error ? err.message : 'Login failed')
+			safeToast.error(err instanceof Error ? err.message : 'Login failed')
 		}
 	}
 
