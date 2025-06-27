@@ -21,7 +21,8 @@ import {
 	Building,
 	LogOut,
 	History,
-	Clock
+	Clock,
+	Settings
 } from 'lucide-react'
 
 interface SidebarProps {
@@ -115,6 +116,12 @@ export function Sidebar({ className }: SidebarProps) {
 				href: '/dashboard/profile',
 				icon: UserIcon,
 				description: 'Account settings'
+			},
+			{
+				title: 'System Settings',
+				href: '/dashboard/settings',
+				icon: Settings,
+				description: 'System settings'
 			}
 		]
 	}
