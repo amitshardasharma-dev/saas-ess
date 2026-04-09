@@ -18,6 +18,8 @@ import { LeaveBalanceComponent } from '@/components/dashboard/leave-balance'
 import { PendingApprovalsSummary } from '@/components/dashboard/pending-approvals-summary'
 import { PendingExpenseApprovals } from '@/components/dashboard/pending-expense-approvals'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
+import { useModules } from '@/hooks/use-modules'
+import { UserRole, hasMinRole } from '@/types/roles'
 
 // Employee dashboard data and types
 import { employeeDashboardService } from '@/services/dashboard-data'
@@ -56,6 +58,8 @@ export default function DashboardPage() {
 	
 	// Get employee data for enhanced welcome section
 	const { employee, loading: employeeLoading } = useEmployee()
+	const { isModuleEnabled } = useModules()
+	const userRole = (user?.role || 'employee') as UserRole
 
 	useEffect(() => {
 		// Check authentication status
@@ -395,18 +399,24 @@ export default function DashboardPage() {
 						)}
 
 						{/* Leave Balance Overview with Glass Effect */}
-						<div className="relative">
-							<LeaveBalanceComponent balances={leaveBalances} />
-						</div>
+						{isModuleEnabled('leave') && (
+							<div className="relative">
+								<LeaveBalanceComponent balances={leaveBalances} />
+							</div>
+						)}
 
 						{/* My Applications, Claims, and Payslips Row with Modern Cards */}
 						<div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-							<div className="space-y-2">
-								<MyLeaveApplications applications={myLeaveApplications} />
-							</div>
-							<div className="space-y-2">
-								<MyExpenseClaims claims={myExpenseClaims} />
-							</div>
+							{isModuleEnabled('leave') && (
+								<div className="space-y-2">
+									<MyLeaveApplications applications={myLeaveApplications} />
+								</div>
+							)}
+							{isModuleEnabled('expense') && (
+								<div className="space-y-2">
+									<MyExpenseClaims claims={myExpenseClaims} />
+								</div>
+							)}
 							<div className="space-y-2">
 								<MyPayslips payslips={myPayslips} />
 							</div>
