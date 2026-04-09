@@ -19,7 +19,7 @@ export const POST = withSuperAdmin(async (request: NextRequest) => {
   const body = await request.json()
   const {
     title, message, type, link_url, link_text,
-    target_type, target_ids, starts_at, expires_at,
+    target_type, target_ids, starts_at, expires_at, is_active,
   } = body
 
   if (!title || !message || !type) {
@@ -53,7 +53,7 @@ export const POST = withSuperAdmin(async (request: NextRequest) => {
       target_ids: target_ids || [],
       starts_at: starts_at || new Date().toISOString(),
       expires_at: expires_at || null,
-      is_active: true,
+      is_active: is_active !== undefined ? is_active : true,
     })
     .select()
     .single()
