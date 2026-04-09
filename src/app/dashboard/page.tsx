@@ -20,15 +20,17 @@ import { PendingExpenseApprovals } from '@/components/dashboard/pending-expense-
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { useModules } from '@/hooks/use-modules'
 import { UserRole, hasMinRole } from '@/types/roles'
+import { TimesheetList } from '@/components/timesheets/timesheet-list'
 
 // Employee dashboard data and types
 import { employeeDashboardService } from '@/services/dashboard-data'
-import { 
-	MyLeaveApplication, 
-	MyExpenseClaim, 
-	LeaveBalance, 
+import {
+	MyLeaveApplication,
+	MyExpenseClaim,
+	LeaveBalance,
 	EmployeeDashboardStats,
-	PayslipData
+	PayslipData,
+	DashboardTimesheet
 } from '@/types/dashboard'
 
 interface UserInfoItemProps {
@@ -54,6 +56,7 @@ export default function DashboardPage() {
 	const [myExpenseClaims, setMyExpenseClaims] = useState<MyExpenseClaim[]>([])
 	const [myPayslips, setMyPayslips] = useState<PayslipData[]>([])
 	const [leaveBalances, setLeaveBalances] = useState<LeaveBalance[]>([])
+	const [myTimesheets, setMyTimesheets] = useState<DashboardTimesheet[]>([])
 	const [isDashboardLoading, setIsDashboardLoading] = useState(true)
 	
 	// Get employee data for enhanced welcome section
@@ -79,12 +82,13 @@ export default function DashboardPage() {
 			console.log('Dashboard Page: Current user:', user)
 			
 			// Load all employee dashboard data in parallel
-			const [stats, applications, claims, payslips, balances] = await Promise.all([
+			const [stats, applications, claims, payslips, balances, timesheets] = await Promise.all([
 				employeeDashboardService.getEmployeeDashboardStats(),
 				employeeDashboardService.getMyLeaveApplications(),
 				employeeDashboardService.getMyExpenseClaims(),
 				employeeDashboardService.getMyPayslips(),
-				employeeDashboardService.getLeaveBalances()
+				employeeDashboardService.getLeaveBalances(),
+				employeeDashboardService.getMyTimesheets()
 			])
 
 			// Validate that stats is a proper object with numeric values
@@ -127,6 +131,9 @@ export default function DashboardPage() {
 				console.error('Invalid balances data received:', balances)
 				setLeaveBalances([])
 			}
+
+			// Set timesheets state
+			setMyTimesheets(Array.isArray(timesheets) ? timesheets : [])
 		} catch (error) {
 			console.error('Failed to load dashboard data:', error)
 			// Set safe default values
@@ -135,6 +142,7 @@ export default function DashboardPage() {
 			setMyExpenseClaims([])
 			setMyPayslips([])
 			setLeaveBalances([])
+			setMyTimesheets([])
 		} finally {
 			setIsDashboardLoading(false)
 		}
@@ -421,6 +429,28 @@ export default function DashboardPage() {
 								<MyPayslips payslips={myPayslips} />
 							</div>
 						</div>
+
+						{/* Timesheets Section */}
+						{isModuleEnabled('timesheets') && (
+							<div className="space-y-2">
+								<TimesheetList
+									timesheets={myTimesheets.map(ts => ({
+										id: ts.id,
+										display_id: ts.displayId,
+										period_start: ts.periodStart,
+										period_end: ts.periodEnd,
+										total_hours: ts.totalHours,
+										status: ts.status as any,
+										employee_id: '',
+										company_id: '',
+										submitted_at: null,
+										created_at: '',
+										updated_at: '',
+									}))}
+									maxItems={5}
+								/>
+							</div>
+						)}
 
 						{/* Approval Sections Row - Only visible to users with approval access */}
 						<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

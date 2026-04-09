@@ -116,15 +116,21 @@ export interface PayslipData {
 } 
 
 export interface AppSettings {
-  next_erp_url: string;
-  next_public_frappe_url: string;
-  next_public_frappe_site_name: string;
-  next_public_app_name: string;
-  next_public_app_description: string;
-  next_public_session_timeout: number;
-  next_public_remember_me_days: number;
-  next_auth_secret: string;
-  next_auth_url: string;
-  next_use_erp: 'yes' | 'no';
-  next_custom1: string;
+  company_name: string;
+  company_slug: string;
+  bc_enabled: boolean;
+  bc_api_url?: string;
+  bc_company_id?: string;
+  app_name?: string;
+  app_description?: string;
+  session_timeout?: number;
+}
+
+export interface DashboardTimesheet {
+  id: string
+  displayId: string
+  periodStart: string
+  periodEnd: string
+  totalHours: number
+  status: string
 }
