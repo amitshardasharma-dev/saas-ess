@@ -4,3 +4,14 @@
 # Except the src folder and its contents
 !src/
 !src/**/*
+
+# Allow project config files
+!package.json
+!pnpm-lock.yaml
+!tsconfig.json
+!next.config.*
+!jest.config.ts
+!jest.setup.ts
+!.eslintrc*
+!postcss.config.*
+!tailwind.config.*
