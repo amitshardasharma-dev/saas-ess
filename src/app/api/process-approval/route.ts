@@ -101,6 +101,8 @@ export async function POST(request: NextRequest) {
 				.from('ess_timesheets')
 				.select('id')
 				.eq('display_id', leave_id)
+				.eq('status', 'Submitted')
+				.limit(1)
 				.single()
 
 			if (!timesheet) {

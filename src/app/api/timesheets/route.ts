@@ -67,13 +67,13 @@ export const POST = withAuth(async (request, { companyId, employee }) => {
 
   const body = await request.json()
 
-  // Generate display ID
+  // Generate display ID (unique per company)
   const { count } = await supabaseAdmin
     .from('ess_timesheets')
     .select('*', { count: 'exact', head: true })
-    .eq('employee_id', employee.id)
+    .eq('company_id', companyId)
 
-  const displayId = `TS-${new Date().getFullYear()}-${String((count || 0) + 1).padStart(3, '0')}`
+  const displayId = `TS-${new Date().getFullYear()}-${String((count || 0) + 1).padStart(4, '0')}`
 
   const { data: timesheet, error } = await supabaseAdmin
     .from('ess_timesheets')
