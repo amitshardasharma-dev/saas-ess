@@ -11,6 +11,7 @@ import {
   Key,
   Server,
   ToggleLeft,
+  Blocks,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,19 +26,18 @@ import {
 import { useAuthStore } from '@/stores/auth';
 import toast from 'react-hot-toast';
 import { z } from 'zod';
+import { MODULE_IDS, ModuleId } from '@/types/roles';
+import { Checkbox } from '@/components/ui/checkbox';
 
 const settingsSchema = z.object({
-  next_erp_url: z.string().url('Must be a valid URL'),
-  next_public_frappe_url: z.string().url('Must be a valid URL'),
-  next_public_frappe_site_name: z.string().min(1, 'Site name is required'),
-  next_public_app_name: z.string().min(1, 'App name is required'),
-  next_public_app_description: z.string().min(1, 'App description is required'),
-  next_public_session_timeout: z.number().min(0, 'Timeout must be a positive number'),
-  next_public_remember_me_days: z.number().min(0, 'Days must be a positive number'),
-  next_auth_secret: z.string().min(1, 'Auth secret is required'),
-  next_auth_url: z.string().url('Must be a valid URL'),
-  next_use_erp: z.enum(['yes', 'no']),
-  next_custom1: z.string().min(1, 'Custom field is required'),
+  company_name: z.string().min(1, 'Company name is required'),
+  company_slug: z.string().min(1, 'Company slug is required'),
+  bc_enabled: z.boolean(),
+  bc_api_url: z.string().optional(),
+  bc_company_id: z.string().optional(),
+  app_name: z.string().optional(),
+  app_description: z.string().optional(),
+  session_timeout: z.number().min(0).optional(),
 });
 
 type SettingsFormData = z.infer<typeof settingsSchema>;
@@ -47,6 +47,7 @@ export function SettingsForm() {
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [enabledModules, setEnabledModules] = useState<ModuleId[]>(['leave', 'expense']);
 
   const { user } = useAuthStore();
 
@@ -55,8 +56,9 @@ export function SettingsForm() {
     const fetchSettings = async () => {
       try {
         setIsLoading(true);
+        const token = localStorage.getItem('ess_access_token')
         const response = await fetch('/api/settings', {
-          credentials: 'include',
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
 
         if (!response.ok) {
@@ -65,6 +67,9 @@ export function SettingsForm() {
 
         const data = await response.json();
         setSettings(data.settings);
+        if (Array.isArray(data.settings.modules_enabled)) {
+          setEnabledModules(data.settings.modules_enabled);
+        }
       } catch (error) {
         toast.error('Failed to load settings');
       } finally {
@@ -85,6 +90,12 @@ export function SettingsForm() {
     }
   };
 
+  const handleModuleToggle = (moduleId: ModuleId, checked: boolean) => {
+    setEnabledModules(prev =>
+      checked ? [...prev, moduleId] : prev.filter(m => m !== moduleId)
+    );
+  };
+
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -95,13 +106,14 @@ export function SettingsForm() {
       setErrors({});
 
       setIsUpdating(true);
+      const token = localStorage.getItem('ess_access_token')
       const response = await fetch('/api/settings', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        credentials: 'include',
-        body: JSON.stringify(settings),
+        body: JSON.stringify({ ...settings, modules_enabled: enabledModules }),
       });
 
       if (!response.ok) {
@@ -156,70 +168,52 @@ export function SettingsForm() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {[
                 {
-                  label: 'ERP URL',
-                  value: settings.next_erp_url,
-                  icon: Link,
-                  field: 'next_erp_url',
-                },
-                {
-                  label: 'Frappe URL',
-                  value: settings.next_public_frappe_url,
-                  icon: Globe,
-                  field: 'next_public_frappe_url',
-                },
-                {
-                  label: 'Site Name',
-                  value: settings.next_public_frappe_site_name,
+                  label: 'Company Name',
+                  value: settings.company_name,
                   icon: AppWindow,
-                  field: 'next_public_frappe_site_name',
+                  field: 'company_name',
+                },
+                {
+                  label: 'Company Slug',
+                  value: settings.company_slug,
+                  icon: Globe,
+                  field: 'company_slug',
+                },
+                {
+                  label: 'BC Enabled',
+                  value: settings.bc_enabled ? 'Yes' : 'No',
+                  icon: ToggleLeft,
+                  field: 'bc_enabled',
+                },
+                {
+                  label: 'BC API URL',
+                  value: settings.bc_api_url || 'Not configured',
+                  icon: Server,
+                  field: 'bc_api_url',
+                },
+                {
+                  label: 'BC Company ID',
+                  value: settings.bc_company_id || 'Not configured',
+                  icon: Link,
+                  field: 'bc_company_id',
                 },
                 {
                   label: 'App Name',
-                  value: settings.next_public_app_name,
+                  value: settings.app_name || 'ESS System',
                   icon: AppWindow,
-                  field: 'next_public_app_name',
+                  field: 'app_name',
                 },
                 {
                   label: 'App Description',
-                  value: settings.next_public_app_description,
+                  value: settings.app_description || '',
                   icon: Info,
-                  field: 'next_public_app_description',
+                  field: 'app_description',
                 },
                 {
                   label: 'Session Timeout',
-                  value: settings.next_public_session_timeout,
+                  value: settings.session_timeout || 3600000,
                   icon: Timer,
-                  field: 'next_public_session_timeout',
-                },
-                {
-                  label: 'Remember Me Days',
-                  value: settings.next_public_remember_me_days,
-                  icon: Timer,
-                  field: 'next_public_remember_me_days',
-                },
-                {
-                  label: 'Auth Secret',
-                  value: settings.next_auth_secret,
-                  icon: Key,
-                  field: 'next_auth_secret',
-                },
-                {
-                  label: 'Auth URL',
-                  value: settings.next_auth_url,
-                  icon: Server,
-                  field: 'next_auth_url',
-                },
-                {
-                  label: 'Use ERP',
-                  value: settings.next_use_erp,
-                  icon: ToggleLeft,
-                  field: 'next_use_erp',
-                },
-                {
-                  label: 'Custom Field 1',
-                  value: settings.next_custom1,
-                  icon: Info,
-                  field: 'next_custom1',
+                  field: 'session_timeout',
                 },
               ].map((item) => (
                 <div
@@ -245,6 +239,59 @@ export function SettingsForm() {
           </CardContent>
         </Card>
 
+        {/* Module Configuration Card */}
+        <Card className="mb-6 bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+          <CardHeader className="pb-4">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Blocks className="h-5 w-5 text-primary" />
+              Enabled Modules
+            </CardTitle>
+            <CardDescription className="text-sm">
+              Toggle which modules are available for your organization
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {MODULE_IDS.map((moduleId) => {
+                const labels: Record<ModuleId, { name: string; desc: string }> = {
+                  leave: { name: 'Leave Management', desc: 'Leave applications and approvals' },
+                  expense: { name: 'Expense Claims', desc: 'Expense submission and tracking' },
+                  timesheets: { name: 'Timesheets', desc: 'Time tracking and approval' },
+                  documents: { name: 'Documents', desc: 'Policies and HR documents' },
+                  appraisals: { name: 'Appraisals', desc: 'Performance reviews' },
+                  contracts: { name: 'Contracts', desc: 'Employment contracts' },
+                  team_calendar: { name: 'Team Calendar', desc: 'Team leave calendar view' },
+                }
+                const label = labels[moduleId]
+                return (
+                  <div
+                    key={moduleId}
+                    className="flex items-start space-x-3 p-4 bg-white rounded-xl border border-gray-100 shadow-sm"
+                  >
+                    <Checkbox
+                      id={`module-${moduleId}`}
+                      checked={enabledModules.includes(moduleId)}
+                      onCheckedChange={(checked) =>
+                        handleModuleToggle(moduleId, checked === true)
+                      }
+                      disabled={isUpdating}
+                    />
+                    <div className="flex-1">
+                      <label
+                        htmlFor={`module-${moduleId}`}
+                        className="text-sm font-semibold text-gray-900 cursor-pointer"
+                      >
+                        {label.name}
+                      </label>
+                      <p className="text-xs text-gray-500 mt-0.5">{label.desc}</p>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Settings Update Card */}
         <Card className="border-0 shadow-lg bg-gradient-to-br from-white to-gray-50/50">
           <CardHeader className="pb-6 text-center">
@@ -260,70 +307,34 @@ export function SettingsForm() {
             <form onSubmit={handleSubmit} className="space-y-6">
               {[
                 {
-                  label: 'ERP URL',
-                  field: 'next_erp_url',
-                  type: 'url',
-                  placeholder: 'Enter ERP URL',
-                },
-                {
-                  label: 'Frappe URL',
-                  field: 'next_public_frappe_url',
-                  type: 'url',
-                  placeholder: 'Enter Frappe URL',
-                },
-                {
-                  label: 'Site Name',
-                  field: 'next_public_frappe_site_name',
-                  type: 'text',
-                  placeholder: 'Enter site name',
-                },
-                {
                   label: 'App Name',
-                  field: 'next_public_app_name',
+                  field: 'app_name',
                   type: 'text',
                   placeholder: 'Enter app name',
                 },
                 {
                   label: 'App Description',
-                  field: 'next_public_app_description',
+                  field: 'app_description',
                   type: 'text',
                   placeholder: 'Enter app description',
                 },
                 {
-                  label: 'Session Timeout',
-                  field: 'next_public_session_timeout',
+                  label: 'Session Timeout (ms)',
+                  field: 'session_timeout',
                   type: 'number',
-                  placeholder: 'Enter session timeout',
+                  placeholder: 'Enter session timeout in ms',
                 },
                 {
-                  label: 'Remember Me Days',
-                  field: 'next_public_remember_me_days',
-                  type: 'number',
-                  placeholder: 'Enter remember me days',
-                },
-                {
-                  label: 'Auth Secret',
-                  field: 'next_auth_secret',
-                  type: 'text',
-                  placeholder: 'Enter auth secret',
-                },
-                {
-                  label: 'Auth URL',
-                  field: 'next_auth_url',
+                  label: 'BC API URL',
+                  field: 'bc_api_url',
                   type: 'url',
-                  placeholder: 'Enter auth URL',
+                  placeholder: 'Enter Business Central API URL',
                 },
                 {
-                  label: 'Use ERP',
-                  field: 'next_use_erp',
-                  type: 'select',
-                  options: ['yes', 'no'],
-                },
-                {
-                  label: 'Custom Field 1',
-                  field: 'next_custom1',
+                  label: 'BC Company ID',
+                  field: 'bc_company_id',
                   type: 'text',
-                  placeholder: 'Enter custom field',
+                  placeholder: 'Enter BC Company ID',
                 },
               ].map((item) => (
                 <div key={item.field} className="space-y-3">
@@ -333,40 +344,22 @@ export function SettingsForm() {
                   >
                     {item.label}
                   </Label>
-                  {item.type === 'select' ? (
-                    <select
-                      id={item.field}
-                      value={settings[item.field as keyof SettingsFormData] as string}
-                      onChange={(e) =>
-                        handleInputChange(item.field as keyof SettingsFormData, e.target.value)
-                      }
-                      disabled={isUpdating}
-                      className="w-full h-12 px-4 text-lg border-2 border-gray-200 rounded-lg focus:border-primary focus:ring-0"
-                    >
-                      {item.options!.map((option) => (
-                        <option key={option} value={option}>
-                          {option}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <Input
-                      id={item.field}
-                      type={item.type}
-                      value={settings[item.field as keyof SettingsFormData] as string | number}
-                      onChange={(e) =>
-                        handleInputChange(
-                          item.field as keyof SettingsFormData,
-                          item.type === 'number' ? Number(e.target.value) : e.target.value
-                        )
-                      }
-                      disabled={isUpdating}
-                      placeholder={item.placeholder}
-                      className={`h-12 text-lg border-2 transition-all focus:border-primary ${
-                        errors[item.field] ? 'border-destructive' : 'border-gray-200'
-                      }`}
-                    />
-                  )}
+                  <Input
+                    id={item.field}
+                    type={item.type}
+                    value={(settings[item.field as keyof SettingsFormData] as string | number) ?? ''}
+                    onChange={(e) =>
+                      handleInputChange(
+                        item.field as keyof SettingsFormData,
+                        item.type === 'number' ? Number(e.target.value) : e.target.value
+                      )
+                    }
+                    disabled={isUpdating}
+                    placeholder={item.placeholder}
+                    className={`h-12 text-lg border-2 transition-all focus:border-primary ${
+                      errors[item.field] ? 'border-destructive' : 'border-gray-200'
+                    }`}
+                  />
                   {errors[item.field] && (
                     <p className="text-sm text-destructive font-medium">
                       {errors[item.field]}
