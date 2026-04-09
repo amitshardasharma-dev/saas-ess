@@ -1,3 +1,5 @@
+import { UserRole } from './roles'
+
 export interface LoginCredentials {
 	usr: string
 	pwd: string
@@ -11,6 +13,7 @@ export interface User {
 	user_image?: string
 	photo?: string
 	roles: string[]
+	role: UserRole
 	employee?: string
 	employee_name?: string
 	department?: string
