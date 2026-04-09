@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
 		// Check ESS app registration
 		const { data: appUser } = await supabaseAdmin
 			.from('ess_app_users')
-			.select('id, company_id, role, is_active')
+			.select('id, company_id, role, is_active, is_super_admin')
 			.eq('auth_user_id', authUser.id)
 			.eq('is_active', true)
 			.single()
@@ -45,6 +45,7 @@ export async function GET(request: NextRequest) {
 			photo: employee?.photo_url,
 			roles: [appUser.role],
 			role: appUser.role,
+			is_super_admin: appUser.is_super_admin || false,
 			employee: employee?.employee_no,
 			employee_name: employee?.full_name,
 			department: employee?.department,

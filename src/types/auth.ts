@@ -14,6 +14,7 @@ export interface User {
 	photo?: string
 	roles: string[]
 	role: UserRole
+	is_super_admin?: boolean
 	employee?: string
 	employee_name?: string
 	department?: string

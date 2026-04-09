@@ -31,6 +31,7 @@ import {
 	FileSignature,
 	CalendarDays,
 	Users,
+	Shield,
 } from 'lucide-react'
 
 interface SidebarProps {
@@ -423,6 +424,22 @@ export function Sidebar({ className }: SidebarProps) {
 
 			{/* Footer with Logout */}
 			<div className="p-4 border-t border-border space-y-3">
+				{user?.is_super_admin && (
+					<Link href="/platform">
+						<div className={cn(
+							"flex items-center space-x-3 px-3 py-2.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 transition-all mb-2",
+							isCollapsed && "justify-center"
+						)}>
+							<Shield className="h-5 w-5" />
+							{!isCollapsed && (
+								<div>
+									<div className="font-medium text-sm">Platform Admin</div>
+									<div className="text-xs opacity-75">Super admin panel</div>
+								</div>
+							)}
+						</div>
+					</Link>
+				)}
 				{/* Logout Button */}
 				<Button
 					variant="outline"
