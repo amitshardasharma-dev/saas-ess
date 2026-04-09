@@ -131,6 +131,7 @@ async function seed() {
         {
           app_user_id: appUser.id,
           company_id: companyA.id,
+          email: u.email,
           full_name: u.name,
           employee_no: u.empNo,
           department: u.dept,
