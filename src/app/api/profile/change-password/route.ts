@@ -1,52 +1,56 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { supabaseAdmin } from '@/lib/supabase-server'
 
 export async function POST(request: NextRequest) {
 	try {
-		const body = await request.json()
-		const { old_password, new_password } = body
+		const authHeader = request.headers.get('authorization')
+		const token = authHeader?.replace('Bearer ', '')
 
-		if (!old_password || !new_password) {
+		if (!token) {
+			return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+		}
+
+		const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token)
+		if (authError || !user) {
+			return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+		}
+
+		const body = await request.json()
+		const { new_password } = body
+
+		if (!new_password) {
 			return NextResponse.json(
-				{ error: 'Missing old_password or new_password' },
+				{ error: 'Missing new_password' },
 				{ status: 400 }
 			)
 		}
 
-		const frappeUrl = process.env.NEXT_PUBLIC_FRAPPE_URL || 'http://localhost:8000'
-		const cookieHeader = request.headers.get('cookie') || ''
-		
-		const response = await fetch(`${frappeUrl}/api/method/frappe.core.doctype.user.user.update_password`, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				'Cookie': cookieHeader,
-			},
-			body: JSON.stringify({ old_password, new_password }),
-		})
-
-		const responseText = await response.text()
-		console.log('Frappe password change response status:', response.status)
-		console.log('Frappe password change response:', responseText)
-
-		if (!response.ok) {
-			throw new Error(`Frappe API error: ${response.status} - ${responseText}`)
+		if (new_password.length < 6) {
+			return NextResponse.json(
+				{ error: 'Password must be at least 6 characters' },
+				{ status: 400 }
+			)
 		}
 
-		// Parse JSON response
-		let data
-		try {
-			data = JSON.parse(responseText)
-		} catch (e) {
-			throw new Error('Invalid JSON response from Frappe')
+		// Use admin client to update the user's password
+		const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
+			user.id,
+			{ password: new_password }
+		)
+
+		if (updateError) {
+			return NextResponse.json(
+				{ error: updateError.message },
+				{ status: 400 }
+			)
 		}
 
-		return NextResponse.json(data)
+		return NextResponse.json({ message: 'Password changed successfully' })
 	} catch (error) {
 		console.error('Password change error:', error)
-		const errorMessage = error instanceof Error ? error.message : 'Unknown error'
 		return NextResponse.json(
-			{ error: 'Failed to change password', details: errorMessage },
+			{ error: 'Failed to change password' },
 			{ status: 500 }
 		)
 	}
-} 
+}

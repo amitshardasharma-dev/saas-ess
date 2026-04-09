@@ -1,22 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import config from '@/config/environment'
-
-interface FrappeEmployeeDoc {
-	data: {
-		name: string
-		employee_name?: string
-		mobile_phone_no?: string
-		department?: string
-		designation?: string
-		company?: string
-		status?: string
-		user_id?: string
-	}
-}
-
-interface FrappeListResponse {
-	data: FrappeEmployeeDoc['data'][]
-}
+import { supabaseAdmin } from '@/lib/supabase-server'
 
 export async function GET(
 	request: NextRequest,
@@ -24,60 +7,39 @@ export async function GET(
 ) {
 	try {
 		const { userId } = await params
-		
+
 		if (!userId) {
-			return NextResponse.json(
-				{ error: 'User ID is required' },
-				{ status: 400 }
-			)
+			return NextResponse.json({ error: 'User ID is required' }, { status: 400 })
 		}
 
-		// Forward cookies from the request
-		const cookieHeader = request.headers.get('Cookie')
-		
-		// Query Employee doctype to find employee with matching user_id
-		const frappeUrl = `${config.frappe.url.replace(/\/$/, '')}/api/resource/Employee?filters=[["user_id","=","${userId}"]]&limit=1`
-		
-		const response = await fetch(frappeUrl, {
-			method: 'GET',
-			headers: {
-				...(cookieHeader && { Cookie: cookieHeader }),
-			},
-		})
+		// Find employee by email (userId is the email in our system)
+		const { data: employee, error } = await supabaseAdmin
+			.from('ess_employees')
+			.select('*')
+			.eq('email', userId)
+			.single()
 
-		if (!response.ok) {
-			throw new Error(`Frappe API error: ${response.status}`)
+		if (error || !employee) {
+			return NextResponse.json({ error: 'No employee found for this user' }, { status: 404 })
 		}
 
-		const employeeList: FrappeListResponse = await response.json()
-		
-		if (employeeList.data.length === 0) {
-			return NextResponse.json(
-				{ error: 'No employee found for this user' },
-				{ status: 404 }
-			)
-		}
-
-		const employeeData = employeeList.data[0]
-		
 		return NextResponse.json({
 			employee: {
-				id: employeeData.name,
-				name: employeeData.employee_name,
-				mobile_phone_no: employeeData.mobile_phone_no,
-				department: employeeData.department,
-				designation: employeeData.designation,
-				company: employeeData.company,
-				status: employeeData.status,
-				user_id: employeeData.user_id,
+				id: employee.employee_no || employee.id,
+				name: employee.full_name,
+				mobile_phone_no: employee.phone,
+				department: employee.department,
+				designation: employee.designation,
+				company: '',
+				status: employee.status,
+				user_id: userId,
 			}
 		})
 	} catch (error) {
 		console.error('Employee by user fetch error:', error)
-		const errorMessage = error instanceof Error ? error.message : 'Unknown error'
 		return NextResponse.json(
-			{ error: 'Failed to fetch employee data', details: errorMessage },
+			{ error: 'Failed to fetch employee data' },
 			{ status: 500 }
 		)
 	}
-} 
+}

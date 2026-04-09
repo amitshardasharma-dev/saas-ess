@@ -15,14 +15,15 @@ export default function TestEmployeePage() {
 	const testDirectApi = async () => {
 		setDirectApiLoading(true)
 		try {
+			const token = localStorage.getItem('ess_access_token')
 			const response = await fetch('/api/employee', {
 				method: 'GET',
-				credentials: 'include',
 				cache: 'no-store',
 				headers: {
 					'Cache-Control': 'no-cache, no-store, must-revalidate',
 					'Pragma': 'no-cache',
-					'Expires': '0'
+					'Expires': '0',
+					...(token ? { Authorization: `Bearer ${token}` } : {}),
 				}
 			})
 			

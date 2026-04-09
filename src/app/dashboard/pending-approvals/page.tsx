@@ -60,8 +60,9 @@ export default function PendingApprovalsPage() {
 		setIsLoading(true)
 		setError(null)
 		try {
+			const token = localStorage.getItem('ess_access_token')
 			const response = await fetch('/api/pending-approvals', {
-				credentials: 'include'
+				headers: token ? { Authorization: `Bearer ${token}` } : {},
 			})
 			
 			if (response.ok) {
@@ -92,12 +93,13 @@ export default function PendingApprovalsPage() {
 
 		setProcessingApproval(selectedApproval.name)
 		try {
+			const token = localStorage.getItem('ess_access_token')
 			const response = await fetch('/api/process-approval', {
 				method: 'POST',
 				headers: {
-					'Content-Type': 'application/json'
+					'Content-Type': 'application/json',
+					...(token ? { Authorization: `Bearer ${token}` } : {}),
 				},
-				credentials: 'include',
 				body: JSON.stringify({
 					leave_id: selectedApproval.name,
 					action: approvalAction,

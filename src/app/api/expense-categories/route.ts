@@ -15,7 +15,6 @@ export async function GET(request: NextRequest) {
 			return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
 		}
 
-		// Get user's company
 		const { data: appUser } = await supabaseAdmin
 			.from('ess_app_users')
 			.select('company_id')
@@ -27,35 +26,18 @@ export async function GET(request: NextRequest) {
 			return NextResponse.json({ error: 'Not registered for ESS' }, { status: 403 })
 		}
 
-		// Get leave types for this company
-		const { data: leaveTypes, error } = await supabaseAdmin
-			.from('ess_leave_types')
+		const { data: categories, error } = await supabaseAdmin
+			.from('ess_expense_categories')
 			.select('*')
 			.eq('company_id', appUser.company_id)
 			.eq('is_active', true)
 			.order('name')
 
-		if (error) {
-			throw error
-		}
+		if (error) throw error
 
-		const processedLeaveTypes = (leaveTypes || []).map(lt => ({
-			name: lt.code,
-			leave_type_name: lt.name,
-			leave_mapping_code: lt.code,
-			bc_leave_code: lt.code,
-			eligible_days: lt.eligible_days || 0,
-			description: lt.description || '',
-			without_pay: lt.without_pay ? 1 : 0,
-			leave_applicable_to_gender: lt.applicable_gender || 'Both',
-		}))
-
-		return NextResponse.json({ leave_types: processedLeaveTypes })
+		return NextResponse.json({ categories: categories || [] })
 	} catch (error) {
-		console.error('Leave Types fetch error:', error)
-		return NextResponse.json(
-			{ error: 'Failed to fetch leave types' },
-			{ status: 500 }
-		)
+		console.error('Expense categories fetch error:', error)
+		return NextResponse.json({ error: 'Failed to fetch categories' }, { status: 500 })
 	}
 }

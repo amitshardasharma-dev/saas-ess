@@ -1,350 +1,246 @@
 import { NextRequest, NextResponse } from 'next/server'
-import config from '@/config/environment'
-
-interface FrappeLeaveApplication {
-	name: string
-	owner?: string
-	creation?: string
-	modified?: string
-	modified_by?: string
-	docstatus?: number
-	idx?: number
-	workflow_state: string
-	leave_type: string
-	from_date: string
-	till_date: string
-	leave_reason?: string
-	half_day?: number
-	total_leave_days: number
-	link_lmbb?: string
-	leave_approver?: string
-	doctype: string
-}
-
-interface FrappeLeaveApplicationsResponse {
-	data: FrappeLeaveApplication[]
-}
-
-interface FrappeLeaveApplicationResponse {
-	data: FrappeLeaveApplication
-}
-
-// Helper function to calculate working days between two dates
-function calculateWorkingDays(fromDate: string, tillDate: string): number {
-	const start = new Date(fromDate)
-	const end = new Date(tillDate)
-	
-	// If same date, it's 1 day
-	if (start.getTime() === end.getTime()) {
-		return 1
-	}
-	
-	let workingDays = 0
-	const current = new Date(start)
-	
-	while (current <= end) {
-		// Count all days (including weekends for now, as business rules may vary)
-		workingDays++
-		current.setDate(current.getDate() + 1)
-	}
-	
-	return workingDays
-}
+import { supabaseAdmin } from '@/lib/supabase-server'
 
 export async function GET(request: NextRequest) {
 	try {
-		// Forward cookies from the request for authentication
-		const cookieHeader = request.headers.get('Cookie')
-		
-		console.log('Fetching Leave Applications from Frappe...')
-		console.log('Cookie header present:', cookieHeader ? 'Yes' : 'No')
-		
-		// First check if user is authenticated
-		const authResponse = await fetch(`${config.frappe.url.replace(/\/$/, '')}/api/method/frappe.auth.get_logged_user`, {
-			method: 'GET',
-			headers: {
-				...(cookieHeader && { Cookie: cookieHeader }),
-			},
-		})
+		const authHeader = request.headers.get('Authorization')
+		const token = authHeader?.replace('Bearer ', '')
 
-		if (!authResponse.ok) {
-			console.log('Authentication check failed:', authResponse.status)
-			return NextResponse.json({
-				leave_applications: [],
-				leave_summary: {},
-				pending_count: 0
-			})
+		if (!token) {
+			return NextResponse.json({ leave_applications: [], leave_summary: {}, pending_count: 0 })
 		}
 
-		const authData = await authResponse.json()
-		if (!authData.message || authData.message === 'Guest') {
-			console.log('User not authenticated, message:', authData.message)
-			return NextResponse.json({
-				leave_applications: [],
-				leave_summary: {},
-				pending_count: 0
-			})
+		const { data: { user: authUser }, error: authError } = await supabaseAdmin.auth.getUser(token)
+		if (authError || !authUser) {
+			return NextResponse.json({ leave_applications: [], leave_summary: {}, pending_count: 0 })
 		}
 
-		console.log('User authenticated:', authData.message)
-		
-		// Get current user's employee ID
-		const userResponse = await fetch(`${config.frappe.url.replace(/\/$/, '')}/api/resource/User/${authData.message}`, {
-			method: 'GET',
-			headers: {
-				...(cookieHeader && { Cookie: cookieHeader }),
-			},
-		})
+		// Get app user + employee
+		const { data: appUser } = await supabaseAdmin
+			.from('ess_app_users')
+			.select('id')
+			.eq('auth_user_id', authUser.id)
+			.eq('is_active', true)
+			.single()
 
-		if (!userResponse.ok) {
-			console.log('Failed to fetch user data:', userResponse.status)
-			return NextResponse.json({
-				leave_applications: [],
-				leave_summary: {},
-				pending_count: 0
-			})
+		if (!appUser) {
+			return NextResponse.json({ leave_applications: [], leave_summary: {}, pending_count: 0 })
 		}
 
-		const userData = await userResponse.json()
-		const currentUserEmployeeId = userData.data.employee_id || userData.data.employee
-		
-		if (!currentUserEmployeeId) {
-			console.log('No employee ID found for user:', authData.message)
-			return NextResponse.json({
-				leave_applications: [],
-				leave_summary: {},
-				pending_count: 0
-			})
+		const { data: employee } = await supabaseAdmin
+			.from('ess_employees')
+			.select('id, employee_no, full_name')
+			.eq('app_user_id', appUser.id)
+			.single()
+
+		if (!employee) {
+			return NextResponse.json({ leave_applications: [], leave_summary: {}, pending_count: 0 })
 		}
 
-		console.log('Current user employee ID:', currentUserEmployeeId)
-		
-		// Step 1: Get list of leave applications filtered by current user's employee ID, sorted by modified date (most recent first)
-		let listUrl = `${config.frappe.url.replace(/\/$/, '')}/api/resource/Leave Application?filters=[["link_lmbb","=","${currentUserEmployeeId}"]]&order_by=modified desc`
-		console.log('Making request to get leave application list:', listUrl)
-		
-		let listResponse = await fetch(listUrl, {
-			method: 'GET',
-			headers: {
-				...(cookieHeader && { Cookie: cookieHeader }),
-			},
-		})
-
-		console.log('Leave applications list response status:', listResponse.status)
-
-		if (!listResponse.ok) {
-			console.log('Failed to fetch leave applications list, returning empty array')
-			return NextResponse.json({
-				leave_applications: [],
-				leave_summary: {},
-				pending_count: 0
-			})
-		}
-
-		const listData: FrappeLeaveApplicationsResponse = await listResponse.json()
-		console.log('Leave applications list:', JSON.stringify(listData, null, 2))
-		
-		// Step 2: Fetch detailed data for each leave application
-		const detailedApplications: FrappeLeaveApplication[] = []
 		const currentYear = new Date().getFullYear()
-		const leaveSummary: { [leaveType: string]: number } = {}
-		let pendingApplicationsCount = 0
-		
-		console.log(`Processing ${listData.data.length} leave applications for user ${currentUserEmployeeId}...`)
-		
-		for (const app of listData.data) {
-			try {
-				const detailUrl = `${config.frappe.url.replace(/\/$/, '')}/api/resource/Leave Application/${app.name}`
-				console.log(`Fetching details for ${app.name}`)
-				
-				const detailResponse = await fetch(detailUrl, {
-					method: 'GET',
-					headers: {
-						...(cookieHeader && { Cookie: cookieHeader }),
-					},
-				})
+		const yearStart = `${currentYear}-01-01`
+		const yearEnd = `${currentYear}-12-31`
 
-				if (detailResponse.ok) {
-					const detailData: FrappeLeaveApplicationResponse = await detailResponse.json()
-					const application = detailData.data
-					
-					// Double-check that this application belongs to the current user
-					if (application.link_lmbb !== currentUserEmployeeId) {
-						console.log(`Skipping ${app.name} - belongs to different employee: ${application.link_lmbb}`)
-						continue
-					}
-					
-					// Filter for current year
-					const fromDate = new Date(application.from_date)
-					const tillDate = new Date(application.till_date)
-					const isCurrentYear = fromDate.getFullYear() === currentYear || tillDate.getFullYear() === currentYear
-					
-					console.log(`${app.name}: leave_type=${application.leave_type}, workflow_state=${application.workflow_state}, from=${application.from_date}, till=${application.till_date}`)
-					
-					if (isCurrentYear) {
-						// Calculate actual leave days if total_leave_days is 0 or not reliable
-						let actualLeaveDays = application.total_leave_days
-						if (actualLeaveDays === 0 || actualLeaveDays === null || actualLeaveDays === undefined) {
-							actualLeaveDays = calculateWorkingDays(application.from_date, application.till_date)
-							console.log(`Calculated ${actualLeaveDays} working days for ${app.name}`)
-						}
-						
-						// Count pending applications
-						if (application.workflow_state === 'Pending Approval') {
-							pendingApplicationsCount++
-							console.log(`Found pending application: ${app.name}`)
-						}
-						
-						// Only count approved leaves for the summary
-						if (application.workflow_state === 'Approved') {
-							if (!leaveSummary[application.leave_type]) {
-								leaveSummary[application.leave_type] = 0
-							}
-							leaveSummary[application.leave_type] += actualLeaveDays
-							console.log(`Added ${actualLeaveDays} days to ${application.leave_type}, total now: ${leaveSummary[application.leave_type]}`)
-						}
-						
-						// Add to detailed applications (all current year applications, not just approved)
-						detailedApplications.push({
-							...application,
-							total_leave_days: actualLeaveDays // Use calculated days
-						})
-					}
-				} else {
-					console.log(`Failed to fetch details for ${app.name}:`, detailResponse.status)
-				}
-			} catch (error) {
-				console.log(`Error fetching details for ${app.name}:`, error)
+		// Get leave applications for current year
+		const { data: applications, error } = await supabaseAdmin
+			.from('ess_leave_applications')
+			.select(`
+				id,
+				display_id,
+				leave_type_id,
+				from_date,
+				till_date,
+				total_days,
+				reason,
+				half_day,
+				status,
+				created_at,
+				updated_at,
+				ess_leave_types (
+					code,
+					name
+				)
+			`)
+			.eq('employee_id', employee.id)
+			.gte('from_date', yearStart)
+			.lte('from_date', yearEnd)
+			.order('updated_at', { ascending: false })
+
+		if (error) {
+			throw error
+		}
+
+		// Calculate summary
+		const leaveSummary: Record<string, number> = {}
+		let pendingCount = 0
+
+		for (const app of applications || []) {
+			if (app.status === 'Pending Approval') {
+				pendingCount++
+			}
+			if (app.status === 'Approved') {
+				const leaveType = (app.ess_leave_types as any)?.name || 'Unknown'
+				leaveSummary[leaveType] = (leaveSummary[leaveType] || 0) + Number(app.total_days)
 			}
 		}
-		
-		console.log('Leave Summary by Type:', leaveSummary)
-		console.log('Pending Applications Count:', pendingApplicationsCount)
-		
-		// Process the applications for our API response
-		const processedLeaveApplications = detailedApplications.map(application => ({
-			name: application.name,
-			employee: application.link_lmbb || '',
-			employee_name: '', // Not available in your structure
-			leave_type: application.leave_type,
-			from_date: application.from_date,
-			to_date: application.till_date, // Map till_date to to_date for consistency
-			total_leave_days: application.total_leave_days,
-			leave_status: application.workflow_state, // Map workflow_state to leave_status for consistency
-			posting_date: application.from_date, // Use from_date as posting_date
-			description: application.leave_reason || '',
-			leave_approver: application.leave_approver || '',
-			modified: application.modified || application.creation || application.from_date // Include modified date
-		}))
-		
-		// Sort by modified date (most recent first) to ensure proper ordering
-		processedLeaveApplications.sort((a, b) => {
-			const dateA = new Date(a.modified)
-			const dateB = new Date(b.modified)
-			return dateB.getTime() - dateA.getTime()
+
+		const processedApplications = (applications || []).map(app => {
+			const leaveType = app.ess_leave_types as any
+			return {
+				name: app.display_id,
+				employee: employee.employee_no || employee.id,
+				employee_name: employee.full_name,
+				leave_type: leaveType?.name || '',
+				from_date: app.from_date,
+				to_date: app.till_date,
+				total_leave_days: Number(app.total_days),
+				leave_status: app.status,
+				posting_date: app.from_date,
+				description: app.reason || '',
+				leave_approver: '',
+				modified: app.updated_at,
+			}
 		})
 
-		console.log(`Processed ${processedLeaveApplications.length} leave applications for user ${currentUserEmployeeId}`)
-		console.log('Final leave summary:', leaveSummary)
-		
 		return NextResponse.json({
-			leave_applications: processedLeaveApplications,
-			leave_summary: leaveSummary, // Add summary for easy consumption by dashboard
-			pending_count: pendingApplicationsCount, // Add pending count for dashboard stats
-			user_context: currentUserEmployeeId // Add user context for verification
+			leave_applications: processedApplications,
+			leave_summary: leaveSummary,
+			pending_count: pendingCount,
+			user_context: employee.employee_no || employee.id,
 		})
 	} catch (error) {
 		console.error('Leave Applications fetch error:', error)
-		
-		// Return empty array instead of error to prevent dashboard from breaking
-		console.log('Returning empty leave applications due to error')
-		return NextResponse.json({
-			leave_applications: [],
-			leave_summary: {},
-			pending_count: 0
-		})
+		return NextResponse.json({ leave_applications: [], leave_summary: {}, pending_count: 0 })
 	}
 }
 
 export async function POST(request: NextRequest) {
 	try {
-		const cookieHeader = request.headers.get('Cookie')
-		
-		console.log('Creating Leave Application in Frappe...')
-		console.log('Cookie header present:', cookieHeader ? 'Yes' : 'No')
-		
-		// First check if user is authenticated
-		const authResponse = await fetch(`${config.frappe.url.replace(/\/$/, '')}/api/method/frappe.auth.get_logged_user`, {
-			method: 'GET',
-			headers: {
-				...(cookieHeader && { Cookie: cookieHeader }),
-			},
-		})
+		const authHeader = request.headers.get('Authorization')
+		const token = authHeader?.replace('Bearer ', '')
 
-		if (!authResponse.ok) {
-			console.log('Authentication check failed:', authResponse.status)
-			return NextResponse.json(
-				{ error: 'Authentication required' },
-				{ status: 401 }
-			)
+		if (!token) {
+			return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
 		}
 
-		const authData = await authResponse.json()
-		if (!authData.message || authData.message === 'Guest') {
-			console.log('User not authenticated, message:', authData.message)
-			return NextResponse.json(
-				{ error: 'Authentication required' },
-				{ status: 401 }
-			)
+		const { data: { user: authUser }, error: authError } = await supabaseAdmin.auth.getUser(token)
+		if (authError || !authUser) {
+			return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
 		}
 
-		console.log('User authenticated:', authData.message)
-		
-		// Get the request body
+		const { data: appUser } = await supabaseAdmin
+			.from('ess_app_users')
+			.select('id, company_id')
+			.eq('auth_user_id', authUser.id)
+			.eq('is_active', true)
+			.single()
+
+		if (!appUser) {
+			return NextResponse.json({ error: 'Not registered for ESS' }, { status: 403 })
+		}
+
+		const { data: employee } = await supabaseAdmin
+			.from('ess_employees')
+			.select('id, employee_no')
+			.eq('app_user_id', appUser.id)
+			.single()
+
+		if (!employee) {
+			return NextResponse.json({ error: 'No employee record' }, { status: 404 })
+		}
+
 		const leaveData = await request.json()
-		console.log('Leave application data:', JSON.stringify(leaveData, null, 2))
-		
-		// Create the leave application in Frappe
-		const createUrl = `${config.frappe.url.replace(/\/$/, '')}/api/resource/Leave Application`
-		console.log('Making request to create leave application:', createUrl)
-		
-		const createResponse = await fetch(createUrl, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				...(cookieHeader && { Cookie: cookieHeader }),
-			},
-			body: JSON.stringify(leaveData)
-		})
 
-		console.log('Create leave application response status:', createResponse.status)
+		// Resolve leave type by name
+		const { data: leaveType } = await supabaseAdmin
+			.from('ess_leave_types')
+			.select('id, code')
+			.eq('company_id', appUser.company_id)
+			.eq('name', leaveData.leave_type)
+			.single()
 
-		if (!createResponse.ok) {
-			const errorText = await createResponse.text()
-			console.error('Frappe error response:', errorText)
-			
-			let errorMessage = 'Failed to create leave application'
-			try {
-				const errorData = JSON.parse(errorText)
-				errorMessage = errorData.exception || errorData.message || errorMessage
-			} catch (e) {
-				// If we can't parse the error, use the raw text
-				errorMessage = errorText || errorMessage
-			}
-			
-			return NextResponse.json(
-				{ error: errorMessage },
-				{ status: createResponse.status }
-			)
+		if (!leaveType) {
+			return NextResponse.json({ error: 'Invalid leave type' }, { status: 400 })
 		}
 
-		const responseData = await createResponse.json()
-		console.log('Leave application created successfully:', JSON.stringify(responseData, null, 2))
-		
+		// Generate display ID
+		const { count } = await supabaseAdmin
+			.from('ess_leave_applications')
+			.select('*', { count: 'exact', head: true })
+			.eq('employee_id', employee.id)
+
+		const displayId = `LA-${new Date().getFullYear()}-${String((count || 0) + 1).padStart(3, '0')}`
+
+		// Calculate total days
+		const fromDate = new Date(leaveData.from_date)
+		const tillDate = new Date(leaveData.till_date || leaveData.to_date)
+		let totalDays = 0
+		const current = new Date(fromDate)
+		while (current <= tillDate) {
+			totalDays++
+			current.setDate(current.getDate() + 1)
+		}
+		if (leaveData.half_day) totalDays = 0.5
+
+		// Insert leave application
+		const { data: newApp, error: insertError } = await supabaseAdmin
+			.from('ess_leave_applications')
+			.insert({
+				display_id: displayId,
+				employee_id: employee.id,
+				leave_type_id: leaveType.id,
+				from_date: leaveData.from_date,
+				till_date: leaveData.till_date || leaveData.to_date,
+				total_days: totalDays,
+				reason: leaveData.leave_reason || leaveData.reason || '',
+				half_day: leaveData.half_day === 1 || leaveData.half_day === true,
+				status: 'Pending Approval',
+			})
+			.select()
+			.single()
+
+		if (insertError) {
+			throw insertError
+		}
+
+		// Create approval entries from rules
+		const { data: rules } = await supabaseAdmin
+			.from('ess_approval_rules')
+			.select('*')
+			.eq('company_id', appUser.company_id)
+			.eq('rule_type', 'leave')
+			.eq('is_active', true)
+			.order('level_no')
+
+		if (rules && rules.length > 0) {
+			for (const rule of rules) {
+				let approverId = rule.specific_approver_id
+
+				// If approver type is reporting_manager, use employee's reports_to
+				if (rule.approver_type === 'reporting_manager') {
+					const { data: emp } = await supabaseAdmin
+						.from('ess_employees')
+						.select('reports_to')
+						.eq('id', employee.id)
+						.single()
+					approverId = emp?.reports_to
+				}
+
+				if (approverId) {
+					await supabaseAdmin.from('ess_leave_approval_entries').insert({
+						leave_application_id: newApp.id,
+						level_no: rule.level_no,
+						approver_id: approverId,
+						status: 'Pending',
+					})
+				}
+			}
+		}
+
 		return NextResponse.json({
-			name: responseData.data.name,
+			name: displayId,
 			message: 'Leave application created successfully',
-			data: responseData.data
+			data: { name: displayId, id: newApp.id },
 		})
 	} catch (error) {
 		console.error('Error creating leave application:', error)
@@ -353,4 +249,4 @@ export async function POST(request: NextRequest) {
 			{ status: 500 }
 		)
 	}
-} 
+}

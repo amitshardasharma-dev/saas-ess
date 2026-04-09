@@ -89,8 +89,9 @@ export default function LeaveApplicationDetailPage() {
 	const loadApprovalChain = async () => {
 		setIsLoadingChain(true)
 		try {
+			const token = localStorage.getItem('ess_access_token')
 			const response = await fetch(`/api/approval-chain/${applicationId}`, {
-				credentials: 'include'
+				headers: token ? { Authorization: `Bearer ${token}` } : {},
 			})
 			if (response.ok) {
 				const data = await response.json()

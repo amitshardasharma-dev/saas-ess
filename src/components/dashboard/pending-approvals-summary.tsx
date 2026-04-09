@@ -54,8 +54,9 @@ export function PendingApprovalsSummary({ className }: PendingApprovalsSummaryPr
 			setIsLoading(true)
 			setError(null)
 
+			const token = localStorage.getItem('ess_access_token')
 			const response = await fetch('/api/pending-approvals', {
-				credentials: 'include'
+				headers: token ? { Authorization: `Bearer ${token}` } : {},
 			})
 
 			if (!response.ok) {

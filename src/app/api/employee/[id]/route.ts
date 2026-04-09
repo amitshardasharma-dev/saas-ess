@@ -1,18 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import config from '@/config/environment'
-
-interface FrappeEmployeeDoc {
-	data: {
-		name: string
-		employee_name?: string
-		mobile_phone_no?: string
-		department?: string
-		designation?: string
-		company?: string
-		status?: string
-		bc_employee_id?: string
-	}
-}
+import { supabaseAdmin } from '@/lib/supabase-server'
 
 export async function GET(
 	request: NextRequest,
@@ -20,56 +7,40 @@ export async function GET(
 ) {
 	try {
 		const { id: employeeId } = await params
-		
+
 		if (!employeeId) {
-			return NextResponse.json(
-				{ error: 'Employee ID is required' },
-				{ status: 400 }
-			)
+			return NextResponse.json({ error: 'Employee ID is required' }, { status: 400 })
 		}
 
-		// Forward cookies from the request
-		const cookieHeader = request.headers.get('Cookie')
-		
-		const frappeUrl = `${config.frappe.url.replace(/\/$/, '')}/api/resource/Employee/${employeeId}`
-		
-		const response = await fetch(frappeUrl, {
-			method: 'GET',
-			headers: {
-				...(cookieHeader && { Cookie: cookieHeader }),
-			},
-		})
+		// Try to find by employee_no first, then by UUID
+		let query = supabaseAdmin.from('ess_employees').select('*')
 
-		if (!response.ok) {
-			if (response.status === 404) {
-				return NextResponse.json(
-					{ error: 'Employee not found' },
-					{ status: 404 }
-				)
-			}
-			throw new Error(`Frappe API error: ${response.status}`)
+		// Check if it's a UUID format
+		const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+		if (uuidRegex.test(employeeId)) {
+			query = query.eq('id', employeeId)
+		} else {
+			query = query.eq('employee_no', employeeId)
 		}
 
-		const employeeDoc: FrappeEmployeeDoc = await response.json()
-		
-		// Process the employee data
-		const processedResult = {
+		const { data: employee, error } = await query.single()
+
+		if (error || !employee) {
+			return NextResponse.json({ error: 'Employee not found' }, { status: 404 })
+		}
+
+		return NextResponse.json({
 			employee: {
-				id: employeeDoc.data.bc_employee_id || employeeDoc.data.name,
-				mobile_phone_no: employeeDoc.data.mobile_phone_no,
-				status: employeeDoc.data.status || '',
+				id: employee.bc_employee_id || employee.employee_no || employee.id,
+				mobile_phone_no: employee.phone,
+				status: employee.status || 'Active',
 			}
-		}
-
-		console.log('Processed employee result:', processedResult)
-		
-		return NextResponse.json(processedResult)
+		})
 	} catch (error) {
 		console.error('Employee fetch error:', error)
-		const errorMessage = error instanceof Error ? error.message : 'Unknown error'
 		return NextResponse.json(
-			{ error: 'Failed to fetch employee data', details: errorMessage },
+			{ error: 'Failed to fetch employee data' },
 			{ status: 500 }
 		)
 	}
-} 
+}

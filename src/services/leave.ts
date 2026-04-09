@@ -108,7 +108,7 @@ export class LeaveService {
 		try {
 			console.log('Getting current employee via API route...')
 			const response = await fetch('/api/employee', {
-				credentials: 'include'
+				headers: { Authorization: `Bearer ${localStorage.getItem('ess_access_token')}` }
 			})
 
 			if (!response.ok) {
@@ -137,7 +137,7 @@ export class LeaveService {
 		try {
 			console.log('Fetching leave types via API route...')
 			const response = await fetch('/api/leave-types', {
-				credentials: 'include'
+				headers: { Authorization: `Bearer ${localStorage.getItem('ess_access_token')}` }
 			})
 
 			if (!response.ok) {
@@ -179,7 +179,7 @@ export class LeaveService {
 	): Promise<ApprovalChain> {
 		try {
 			const response = await fetch(`/api/preview-approval-chain?employee=${employee}&leave_type=${leaveType}&total_days=${totalDays}&from_date=${fromDate}&till_date=${tillDate}`, {
-				credentials: 'include'
+				headers: { Authorization: `Bearer ${localStorage.getItem('ess_access_token')}` }
 			})
 
 			if (!response.ok) {
@@ -227,9 +227,9 @@ export class LeaveService {
 			const response = await fetch('/api/leave-applications', {
 				method: 'POST',
 				headers: {
-					'Content-Type': 'application/json'
+					'Content-Type': 'application/json',
+					Authorization: `Bearer ${localStorage.getItem('ess_access_token')}`,
 				},
-				credentials: 'include',
 				body: JSON.stringify({
 					...leaveData,
 					docstatus: 1 // Submit the application immediately
@@ -260,7 +260,7 @@ export class LeaveService {
 	async getApprovalChain(leaveId: string): Promise<ApprovalChain> {
 		try {
 			const response = await fetch(`/api/approval-chain/${leaveId}`, {
-				credentials: 'include'
+				headers: { Authorization: `Bearer ${localStorage.getItem('ess_access_token')}` }
 			})
 
 			if (!response.ok) {
@@ -281,7 +281,7 @@ export class LeaveService {
 	async getApprovalHistory(): Promise<ApprovalHistoryItem[]> {
 		try {
 			const response = await fetch('/api/approval-history', {
-				credentials: 'include'
+				headers: { Authorization: `Bearer ${localStorage.getItem('ess_access_token')}` }
 			})
 
 			if (!response.ok) {
@@ -303,7 +303,7 @@ export class LeaveService {
 	async getPendingApprovals(): Promise<PendingApproval[]> {
 		try {
 			const response = await fetch('/api/pending-approvals', {
-				credentials: 'include'
+				headers: { Authorization: `Bearer ${localStorage.getItem('ess_access_token')}` }
 			})
 
 			if (!response.ok) {
@@ -330,9 +330,9 @@ export class LeaveService {
 			const response = await fetch('/api/process-approval', {
 				method: 'POST',
 				headers: {
-					'Content-Type': 'application/json'
+					'Content-Type': 'application/json',
+					Authorization: `Bearer ${localStorage.getItem('ess_access_token')}`,
 				},
-				credentials: 'include',
 				body: JSON.stringify({
 					leave_id: leaveId,
 					action: action,
