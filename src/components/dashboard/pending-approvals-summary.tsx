@@ -87,6 +87,7 @@ export function PendingApprovalsSummary({ className }: PendingApprovalsSummaryPr
 	}
 
 	const formatLeaveType = (leaveType: string) => {
+		if (!leaveType) return 'N/A'
 		return leaveType.replace('LEAVETYPE', 'Leave Type ')
 	}
 
@@ -222,10 +223,24 @@ export function PendingApprovalsSummary({ className }: PendingApprovalsSummaryPr
 
 							<div className="grid grid-cols-3 gap-2 mb-2 text-xs">
 								<div className="bg-muted/50 p-2 rounded-lg">
-									<p className="text-muted-foreground mb-1">Leave Type</p>
-									<p className="font-medium text-foreground text-xs">
-										{formatLeaveType(approval.leave_type)}
-									</p>
+									{(approval as any).type === 'timesheet' ? (
+										<>
+											<p className="text-muted-foreground mb-1">Type</p>
+											<p className="font-medium text-foreground text-xs">Timesheet</p>
+										</>
+									) : (approval as any).type === 'expense' ? (
+										<>
+											<p className="text-muted-foreground mb-1">Type</p>
+											<p className="font-medium text-foreground text-xs">Expense</p>
+										</>
+									) : (
+										<>
+											<p className="text-muted-foreground mb-1">Leave Type</p>
+											<p className="font-medium text-foreground text-xs">
+												{formatLeaveType(approval.leave_type)}
+											</p>
+										</>
+									)}
 								</div>
 								<div className="bg-muted/50 p-2 rounded-lg">
 									<p className="text-muted-foreground mb-1">Duration</p>

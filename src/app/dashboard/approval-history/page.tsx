@@ -90,6 +90,7 @@ export default function ApprovalHistoryPage() {
 	}
 
 	const formatLeaveType = (leaveTypeId: string) => {
+		if (!leaveTypeId) return 'N/A'
 		const leaveType = leaveTypes.find(lt => lt.name === leaveTypeId)
 		if (leaveType) {
 			return `${leaveTypeId} / ${leaveType.bc_leave_code} / ${leaveType.leave_mapping_code}`
@@ -145,7 +146,7 @@ export default function ApprovalHistoryPage() {
 			const matchesSearch = item.leave_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
 								 item.employee_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
 								 item.reason.toLowerCase().includes(searchTerm.toLowerCase()) ||
-								 formatLeaveType(item.leave_type).toLowerCase().includes(searchTerm.toLowerCase())
+								 formatLeaveType(item.leave_type || '').toLowerCase().includes(searchTerm.toLowerCase())
 			const matchesStatus = statusFilter === 'all' || item.my_action.toLowerCase() === statusFilter
 			return matchesSearch && matchesStatus
 		})
@@ -381,8 +382,22 @@ export default function ApprovalHistoryPage() {
 													
 													<div className="flex items-center space-x-2">
 														<Calendar className="h-4 w-4 text-muted-foreground" />
-														<span className="text-muted-foreground">Leave Type:</span>
-														<span className="font-medium">{formatLeaveType(item.leave_type)}</span>
+														{(item as any).type === 'timesheet' ? (
+															<>
+																<span className="text-muted-foreground">Type:</span>
+																<span className="font-medium">Timesheet</span>
+															</>
+														) : (item as any).type === 'expense' ? (
+															<>
+																<span className="text-muted-foreground">Type:</span>
+																<span className="font-medium">Expense</span>
+															</>
+														) : (
+															<>
+																<span className="text-muted-foreground">Leave Type:</span>
+																<span className="font-medium">{formatLeaveType(item.leave_type)}</span>
+															</>
+														)}
 													</div>
 													
 													<div className="flex items-center space-x-2">
