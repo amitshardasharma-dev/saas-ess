@@ -109,7 +109,7 @@ export const POST = withAuth(async (_request: NextRequest, { companyId }, params
 		.from('ess_employees')
 		.select('id, reports_to')
 		.eq('company_id', companyId)
-		.eq('is_active', true)
+		.eq('status', 'Active')
 		.not('reports_to', 'is', null)
 
 	if (empError) {
