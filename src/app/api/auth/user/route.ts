@@ -1,76 +1,62 @@
 import { NextRequest, NextResponse } from 'next/server'
-import config from '@/config/environment'
-
-interface FrappeUserDoc {
-	data: {
-		name: string
-		email: string
-		full_name: string
-		user_image?: string
-		roles?: Array<{ role: string }>
-		employee?: string
-		employee_name?: string
-		department?: string
-		designation?: string
-		employee_id?: string
-	}
-}
-
-interface FrappeAuthResponse {
-	message: string
-}
+import { supabaseAdmin } from '@/lib/supabase-server'
 
 export async function GET(request: NextRequest) {
 	try {
-		// Forward cookies from the request
-		const cookieHeader = request.headers.get('Cookie')
-		
-		const response = await fetch(`${config.frappe.url.replace(/\/$/, '')}/api/method/frappe.auth.get_logged_user`, {
-			method: 'GET',
-			headers: {
-				...(cookieHeader && { Cookie: cookieHeader }),
-			},
-		})
+		// Get token from Authorization header or cookie
+		const authHeader = request.headers.get('Authorization')
+		const token = authHeader?.replace('Bearer ', '')
 
-		if (!response.ok) {
+		if (!token) {
 			return NextResponse.json({ user: null, authenticated: false })
 		}
 
-		const data: FrappeAuthResponse = await response.json()
-		
-		if (data.message && data.message !== 'Guest') {
-			// Get user details
-			const userResponse = await fetch(`${config.frappe.url.replace(/\/$/, '')}/api/resource/User/${data.message}`, {
-				headers: {
-					...(cookieHeader && { Cookie: cookieHeader }),
-				},
-			})
-			
-			if (userResponse.ok) {
-				const userDoc: FrappeUserDoc = await userResponse.json()
-				
-				const user = {
-					name: userDoc.data.name,
-					email: userDoc.data.email,
-					full_name: userDoc.data.full_name,
-					user_image: userDoc.data.user_image,
-					roles: userDoc.data.roles?.map((role) => role.role) || [],
-					employee: userDoc.data.employee_id,
-					employee_name: userDoc.data.employee_name,
-					department: userDoc.data.department,
-					designation: userDoc.data.designation,
-				}
-				
-				return NextResponse.json({ user, authenticated: true })
-			}
+		// Verify the token and get user
+		const { data: { user: authUser }, error } = await supabaseAdmin.auth.getUser(token)
+
+		if (error || !authUser) {
+			return NextResponse.json({ user: null, authenticated: false })
 		}
-		
-		return NextResponse.json({ user: null, authenticated: false })
+
+		// Check ESS app registration
+		const { data: appUser } = await supabaseAdmin
+			.from('ess_app_users')
+			.select('id, company_id, role, is_active')
+			.eq('auth_user_id', authUser.id)
+			.eq('is_active', true)
+			.single()
+
+		if (!appUser) {
+			return NextResponse.json({ user: null, authenticated: false })
+		}
+
+		// Get employee record
+		const { data: employee } = await supabaseAdmin
+			.from('ess_employees')
+			.select('*')
+			.eq('app_user_id', appUser.id)
+			.single()
+
+		const user = {
+			name: authUser.email,
+			email: authUser.email,
+			full_name: employee?.full_name || authUser.email,
+			user_image: employee?.photo_url,
+			photo: employee?.photo_url,
+			roles: [appUser.role],
+			role: appUser.role,
+			employee: employee?.employee_no,
+			employee_name: employee?.full_name,
+			department: employee?.department,
+			designation: employee?.designation,
+		}
+
+		return NextResponse.json({ user, authenticated: true })
 	} catch (error) {
-		console.error('User proxy error:', error)
+		console.error('User check error:', error)
 		return NextResponse.json(
 			{ user: null, authenticated: false },
 			{ status: 500 }
 		)
 	}
-} 
+}
