@@ -50,7 +50,7 @@ interface WithAuthOptions {
 export function withAuth(handler: AuthenticatedHandler, options: WithAuthOptions = {}) {
   const { minRole = 'employee' } = options
 
-  return async (request: NextRequest, routeContext?: { params?: Promise<Record<string, string>> }) => {
+  return async (request: NextRequest, routeContext: { params: Promise<Record<string, string>> }) => {
     try {
       // 1. Extract token
       const authHeader = request.headers.get('Authorization')
@@ -101,7 +101,7 @@ export function withAuth(handler: AuthenticatedHandler, options: WithAuthOptions
       }
 
       // 7. Resolve route params if present
-      const params = routeContext?.params ? await routeContext.params : undefined
+      const params = routeContext?.params ? await routeContext.params : {}
 
       return handler(request, ctx, params)
     } catch (error) {
