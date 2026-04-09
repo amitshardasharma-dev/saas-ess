@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Sparkles, User, Building, Mail, Hash, Calendar, FileText } from 'lucide-react'
+import { Sparkles, User, Building, Mail, Hash, Calendar, FileText, Users } from 'lucide-react'
 import Link from 'next/link'
 import { Toaster } from 'react-hot-toast'
 
@@ -22,6 +22,9 @@ import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { useModules } from '@/hooks/use-modules'
 import { UserRole, hasMinRole } from '@/types/roles'
 import { TimesheetList } from '@/components/timesheets/timesheet-list'
+
+// Team calendar service
+import { teamCalendarService } from '@/services/team-calendar'
 
 // Employee dashboard data and types
 import { employeeDashboardService } from '@/services/dashboard-data'
@@ -61,6 +64,7 @@ export default function DashboardPage() {
 	const [myTimesheets, setMyTimesheets] = useState<DashboardTimesheet[]>([])
 	const [pendingAcks, setPendingAcks] = useState<PendingAcknowledgment[]>([])
 	const [isDashboardLoading, setIsDashboardLoading] = useState(true)
+	const [teamAbsencesThisWeek, setTeamAbsencesThisWeek] = useState<number>(0)
 	
 	// Get employee data for enhanced welcome section
 	const { employee, loading: employeeLoading } = useEmployee()
@@ -141,6 +145,39 @@ export default function DashboardPage() {
 
 			// Set pending acknowledgments state
 			setPendingAcks(Array.isArray(acks) ? acks : [])
+
+			// Load team absences for managers with leave module enabled
+			if (hasMinRole(userRole, 'manager') && isModuleEnabled('leave')) {
+				try {
+					const now = new Date()
+					const year = now.getFullYear()
+					const month = now.getMonth() + 1
+					const teamData = await teamCalendarService.getTeamLeaves(year, month)
+
+					// Determine current week boundaries (Mon–Sun)
+					const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+					const dayOfWeek = today.getDay() // 0=Sun, 1=Mon, ...
+					const diffToMon = (dayOfWeek === 0 ? -6 : 1 - dayOfWeek)
+					const weekStart = new Date(today)
+					weekStart.setDate(today.getDate() + diffToMon)
+					const weekEnd = new Date(weekStart)
+					weekEnd.setDate(weekStart.getDate() + 6)
+
+					const weekStartStr = weekStart.toISOString().slice(0, 10)
+					const weekEndStr = weekEnd.toISOString().slice(0, 10)
+
+					// Count unique employees with leave overlapping the current week
+					const uniqueEmployees = new Set<string>()
+					for (const leave of teamData.leaves) {
+						if (leave.fromDate <= weekEndStr && leave.toDate >= weekStartStr) {
+							uniqueEmployees.add(leave.employeeId)
+						}
+					}
+					setTeamAbsencesThisWeek(uniqueEmployees.size)
+				} catch {
+					// Non-critical: silently ignore team calendar errors
+				}
+			}
 		} catch (error) {
 			console.error('Failed to load dashboard data:', error)
 			// Set safe default values
@@ -491,6 +528,32 @@ export default function DashboardPage() {
 							<PendingExpenseApprovals />
 						</div>
 
+						{/* Team Absences This Week - Managers only */}
+						{hasMinRole(userRole, 'manager') && isModuleEnabled('leave') && (
+							<Card className="border-l-4 border-primary">
+								<CardHeader className="pb-2">
+									<CardTitle className="flex items-center gap-2 text-base">
+										<Users className="h-5 w-5 text-primary" />
+										Team Absences This Week
+									</CardTitle>
+									<CardDescription>Employees on leave during the current week</CardDescription>
+								</CardHeader>
+								<CardContent className="flex items-center justify-between">
+									<div>
+										<span className="text-4xl font-bold text-foreground">{teamAbsencesThisWeek}</span>
+										<span className="ml-2 text-muted-foreground text-sm">
+											{teamAbsencesThisWeek === 1 ? 'employee' : 'employees'} off
+										</span>
+									</div>
+									<Link
+										href="/dashboard/team-calendar"
+										className="text-sm font-medium text-primary hover:underline"
+									>
+										View Team Calendar →
+									</Link>
+								</CardContent>
+							</Card>
+						)}
 
 					</div>
 				)}
