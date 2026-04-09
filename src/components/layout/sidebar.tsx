@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
@@ -47,7 +47,7 @@ interface NavigationItem {
 
 export function Sidebar({ className }: SidebarProps) {
 	const [isCollapsed, setIsCollapsed] = useState(false)
-	const [expandedMenus, setExpandedMenus] = useState<string[]>(['leave-applications']) // Default expand Leave Applications
+	const [expandedMenus, setExpandedMenus] = useState<string[]>(['leave', 'timesheets']) // Default expand Leave & Timesheets
 	const pathname = usePathname()
 	const router = useRouter()
 	const { logout, user } = useAuthStore()
@@ -66,6 +66,24 @@ export function Sidebar({ className }: SidebarProps) {
 				: [...prev, menuKey]
 		)
 	}
+
+	// Auto-expand parent menus when a sub-item route is active
+	useEffect(() => {
+		const subItemRoutes: Record<string, string> = {
+			'/dashboard/pending-approvals': 'leave',
+			'/dashboard/approval-history': 'leave',
+			'/dashboard/team-calendar': 'leave',
+			'/dashboard/team-balances': 'leave',
+			'/dashboard/team-timesheets': 'timesheets',
+			'/dashboard/documents/manage': 'documents',
+			'/dashboard/appraisals/cycles': 'appraisals',
+			'/dashboard/contracts/manage': 'my-contract',
+		}
+		const parentKey = subItemRoutes[pathname]
+		if (parentKey && !expandedMenus.includes(parentKey)) {
+			setExpandedMenus(prev => [...prev, parentKey])
+		}
+	}, [pathname])
 
 	const handleLogout = async () => {
 		try {
