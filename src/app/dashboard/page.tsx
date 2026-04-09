@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Sparkles, User, Building, Mail, Hash, Calendar } from 'lucide-react'
+import { Sparkles, User, Building, Mail, Hash, Calendar, FileText } from 'lucide-react'
+import Link from 'next/link'
 import { Toaster } from 'react-hot-toast'
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -30,7 +31,8 @@ import {
 	LeaveBalance,
 	EmployeeDashboardStats,
 	PayslipData,
-	DashboardTimesheet
+	DashboardTimesheet,
+	PendingAcknowledgment
 } from '@/types/dashboard'
 
 interface UserInfoItemProps {
@@ -57,6 +59,7 @@ export default function DashboardPage() {
 	const [myPayslips, setMyPayslips] = useState<PayslipData[]>([])
 	const [leaveBalances, setLeaveBalances] = useState<LeaveBalance[]>([])
 	const [myTimesheets, setMyTimesheets] = useState<DashboardTimesheet[]>([])
+	const [pendingAcks, setPendingAcks] = useState<PendingAcknowledgment[]>([])
 	const [isDashboardLoading, setIsDashboardLoading] = useState(true)
 	
 	// Get employee data for enhanced welcome section
@@ -82,13 +85,14 @@ export default function DashboardPage() {
 			console.log('Dashboard Page: Current user:', user)
 			
 			// Load all employee dashboard data in parallel
-			const [stats, applications, claims, payslips, balances, timesheets] = await Promise.all([
+			const [stats, applications, claims, payslips, balances, timesheets, acks] = await Promise.all([
 				employeeDashboardService.getEmployeeDashboardStats(),
 				employeeDashboardService.getMyLeaveApplications(),
 				employeeDashboardService.getMyExpenseClaims(),
 				employeeDashboardService.getMyPayslips(),
 				employeeDashboardService.getLeaveBalances(),
-				employeeDashboardService.getMyTimesheets()
+				employeeDashboardService.getMyTimesheets(),
+				employeeDashboardService.getPendingAcknowledgments()
 			])
 
 			// Validate that stats is a proper object with numeric values
@@ -134,6 +138,9 @@ export default function DashboardPage() {
 
 			// Set timesheets state
 			setMyTimesheets(Array.isArray(timesheets) ? timesheets : [])
+
+			// Set pending acknowledgments state
+			setPendingAcks(Array.isArray(acks) ? acks : [])
 		} catch (error) {
 			console.error('Failed to load dashboard data:', error)
 			// Set safe default values
@@ -143,6 +150,7 @@ export default function DashboardPage() {
 			setMyPayslips([])
 			setLeaveBalances([])
 			setMyTimesheets([])
+			setPendingAcks([])
 		} finally {
 			setIsDashboardLoading(false)
 		}
@@ -449,6 +457,31 @@ export default function DashboardPage() {
 									}))}
 									maxItems={5}
 								/>
+							</div>
+						)}
+
+						{/* Pending Acknowledgments Card */}
+						{isModuleEnabled('documents') && pendingAcks.length > 0 && (
+							<div className="flowing-card p-6 border-l-4 border-amber-500">
+								<div className="flex items-center justify-between">
+									<div className="flex items-center space-x-3">
+										<div className="p-2 bg-amber-100 rounded-xl">
+											<FileText className="h-5 w-5 text-amber-600" />
+										</div>
+										<div>
+											<h3 className="font-semibold text-foreground">Pending Acknowledgments</h3>
+											<p className="text-sm text-muted-foreground">
+												{pendingAcks.length} document{pendingAcks.length !== 1 ? 's' : ''} require your acknowledgment
+											</p>
+										</div>
+									</div>
+									<Link
+										href="/dashboard/documents"
+										className="text-sm font-medium text-primary hover:underline"
+									>
+										View Documents →
+									</Link>
+								</div>
 							</div>
 						)}
 

@@ -8,7 +8,8 @@ import {
 	FrappeLeaveTypeData,
 	FrappeLeaveAllocationData,
 	FrappeLeaveApplicationData,
-	DashboardTimesheet
+	DashboardTimesheet,
+	PendingAcknowledgment
 } from '@/types/dashboard'
 
 // Helper to get auth token for API calls
@@ -686,6 +687,25 @@ const fetchMyTimesheets = async (): Promise<DashboardTimesheet[]> => {
 	}
 }
 
+// Function to fetch pending acknowledgments from documents API
+const fetchPendingAcknowledgments = async (): Promise<PendingAcknowledgment[]> => {
+	try {
+		const response = await fetch('/api/documents', { headers: authHeaders() })
+		if (!response.ok) return []
+		const data = await response.json()
+		const documents = Array.isArray(data.documents) ? data.documents : []
+		return documents
+			.filter((doc: any) => doc.requires_acknowledgment && !doc.acknowledged)
+			.map((doc: any) => ({
+				documentId: doc.id,
+				title: doc.title,
+				categoryName: doc.category_name || '',
+			}))
+	} catch {
+		return []
+	}
+}
+
 // Service functions to simulate API calls
 export const employeeDashboardService = {
 	async getMyLeaveApplications(): Promise<MyLeaveApplication[]> {
@@ -715,5 +735,9 @@ export const employeeDashboardService = {
 
 	async getMyTimesheets(): Promise<DashboardTimesheet[]> {
 		return await fetchMyTimesheets()
+	},
+
+	async getPendingAcknowledgments(): Promise<PendingAcknowledgment[]> {
+		return await fetchPendingAcknowledgments()
 	}
-} 
+}

@@ -134,3 +134,9 @@ export interface DashboardTimesheet {
   totalHours: number
   status: string
 }
+
+export interface PendingAcknowledgment {
+  documentId: string
+  title: string
+  categoryName: string
+}
