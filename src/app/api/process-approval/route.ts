@@ -1,110 +1,196 @@
 import { NextRequest, NextResponse } from 'next/server'
-import config from '@/config/environment'
+import { supabaseAdmin } from '@/lib/supabase-server'
 
 export async function POST(request: NextRequest) {
 	try {
-		console.log('Processing Leave Approval...')
-		
-		// Get cookies from the request
-		const cookieHeader = request.headers.get('cookie')
-		console.log('Cookie header present:', cookieHeader ? 'Yes' : 'No')
-		
-		if (!cookieHeader) {
-			console.log('No cookie header found')
-			return NextResponse.json(
-				{ error: 'Authentication required' },
-				{ status: 401 }
-			)
+		const authHeader = request.headers.get('Authorization')
+		const token = authHeader?.replace('Bearer ', '')
+
+		if (!token) {
+			return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
 		}
 
-		// Parse request body
+		const { data: { user: authUser }, error: authError } = await supabaseAdmin.auth.getUser(token)
+		if (authError || !authUser) {
+			return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+		}
+
 		const body = await request.json()
-		const { leave_id, action, remarks } = body
+		const { leave_id, action, remarks, type = 'leave' } = body
 
 		if (!leave_id || !action) {
-			return NextResponse.json(
-				{ error: 'Leave ID and action are required' },
-				{ status: 400 }
-			)
+			return NextResponse.json({ error: 'ID and action are required' }, { status: 400 })
 		}
 
 		if (!['approve', 'reject'].includes(action)) {
-			return NextResponse.json(
-				{ error: 'Action must be either "approve" or "reject"' },
-				{ status: 400 }
-			)
+			return NextResponse.json({ error: 'Action must be "approve" or "reject"' }, { status: 400 })
 		}
 
-		// Check authentication first
-		const authResponse = await fetch(`${config.frappe.url.replace(/\/$/, '')}/api/method/frappe.auth.get_logged_user`, {
-			method: 'GET',
-			headers: {
-				Cookie: cookieHeader,
-			},
-		})
+		// Get current user's employee ID
+		const { data: appUser } = await supabaseAdmin
+			.from('ess_app_users')
+			.select('id')
+			.eq('auth_user_id', authUser.id)
+			.eq('is_active', true)
+			.single()
 
-		if (!authResponse.ok) {
-			console.log('Authentication check failed:', authResponse.status)
-			return NextResponse.json(
-				{ error: 'Authentication failed' },
-				{ status: 403 }
-			)
+		if (!appUser) {
+			return NextResponse.json({ error: 'Not registered for ESS' }, { status: 403 })
 		}
 
-		const authData = await authResponse.json()
-		console.log('User authenticated:', authData.message)
+		const { data: employee } = await supabaseAdmin
+			.from('ess_employees')
+			.select('id')
+			.eq('app_user_id', appUser.id)
+			.single()
 
-		// Process the approval
-		const approvalUrl = `${config.frappe.url.replace(/\/$/, '')}/api/method/hr_portal.hr.doctype.leave_application.leave_application_api.approve_leave`
-		console.log('Making request to process approval:', approvalUrl)
-		
-		const approvalResponse = await fetch(approvalUrl, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				Cookie: cookieHeader,
-			},
-			body: JSON.stringify({
-				leave_id: leave_id,
-				action: action,
-				remarks: remarks || ''
-			})
-		})
+		if (!employee) {
+			return NextResponse.json({ error: 'Employee not found' }, { status: 404 })
+		}
 
-		console.log('Approval response status:', approvalResponse.status)
+		const newStatus = action === 'approve' ? 'Approved' : 'Rejected'
 
-		if (!approvalResponse.ok) {
-			const errorText = await approvalResponse.text()
-			console.error('Failed to process approval:', errorText)
-			
-			// Try to parse error message
-			try {
-				const errorData = JSON.parse(errorText)
-				return NextResponse.json(
-					{ error: errorData.exception || errorData.message || 'Failed to process approval' },
-					{ status: approvalResponse.status }
-				)
-			} catch {
-				return NextResponse.json(
-					{ error: 'Failed to process approval' },
-					{ status: approvalResponse.status }
-				)
+		if (type === 'expense') {
+			// Process expense approval
+			// Find the claim by display_id
+			const { data: claim } = await supabaseAdmin
+				.from('ess_expense_claims')
+				.select('id')
+				.eq('display_id', leave_id)
+				.single()
+
+			if (!claim) {
+				return NextResponse.json({ error: 'Expense claim not found' }, { status: 404 })
+			}
+
+			// Update the approval entry
+			await supabaseAdmin
+				.from('ess_expense_approval_entries')
+				.update({
+					status: newStatus,
+					action_time: new Date().toISOString(),
+					remarks: remarks || '',
+				})
+				.eq('expense_claim_id', claim.id)
+				.eq('approver_id', employee.id)
+				.eq('status', 'Pending')
+
+			// Check if all levels are done
+			const { data: allEntries } = await supabaseAdmin
+				.from('ess_expense_approval_entries')
+				.select('status')
+				.eq('expense_claim_id', claim.id)
+
+			if (action === 'reject') {
+				await supabaseAdmin
+					.from('ess_expense_claims')
+					.update({ status: 'Rejected', updated_at: new Date().toISOString() })
+					.eq('id', claim.id)
+			} else {
+				const allApproved = (allEntries || []).every(e => e.status === 'Approved')
+				if (allApproved) {
+					await supabaseAdmin
+						.from('ess_expense_claims')
+						.update({ status: 'Approved', updated_at: new Date().toISOString() })
+						.eq('id', claim.id)
+				}
+			}
+		} else if (type === 'timesheet') {
+			// Process timesheet approval
+			const { data: timesheet } = await supabaseAdmin
+				.from('ess_timesheets')
+				.select('id')
+				.eq('display_id', leave_id)
+				.single()
+
+			if (!timesheet) {
+				return NextResponse.json({ error: 'Timesheet not found' }, { status: 404 })
+			}
+
+			// Update the approval entry
+			await supabaseAdmin
+				.from('ess_timesheet_approval_entries')
+				.update({
+					status: newStatus,
+					action_time: new Date().toISOString(),
+					remarks: remarks || '',
+				})
+				.eq('timesheet_id', timesheet.id)
+				.eq('approver_id', employee.id)
+				.eq('status', 'Pending')
+
+			// Check if all levels are done
+			const { data: allEntries } = await supabaseAdmin
+				.from('ess_timesheet_approval_entries')
+				.select('status')
+				.eq('timesheet_id', timesheet.id)
+
+			if (action === 'reject') {
+				await supabaseAdmin
+					.from('ess_timesheets')
+					.update({ status: 'Rejected', updated_at: new Date().toISOString() })
+					.eq('id', timesheet.id)
+			} else {
+				const allApproved = (allEntries || []).every(e => e.status === 'Approved')
+				if (allApproved) {
+					await supabaseAdmin
+						.from('ess_timesheets')
+						.update({ status: 'Approved', updated_at: new Date().toISOString() })
+						.eq('id', timesheet.id)
+				}
+			}
+		} else {
+			// Process leave approval
+			const { data: leaveApp } = await supabaseAdmin
+				.from('ess_leave_applications')
+				.select('id')
+				.eq('display_id', leave_id)
+				.single()
+
+			if (!leaveApp) {
+				return NextResponse.json({ error: 'Leave application not found' }, { status: 404 })
+			}
+
+			// Update the approval entry
+			await supabaseAdmin
+				.from('ess_leave_approval_entries')
+				.update({
+					status: newStatus,
+					action_time: new Date().toISOString(),
+					remarks: remarks || '',
+				})
+				.eq('leave_application_id', leaveApp.id)
+				.eq('approver_id', employee.id)
+				.eq('status', 'Pending')
+
+			// Check if all levels are done
+			const { data: allEntries } = await supabaseAdmin
+				.from('ess_leave_approval_entries')
+				.select('status')
+				.eq('leave_application_id', leaveApp.id)
+
+			if (action === 'reject') {
+				await supabaseAdmin
+					.from('ess_leave_applications')
+					.update({ status: 'Rejected', updated_at: new Date().toISOString() })
+					.eq('id', leaveApp.id)
+			} else {
+				const allApproved = (allEntries || []).every(e => e.status === 'Approved')
+				if (allApproved) {
+					await supabaseAdmin
+						.from('ess_leave_applications')
+						.update({ status: 'Approved', updated_at: new Date().toISOString() })
+						.eq('id', leaveApp.id)
+				}
 			}
 		}
 
-		const approvalData = await approvalResponse.json()
-		console.log('Approval processed successfully:', JSON.stringify(approvalData, null, 2))
-
 		return NextResponse.json({
-			message: approvalData.message || `Leave application ${action}d successfully`,
-			workflow_state: approvalData.workflow_state
+			message: `${type === 'expense' ? 'Expense claim' : type === 'timesheet' ? 'Timesheet' : 'Leave application'} ${action}d successfully`,
+			workflow_state: newStatus,
 		})
 	} catch (error) {
 		console.error('Process Approval error:', error)
-		
-		return NextResponse.json(
-			{ error: 'Internal server error' },
-			{ status: 500 }
-		)
+		return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
 	}
-} 
+}
