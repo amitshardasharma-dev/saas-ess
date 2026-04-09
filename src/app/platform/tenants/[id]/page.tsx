@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import {
   ArrowLeft, Building2, Users, Shield, Activity,
-  ToggleLeft, ToggleRight, UserCheck, Trash2,
+  ToggleLeft, ToggleRight, UserCheck, Trash2, BarChart2, RefreshCw,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -13,7 +13,7 @@ import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { platformService } from '@/services/platform'
-import { TenantDetail, TenantUser } from '@/types/platform'
+import { TenantDetail, TenantUser, TenantUsage } from '@/types/platform'
 
 const ALL_MODULES = [
   { value: 'leave', label: 'Leave Management' },
@@ -46,28 +46,47 @@ export default function TenantDetailPage() {
 
   const [tenant, setTenant] = useState<TenantDetail | null>(null)
   const [users, setUsers] = useState<TenantUser[]>([])
+  const [usageHistory, setUsageHistory] = useState<TenantUsage[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [modulesEnabled, setModulesEnabled] = useState<string[]>([])
   const [selectedPlan, setSelectedPlan] = useState('')
+  const [collectingUsage, setCollectingUsage] = useState(false)
 
   const fetchData = async () => {
     setLoading(true)
     try {
-      const [tenantData, usersData] = await Promise.all([
+      const [tenantData, usersData, usageData] = await Promise.all([
         platformService.getTenant(id),
         platformService.getTenantUsers(id),
+        platformService.getTenantUsage(id),
       ])
       setTenant(tenantData)
       setUsers(usersData)
+      setUsageHistory(usageData)
       setModulesEnabled(tenantData.modules_enabled || [])
       setSelectedPlan(tenantData.plan)
     } catch (err: any) {
       toast.error(err.message || 'Failed to load tenant')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleCollectUsage = async () => {
+    setCollectingUsage(true)
+    try {
+      const result = await platformService.collectUsage()
+      toast.success(`Usage collected for ${result.collected} tenant(s)`)
+      // Refresh usage for this tenant
+      const usageData = await platformService.getTenantUsage(id)
+      setUsageHistory(usageData)
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to collect usage')
+    } finally {
+      setCollectingUsage(false)
     }
   }
 
@@ -433,6 +452,86 @@ export default function TenantDetailPage() {
               {saving ? 'Saving...' : 'Save Modules'}
             </Button>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Usage History */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <BarChart2 className="h-5 w-5 text-primary" /> Usage History
+              </CardTitle>
+              <CardDescription>Last {usageHistory.length} usage snapshots for this tenant</CardDescription>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleCollectUsage}
+              disabled={collectingUsage}
+              className="text-primary border-primary/30 hover:bg-primary/5"
+            >
+              {collectingUsage ? (
+                <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-current inline-block mr-1" />
+              ) : (
+                <RefreshCw className="h-4 w-4 mr-1" />
+              )}
+              Collect Usage
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          {usageHistory.length === 0 ? (
+            <div className="p-8 text-center text-muted-foreground">
+              No usage data yet. Click &ldquo;Collect Usage&rdquo; to take a snapshot.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border bg-muted/30">
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Date</th>
+                    <th className="text-right px-4 py-3 font-medium text-muted-foreground">Users</th>
+                    <th className="text-right px-4 py-3 font-medium text-muted-foreground">Employees</th>
+                    <th className="text-right px-4 py-3 font-medium text-muted-foreground">Timesheets</th>
+                    <th className="text-right px-4 py-3 font-medium text-muted-foreground">Leave Apps</th>
+                    <th className="text-right px-4 py-3 font-medium text-muted-foreground">Documents</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {usageHistory.map((entry, i) => (
+                    <tr
+                      key={i}
+                      className="border-b border-border/50 hover:bg-muted/20 transition-colors"
+                    >
+                      <td className="px-4 py-3 text-muted-foreground">
+                        {new Date(entry.measured_at).toLocaleString('en-US', {
+                          year: 'numeric', month: 'short', day: 'numeric',
+                          hour: '2-digit', minute: '2-digit',
+                        })}
+                      </td>
+                      <td className="px-4 py-3 text-right font-medium text-foreground">
+                        {entry.user_count}
+                      </td>
+                      <td className="px-4 py-3 text-right text-foreground">
+                        {entry.active_employees}
+                      </td>
+                      <td className="px-4 py-3 text-right text-foreground">
+                        {entry.timesheets_this_month}
+                      </td>
+                      <td className="px-4 py-3 text-right text-foreground">
+                        {entry.leave_apps_this_month}
+                      </td>
+                      <td className="px-4 py-3 text-right text-foreground">
+                        {entry.documents_count}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </CardContent>
       </Card>
 
