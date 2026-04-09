@@ -5,6 +5,10 @@
 !src/
 !src/**/*
 
+# Allow scripts folder
+!scripts/
+!scripts/**/*
+
 # Allow project config files
 !package.json
 !pnpm-lock.yaml
