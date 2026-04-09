@@ -7,14 +7,16 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { useAuthStore } from '@/stores/auth'
 import { useEmployee } from '@/hooks/use-employee'
+import { useModules } from '@/hooks/use-modules'
+import { UserRole, hasMinRole } from '@/types/roles'
 import toast from 'react-hot-toast'
-import { 
-	LayoutDashboard, 
-	Calendar, 
-	Receipt, 
-	FileText, 
-	User as UserIcon, 
-	ChevronLeft, 
+import {
+	LayoutDashboard,
+	Calendar,
+	Receipt,
+	FileText,
+	User as UserIcon,
+	ChevronLeft,
 	ChevronRight,
 	ChevronDown,
 	ChevronUp,
@@ -22,7 +24,13 @@ import {
 	LogOut,
 	History,
 	Clock,
-	Settings
+	Settings,
+	Timer,
+	FolderOpen,
+	Star,
+	FileSignature,
+	CalendarDays,
+	Users,
 } from 'lucide-react'
 
 interface SidebarProps {
@@ -42,8 +50,10 @@ export function Sidebar({ className }: SidebarProps) {
 	const [expandedMenus, setExpandedMenus] = useState<string[]>(['leave-applications']) // Default expand Leave Applications
 	const pathname = usePathname()
 	const router = useRouter()
-	const { logout } = useAuthStore()
+	const { logout, user } = useAuthStore()
 	const { hasLeaveApprovalAccess, loading: employeeLoading } = useEmployee()
+	const { isModuleEnabled, loading: modulesLoading } = useModules()
+	const userRole = (user?.role || 'employee') as UserRole
 
 	const toggleSidebar = () => {
 		setIsCollapsed(!isCollapsed)
@@ -68,62 +78,175 @@ export function Sidebar({ className }: SidebarProps) {
 		}
 	}
 
-	// Create navigation structure with conditional approval items
 	const getNavigationItems = (): NavigationItem[] => {
-		const approvalSubItems = !employeeLoading && hasLeaveApprovalAccess ? [
-			{
-				title: 'Pending Approvals',
-				href: '/dashboard/pending-approvals',
-				icon: Clock,
-				description: 'Review leave approvals'
-			},
-			{
-				title: 'Approval History',
-				href: '/dashboard/approval-history',
-				icon: History,
-				description: 'View approval history'
-			}
-		] : []
-
-		return [
+		const items: NavigationItem[] = [
 			{
 				title: 'Dashboard',
 				href: '/dashboard',
 				icon: LayoutDashboard,
 				description: 'Overview and statistics'
 			},
-			{
-				title: 'Leave Applications',
+		]
+
+		// Leave module
+		if (isModuleEnabled('leave')) {
+			const leaveSubItems: NavigationItem[] = []
+			if (!employeeLoading && hasLeaveApprovalAccess) {
+				leaveSubItems.push(
+					{
+						title: 'Pending Approvals',
+						href: '/dashboard/pending-approvals',
+						icon: Clock,
+						description: 'Review leave approvals'
+					},
+					{
+						title: 'Approval History',
+						href: '/dashboard/approval-history',
+						icon: History,
+						description: 'View approval history'
+					}
+				)
+			}
+			if (hasMinRole(userRole, 'manager')) {
+				leaveSubItems.push({
+					title: 'Team Calendar',
+					href: '/dashboard/team-calendar',
+					icon: CalendarDays,
+					description: 'Team leave calendar'
+				})
+				leaveSubItems.push({
+					title: 'Team Balances',
+					href: '/dashboard/team-balances',
+					icon: Users,
+					description: 'Staff leave balances'
+				})
+			}
+			items.push({
+				title: 'Leave',
 				href: '/dashboard/leave-applications',
 				icon: Calendar,
 				description: 'Apply and manage leave',
-				subItems: approvalSubItems
-			},
-			{
+				subItems: leaveSubItems.length > 0 ? leaveSubItems : undefined
+			})
+		}
+
+		// Expense module
+		if (isModuleEnabled('expense')) {
+			items.push({
 				title: 'Expense Claims',
 				href: '/dashboard/expense-claims',
 				icon: Receipt,
 				description: 'Submit and track expenses'
-			},
-			{
-				title: 'Payslips',
-				href: '/dashboard/payslips',
-				icon: FileText,
-				description: 'View salary statements'
-			},
-			{
-				title: 'Profile',
-				href: '/dashboard/profile',
-				icon: UserIcon,
-				description: 'Account settings'
-			},
-			{
-				title: 'System Settings',
+			})
+		}
+
+		// Timesheets module
+		if (isModuleEnabled('timesheets')) {
+			const timesheetSubItems: NavigationItem[] = []
+			if (hasMinRole(userRole, 'manager')) {
+				timesheetSubItems.push({
+					title: 'Team Timesheets',
+					href: '/dashboard/team-timesheets',
+					icon: Users,
+					description: 'Review team timesheets'
+				})
+			}
+			items.push({
+				title: 'Timesheets',
+				href: '/dashboard/timesheets',
+				icon: Timer,
+				description: 'Submit and track timesheets',
+				subItems: timesheetSubItems.length > 0 ? timesheetSubItems : undefined
+			})
+		}
+
+		// Documents module
+		if (isModuleEnabled('documents')) {
+			const docSubItems: NavigationItem[] = []
+			if (hasMinRole(userRole, 'hr')) {
+				docSubItems.push({
+					title: 'Manage Documents',
+					href: '/dashboard/documents/manage',
+					icon: FolderOpen,
+					description: 'Upload and manage policies'
+				})
+			}
+			items.push({
+				title: 'Documents',
+				href: '/dashboard/documents',
+				icon: FolderOpen,
+				description: 'Policies & HR documents',
+				subItems: docSubItems.length > 0 ? docSubItems : undefined
+			})
+		}
+
+		// Appraisals module
+		if (isModuleEnabled('appraisals')) {
+			const appraisalSubItems: NavigationItem[] = []
+			if (hasMinRole(userRole, 'hr')) {
+				appraisalSubItems.push({
+					title: 'Manage Cycles',
+					href: '/dashboard/appraisals/cycles',
+					icon: Star,
+					description: 'Manage appraisal cycles'
+				})
+			}
+			items.push({
+				title: 'Appraisals',
+				href: '/dashboard/appraisals',
+				icon: Star,
+				description: 'Performance reviews',
+				subItems: appraisalSubItems.length > 0 ? appraisalSubItems : undefined
+			})
+		}
+
+		// Contracts module
+		if (isModuleEnabled('contracts')) {
+			const contractSubItems: NavigationItem[] = []
+			if (hasMinRole(userRole, 'hr')) {
+				contractSubItems.push({
+					title: 'Manage Contracts',
+					href: '/dashboard/contracts/manage',
+					icon: FileSignature,
+					description: 'All employee contracts'
+				})
+			}
+			items.push({
+				title: 'My Contract',
+				href: '/dashboard/contracts',
+				icon: FileSignature,
+				description: 'View contract details',
+				subItems: contractSubItems.length > 0 ? contractSubItems : undefined
+			})
+		}
+
+		// Payslips (always visible)
+		items.push({
+			title: 'Payslips',
+			href: '/dashboard/payslips',
+			icon: FileText,
+			description: 'View salary statements'
+		})
+
+		// Profile (always visible)
+		items.push({
+			title: 'Profile',
+			href: '/dashboard/profile',
+			icon: UserIcon,
+			description: 'Account settings'
+		})
+
+		// Settings — admin only
+		if (hasMinRole(userRole, 'admin')) {
+			items.push({
+				title: 'Settings',
 				href: '/dashboard/settings',
 				icon: Settings,
 				description: 'System settings'
-			}
-		]
+			})
+		}
+
+		return items
 	}
 
 	const renderNavigationItem = (item: NavigationItem, level: number = 0) => {
