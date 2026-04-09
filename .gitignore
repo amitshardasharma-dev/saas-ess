@@ -12,6 +12,7 @@
 !next.config.*
 !jest.config.ts
 !jest.setup.ts
+!jest.polyfills.ts
 !.eslintrc*
 !postcss.config.*
 !tailwind.config.*
