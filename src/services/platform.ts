@@ -2,7 +2,7 @@
 
 import {
   PlatformDashboardStats, TenantSummary, TenantDetail,
-  TenantUser, CreateTenantInput, PlatformPlan, TenantUsage,
+  TenantUser, CreateTenantInput, PlatformPlan, TenantUsage, Announcement,
 } from '@/types/platform'
 
 export interface CreatePlanInput {
@@ -165,5 +165,51 @@ export const platformService = {
     if (!res.ok) return []
     const data = await res.json()
     return data.usage || []
+  },
+
+  async getAnnouncements(): Promise<Announcement[]> {
+    const res = await fetch('/api/platform/announcements', { headers: authHeaders() })
+    if (!res.ok) throw new Error('Failed to fetch announcements')
+    const data = await res.json()
+    return data.announcements || []
+  },
+
+  async createAnnouncement(data: Omit<Announcement, 'id' | 'created_at'>): Promise<Announcement> {
+    const res = await fetch('/api/platform/announcements', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify(data),
+    })
+    if (!res.ok) {
+      const err = await res.json()
+      throw new Error(err.error || 'Failed to create announcement')
+    }
+    const result = await res.json()
+    return result.announcement
+  },
+
+  async updateAnnouncement(id: string, data: Partial<Announcement>): Promise<Announcement> {
+    const res = await fetch(`/api/platform/announcements/${id}`, {
+      method: 'PUT',
+      headers: authHeaders(),
+      body: JSON.stringify(data),
+    })
+    if (!res.ok) {
+      const err = await res.json()
+      throw new Error(err.error || 'Failed to update announcement')
+    }
+    const result = await res.json()
+    return result.announcement
+  },
+
+  async deleteAnnouncement(id: string): Promise<void> {
+    const res = await fetch(`/api/platform/announcements/${id}`, {
+      method: 'DELETE',
+      headers: authHeaders(),
+    })
+    if (!res.ok) {
+      const err = await res.json()
+      throw new Error(err.error || 'Failed to delete announcement')
+    }
   },
 }
