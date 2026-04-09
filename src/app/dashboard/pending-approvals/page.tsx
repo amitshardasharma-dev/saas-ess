@@ -103,7 +103,8 @@ export default function PendingApprovalsPage() {
 				body: JSON.stringify({
 					leave_id: selectedApproval.name,
 					action: approvalAction,
-					remarks: remarks
+					remarks: remarks,
+					type: (selectedApproval as any).type || 'leave'
 				})
 			})
 
@@ -138,12 +139,18 @@ export default function PendingApprovalsPage() {
 	}
 
 	const formatLeaveType = (leaveType: string) => {
-		// Simple formatting - you can enhance this based on your leave types
+		if (!leaveType) return 'N/A'
 		return leaveType.replace('LEAVETYPE', 'Leave Type ')
 	}
 
-	const viewLeaveDetails = (leaveId: string) => {
-		router.push(`/dashboard/leave-applications/${leaveId}`)
+	const viewDetails = (approval: any) => {
+		if (approval.type === 'timesheet') {
+			router.push(`/dashboard/timesheets/${approval.timesheet_id || approval.name}`)
+		} else if (approval.type === 'expense') {
+			router.push(`/dashboard/expense-claims/${approval.name}`)
+		} else {
+			router.push(`/dashboard/leave-applications/${approval.name}`)
+		}
 	}
 
 	// Check for access permission
@@ -280,25 +287,60 @@ export default function PendingApprovalsPage() {
 													</div>
 												</div>
 
-												<div className="space-y-1">
-													<p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Leave Type</p>
-													<p className="font-medium text-sm">{formatLeaveType(approval.leave_type)}</p>
-												</div>
-
-												<div className="space-y-1">
-													<p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Duration</p>
-													<div className="flex items-center space-x-2">
-														<Calendar className="h-4 w-4 text-muted-foreground" />
-														<div>
+												{/* Type-specific details */}
+											{(approval as any).type === 'timesheet' ? (
+												<>
+													<div className="space-y-1">
+														<p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Type</p>
+														<Badge variant="outline">Timesheet</Badge>
+													</div>
+													<div className="space-y-1">
+														<p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Period</p>
+														<div className="flex items-center space-x-2">
+															<Calendar className="h-4 w-4 text-muted-foreground" />
 															<p className="font-medium text-sm">
-																{formatDate(approval.from_date)} - {formatDate(approval.till_date)}
-															</p>
-															<p className="text-xs text-muted-foreground">
-																{approval.total_days} day{approval.total_days !== 1 ? 's' : ''}
+																{formatDate((approval as any).period_start)} - {formatDate((approval as any).period_end)}
 															</p>
 														</div>
 													</div>
-												</div>
+													<div className="space-y-1">
+														<p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total Hours</p>
+														<p className="font-medium text-sm">{(approval as any).total_hours}h</p>
+													</div>
+												</>
+											) : (approval as any).type === 'expense' ? (
+												<>
+													<div className="space-y-1">
+														<p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Type</p>
+														<Badge variant="outline">Expense Claim</Badge>
+													</div>
+													<div className="space-y-1">
+														<p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Amount</p>
+														<p className="font-medium text-sm">{(approval as any).total_amount} {(approval as any).currency}</p>
+													</div>
+												</>
+											) : (
+												<>
+													<div className="space-y-1">
+														<p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Leave Type</p>
+														<p className="font-medium text-sm">{formatLeaveType(approval.leave_type)}</p>
+													</div>
+													<div className="space-y-1">
+														<p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Duration</p>
+														<div className="flex items-center space-x-2">
+															<Calendar className="h-4 w-4 text-muted-foreground" />
+															<div>
+																<p className="font-medium text-sm">
+																	{formatDate(approval.from_date)} - {formatDate(approval.till_date)}
+																</p>
+																<p className="text-xs text-muted-foreground">
+																	{approval.total_days} day{approval.total_days !== 1 ? 's' : ''}
+																</p>
+															</div>
+														</div>
+													</div>
+												</>
+											)}
 
 												<div className="space-y-1">
 													<p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Status</p>
@@ -324,7 +366,7 @@ export default function PendingApprovalsPage() {
 											<Button
 												size="sm"
 												variant="outline"
-												onClick={() => viewLeaveDetails(approval.name)}
+												onClick={() => viewDetails(approval)}
 											>
 												<Eye className="h-4 w-4 mr-1" />
 												View Details
@@ -371,7 +413,8 @@ export default function PendingApprovalsPage() {
 										<ThumbsDown className="h-5 w-5 text-red-600" />
 									)}
 									<span>
-										{approvalAction === 'approve' ? 'Approve' : 'Reject'} Leave Application
+										{approvalAction === 'approve' ? 'Approve' : 'Reject'}{' '}
+										{(selectedApproval as any).type === 'timesheet' ? 'Timesheet' : (selectedApproval as any).type === 'expense' ? 'Expense Claim' : 'Leave Application'}
 									</span>
 								</CardTitle>
 							</CardHeader>
