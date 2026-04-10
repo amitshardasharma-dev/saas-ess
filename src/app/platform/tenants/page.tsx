@@ -87,9 +87,15 @@ export default function TenantsPage() {
 
       {/* Wizard Modal — uses portal to escape overflow container */}
       {showWizard && typeof document !== 'undefined' && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-4" onClick={() => setShowWizard(false)}>
-          <div className="bg-background rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <div className="p-6">
+        <div
+          style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.6)', padding: '1rem' }}
+          onClick={() => setShowWizard(false)}
+        >
+          <div
+            style={{ backgroundColor: 'white', borderRadius: '1rem', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', width: '100%', maxWidth: '42rem', maxHeight: '90vh', overflowY: 'auto' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ padding: '1.5rem' }}>
               <h2 className="text-xl font-bold text-foreground mb-1">Create New Tenant</h2>
               <p className="text-sm text-muted-foreground mb-6">
                 Set up a new organisation with admin user and plan
