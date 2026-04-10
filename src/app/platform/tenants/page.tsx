@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import { Plus, Search, Building2 } from 'lucide-react'
@@ -84,10 +85,10 @@ export default function TenantsPage() {
         </Button>
       </div>
 
-      {/* Wizard Modal */}
-      {showWizard && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-background rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+      {/* Wizard Modal — uses portal to escape overflow container */}
+      {showWizard && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-4" onClick={() => setShowWizard(false)}>
+          <div className="bg-background rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="p-6">
               <h2 className="text-xl font-bold text-foreground mb-1">Create New Tenant</h2>
               <p className="text-sm text-muted-foreground mb-6">
@@ -100,7 +101,8 @@ export default function TenantsPage() {
               />
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Filters */}
