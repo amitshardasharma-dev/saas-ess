@@ -1,22 +1,31 @@
-# Ignore everything
-*
+# Dependencies
+node_modules/
+.pnpm-store/
 
-# Except the src folder and its contents
-!src/
-!src/**/*
+# Next.js
+.next/
+out/
 
-# Allow scripts folder
-!scripts/
-!scripts/**/*
+# Environment
+.env
+.env.local
+.env.*.local
 
-# Allow project config files
-!package.json
-!pnpm-lock.yaml
-!tsconfig.json
-!next.config.*
-!jest.config.ts
-!jest.setup.ts
-!jest.polyfills.ts
-!.eslintrc*
-!postcss.config.*
-!tailwind.config.*
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Testing
+coverage/
+
+# Misc
+*.tsbuildinfo
+.mcp.json
