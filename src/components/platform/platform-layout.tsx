@@ -25,29 +25,48 @@ const navItems = [
 export function PlatformLayout({ children }: PlatformLayoutProps) {
   const pathname = usePathname()
   const router = useRouter()
-  const { user, logout } = useAuthStore()
+  const { user, logout, checkAuth, isAuthenticated } = useAuthStore()
   const [isSuperAdmin, setIsSuperAdmin] = useState(false)
+  const [checking, setChecking] = useState(true)
 
   useEffect(() => {
     const checkAccess = async () => {
+      setChecking(true)
+
+      // First ensure auth state is loaded
+      await checkAuth()
+
+      // Then verify super admin via API
       try {
         const token = localStorage.getItem('ess_access_token')
+        if (!token) {
+          router.push('/login')
+          return
+        }
         const res = await fetch('/api/platform/dashboard', {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          headers: { Authorization: `Bearer ${token}` },
         })
-        setIsSuperAdmin(res.ok)
-        if (!res.ok) router.push('/dashboard')
+        if (res.ok) {
+          setIsSuperAdmin(true)
+        } else {
+          router.push('/dashboard')
+        }
       } catch {
         router.push('/dashboard')
+      } finally {
+        setChecking(false)
       }
     }
     checkAccess()
   }, [])
 
-  if (!isSuperAdmin) {
+  if (checking || !isSuperAdmin) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4" />
+          <p className="text-sm text-muted-foreground">Verifying admin access...</p>
+        </div>
       </div>
     )
   }
