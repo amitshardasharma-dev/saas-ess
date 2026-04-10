@@ -117,24 +117,38 @@ export const POST = withSuperAdmin(async (request) => {
     return NextResponse.json({ error: `Failed to create company: ${companyError.message}` }, { status: 500 })
   }
 
-  // 2. Create auth user
+  // 2. Create or find auth user
+  let authUserId: string
   const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
     email: admin_email,
     password: admin_password,
     email_confirm: true,
   })
 
-  if (authError || !authData.user) {
-    // Rollback company
-    await supabaseAdmin.from('ess_companies').delete().eq('id', company.id)
-    return NextResponse.json({ error: `Failed to create auth user: ${authError?.message}` }, { status: 500 })
+  if (authError) {
+    // If user already exists, find them
+    if (authError.message?.includes('already been registered') || authError.message?.includes('already exists')) {
+      const { data: usersData } = await supabaseAdmin.auth.admin.listUsers()
+      const existingUser = usersData?.users?.find(u => u.email === admin_email)
+      if (existingUser) {
+        authUserId = existingUser.id
+      } else {
+        await supabaseAdmin.from('ess_companies').delete().eq('id', company.id)
+        return NextResponse.json({ error: 'Email already registered but could not be found' }, { status: 500 })
+      }
+    } else {
+      await supabaseAdmin.from('ess_companies').delete().eq('id', company.id)
+      return NextResponse.json({ error: `Failed to create auth user: ${authError.message}` }, { status: 500 })
+    }
+  } else {
+    authUserId = authData.user!.id
   }
 
   // 3. Create app user
   const { data: appUser, error: appUserError } = await supabaseAdmin
     .from('ess_app_users')
     .insert({
-      auth_user_id: authData.user.id,
+      auth_user_id: authUserId,
       company_id: company.id,
       role: 'admin',
       is_active: true,
@@ -143,7 +157,7 @@ export const POST = withSuperAdmin(async (request) => {
     .single()
 
   if (appUserError) {
-    await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
+    await supabaseAdmin.auth.admin.deleteUser(authUserId)
     await supabaseAdmin.from('ess_companies').delete().eq('id', company.id)
     return NextResponse.json({ error: `Failed to create app user: ${appUserError.message}` }, { status: 500 })
   }

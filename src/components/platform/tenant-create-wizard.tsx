@@ -134,7 +134,7 @@ export function TenantCreateWizard({ plans, onSubmit, onCancel }: TenantCreateWi
   const selectedPlan = plans.find(p => p.slug === selectedPlanSlug)
 
   return (
-    <div className="space-y-6">
+    <form onSubmit={e => e.preventDefault()} className="space-y-6">
       {/* Step Indicator */}
       <div className="flex items-center justify-between">
         {STEP_LABELS.map((s, idx) => {
@@ -346,6 +346,6 @@ export function TenantCreateWizard({ plans, onSubmit, onCancel }: TenantCreateWi
           </Button>
         )}
       </div>
-    </div>
+    </form>
   )
 }
