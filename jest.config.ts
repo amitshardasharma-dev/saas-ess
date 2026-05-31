@@ -11,7 +11,7 @@ const config: Config = {
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
   },
-  testPathIgnorePatterns: ['<rootDir>/node_modules/', '<rootDir>/.next/', '<rootDir>/src/__tests__/mocks/', '<rootDir>/src/__tests__/test-utils.tsx'],
+  testPathIgnorePatterns: ['<rootDir>/node_modules/', '<rootDir>/.next/', '<rootDir>/src/__tests__/mocks/', '<rootDir>/src/__tests__/test-utils.tsx', '<rootDir>/src/__tests__/integration/api-test-runner.ts', '<rootDir>/src/__tests__/integration/test-helpers.ts'],
   collectCoverageFrom: [
     'src/**/*.{ts,tsx}',
     '!src/**/*.d.ts',
