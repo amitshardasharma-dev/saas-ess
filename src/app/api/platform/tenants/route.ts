@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-server'
 import { withSuperAdmin } from '@/lib/super-admin-middleware'
+import { recordAudit } from '@/lib/audit'
 
 export const GET = withSuperAdmin(async (request) => {
   const url = new URL(request.url)
@@ -67,7 +68,7 @@ export const GET = withSuperAdmin(async (request) => {
   return NextResponse.json({ tenants })
 })
 
-export const POST = withSuperAdmin(async (request) => {
+export const POST = withSuperAdmin(async (request, ctx) => {
   const body = await request.json()
   const {
     company_name, company_slug, admin_email, admin_password,
@@ -199,6 +200,14 @@ export const POST = withSuperAdmin(async (request) => {
     { company_id: company.id, rule_type: 'timesheet', level_no: 1, approver_type: 'reporting_manager', is_active: true },
   ]
   await supabaseAdmin.from('ess_approval_rules').insert(defaultRules)
+
+  await recordAudit({
+    companyId: company.id,
+    actorId: ctx.appUser.id,
+    action: 'tenant.created',
+    target: { type: 'company', id: company.id },
+    meta: { name: company.name, slug: company.slug, plan: company.plan, admin_email },
+  })
 
   return NextResponse.json({
     message: 'Tenant created successfully',

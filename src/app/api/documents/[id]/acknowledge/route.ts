@@ -1,10 +1,24 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-server'
 import { withAuth } from '@/lib/auth-middleware'
 
-export const POST = withAuth(async (_request, { employee }, params) => {
+export const POST = withAuth(async (_request, { employee, companyId }, params) => {
   const id = params?.id
   if (!id || !employee) return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
+
+  // IDOR fix: verify the document belongs to the caller's company BEFORE writing
+  // an acknowledgment, so a forged id can't create acknowledgments against another
+  // tenant's documents. Cross-tenant -> 404.
+  const { data: document } = await supabaseAdmin
+    .from('ess_documents')
+    .select('id')
+    .eq('id', id)
+    .eq('company_id', companyId)
+    .single()
+
+  if (!document) {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  }
 
   // Get latest version
   const { data: latestVersion } = await supabaseAdmin
