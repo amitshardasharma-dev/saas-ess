@@ -15,6 +15,7 @@
 
 import type { NavSection } from './nav/types'
 import { coreNav } from './nav/core.nav'
+import { phase2OnboardingNav } from './nav/phase-2-onboarding.nav';
 // === PHASE-2 NAV (insert import above this line) ===
 // === PHASE-3 NAV ===
 // === PHASE-4 NAV ===
