@@ -5,7 +5,7 @@
 // tables are read in try/catch so a worktree missing the LMS/quiz migrations still
 // produces a (smaller) report instead of crashing.
 
-import { supabaseAdmin } from '@/lib/supabase-server'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 
 export interface TrainingReportRow {
   employee_id: string

@@ -1,7 +1,7 @@
 // Phase 2 — Onboarding state machine + published contracts.
 // Other phases (3/5) depend on the EXACT names/signatures exported here.
 
-import { supabaseAdmin } from '@/lib/supabase-server';
+import { supabaseAdmin } from '@/lib/supabase-admin';
 
 export type OnboardingStatus =
   | 'not_started'

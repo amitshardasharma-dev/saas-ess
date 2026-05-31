@@ -10,7 +10,7 @@
 // best-effort Phase 2 onboarding hook.
 
 import { createHash } from 'crypto'
-import { supabaseAdmin } from '@/lib/supabase-server'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 import { recordAudit } from '@/lib/audit'
 import type {
   DocumentField,

@@ -1,15 +1,13 @@
-import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
-// Admin client — bypasses RLS, use in API routes for server-side operations
-export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-	auth: { persistSession: false },
-})
+// Re-exported from supabase-admin (no next/headers) so existing API-route
+// imports (`from '@/lib/supabase-server'`) keep working unchanged.
+export { supabaseAdmin }
 
 // Server client — respects RLS via user's session cookie
 export async function createSupabaseServer() {

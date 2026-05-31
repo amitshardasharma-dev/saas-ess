@@ -2,7 +2,7 @@
 // onboarding bridge, and status caching. Routes stay thin; this centralizes the
 // side-effects every certification mutation needs.
 
-import { supabaseAdmin } from '@/lib/supabase-server'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 import { enqueueJob } from '@/lib/jobs/dispatch'
 import { calcStatus, type CertStatus } from '@/lib/compliance/expiry'
 import type { CertHistoryAction } from '@/types/compliance'

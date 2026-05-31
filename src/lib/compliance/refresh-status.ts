@@ -3,7 +3,7 @@
 // 'expired' history row. Pure DB work; no request context. Runs daily so
 // valid -> expiring -> expired transitions happen with no user action.
 
-import { supabaseAdmin } from '@/lib/supabase-server'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 import { calcStatus } from '@/lib/compliance/expiry'
 import { writeCertHistory } from '@/services/compliance'
 

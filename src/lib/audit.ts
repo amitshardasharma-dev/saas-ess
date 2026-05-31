@@ -1,6 +1,6 @@
 // src/lib/audit.ts
 
-import { supabaseAdmin } from '@/lib/supabase-server'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 
 export interface RecordAuditParams {
 	/** Tenant the action belongs to; null for platform-level events. */

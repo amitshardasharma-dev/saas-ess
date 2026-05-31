@@ -5,7 +5,7 @@
 //
 // PUBLISHED CONTRACT: resolveAssignees(moduleId) — re-exported from @/lib/training.
 
-import { supabaseAdmin } from '@/lib/supabase-server'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 import type { TrainingAssignment } from '@/types/training'
 
 /** A resolved assignee (the minimal shape callers need). */

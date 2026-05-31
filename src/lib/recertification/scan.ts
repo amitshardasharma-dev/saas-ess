@@ -10,7 +10,7 @@
 //    ess_cert_types.settings.recert_module_id by contract).
 //  - Phase 5: ess_training_assignments — we insert an assignment if the table exists.
 
-import { supabaseAdmin } from '@/lib/supabase-server'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 import { sendEmail } from '@/lib/email/send'
 import { recordAudit } from '@/lib/audit'
 import { daysUntil } from '@/lib/compliance/expiry'

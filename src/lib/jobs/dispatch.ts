@@ -1,6 +1,6 @@
 // src/lib/jobs/dispatch.ts
 
-import { supabaseAdmin } from '@/lib/supabase-server'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 
 export type JobStatus = 'pending' | 'running' | 'done' | 'failed'
 

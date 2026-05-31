@@ -7,7 +7,7 @@
 // Pure logic (set math, scoring, timing, randomization) lives in the sibling
 // modules and is unit-tested independently; this file is the I/O shell.
 
-import { supabaseAdmin } from '@/lib/supabase-server'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 import { recordQuizResult } from '@/lib/training'
 import { computeScore, gradeAnswer, isPass, type GradedAnswer } from './grading'
 import type {

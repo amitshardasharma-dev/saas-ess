@@ -12,7 +12,7 @@
 //      * Negative offsets are "overdue" — escalate to supervisor/admin per config.
 //  - Dedupe is enforced both in-code and by the DB unique (config, cert, offset).
 
-import { supabaseAdmin } from '@/lib/supabase-server'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 import { sendEmail } from '@/lib/email/send'
 import { recordAudit } from '@/lib/audit'
 import { daysUntil } from '@/lib/compliance/expiry'

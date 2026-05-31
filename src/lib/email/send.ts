@@ -1,6 +1,6 @@
 // src/lib/email/send.ts
 
-import { supabaseAdmin } from '@/lib/supabase-server'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 import { recordAudit } from '@/lib/audit'
 
 const DEFAULT_API_URL = 'https://email.relevel.ai/api/emails'

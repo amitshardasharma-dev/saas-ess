@@ -7,7 +7,7 @@
 // dependency-graph logic lives in '@/lib/modules-deps' (no Supabase import, so
 // it is client- and test-safe) and is re-exported here for convenience.
 
-import { supabaseAdmin } from '@/lib/supabase-server'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 import { MODULE_IDS, ModuleId } from '@/types/roles'
 
 export {

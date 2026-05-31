@@ -8,7 +8,7 @@
 //   recordQuizResult(employeeId, itemId, passed, score)   <-- Phase 6 calls this;
 //                                                             signature is FROZEN.
 
-import { supabaseAdmin } from '@/lib/supabase-server'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 import { recordAudit } from '@/lib/audit'
 import type {
   TrainingEventName,

@@ -4,7 +4,7 @@
 // Components. Uses supabaseAdmin (service role) and is always tenant-scoped by
 // the companyId argument. Falls back to platform defaults on any error.
 
-import { supabaseAdmin } from '@/lib/supabase-server'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 import { ResolvedLabels, makeLabelFn, resolveLabels } from './resolve'
 
 /**
