@@ -119,12 +119,22 @@ applied, so 007–010 are effectively no-ops/idempotent re-asserts.
   should use `recordAudit()` rather than insert directly.
 - `ess_jobs` uses `run_after` (per the published contract), not `run_at`.
 
+## Verification status (at hand-off)
+- `npx tsc --noEmit` → **0 errors** (clean).
+- `pnpm test` (jest) → **8 suites / 51 tests pass**.
+- `pnpm lint` (next lint) → **No ESLint warnings or errors**.
+
+## Pre-existing errors fixed (surfaced by turning ignore flags off)
+Turning off `typescript.ignoreBuildErrors` surfaced two genuine, pre-existing
+bugs in test files (NOT caused by Phase 0). Both fixed minimally:
+- `src/__tests__/services/timesheet.test.ts` — used `entry_mode`; the
+  `TimesheetConfig` field is `mode`. Renamed.
+- `src/__tests__/integration/api-test-runner.ts` — a local `async function test`
+  collided with the ambient jest `test` global (TS2300). Renamed the local
+  helper (and its 57 call sites) to `testCase`. This file is a standalone live
+  HTTP runner (`npx tsx`), not a jest spec; behavior is unchanged.
+
 ## Known issues / follow-ups
-- Pre-existing typecheck errors in the repo (NOT introduced by Phase 0), now
-  surfaced because the ignore flags are off:
-  - `src/__tests__/integration/api-test-runner.ts(19,16)` — duplicate `test`.
-  - `src/__tests__/services/timesheet.test.ts(8,3)` — `entry_mode` not on
-    `TimesheetConfig`.
-  These are in test files (excluded from `next build`'s page graph) but will fail
-  `tsc --noEmit`. See the build/typecheck status note in the PR / handoff; the
-  orchestrator should decide whether to fix them here or in the owning phase.
+- None blocking. The 007 baseline schema should be diffed against the live DB by
+  someone with introspection access before relying on a from-scratch rebuild
+  (see the note under "Migrations added").

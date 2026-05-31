@@ -1,4 +1,6 @@
 /**
+ * @jest-environment node
+ *
  * IDOR regression tests for the 6 routes fixed in Phase 0.
  *
  * A tenant-B caller asks for a tenant-A resource by id. Because every fixed
@@ -20,59 +22,73 @@ interface Recorded {
 	method: string
 	args: unknown[]
 }
-
-// Per-table fixed results for the auth/context tables; everything else (the
-// target tables) returns null so the scoped lookup yields a 404.
-const authResults: Record<string, { data: unknown; error: unknown }> = {
-	ess_app_users: {
-		data: { id: APP_USER_B, company_id: COMPANY_B, role: 'manager', is_active: true, is_super_admin: false },
-		error: null,
-	},
-	ess_employees: {
-		data: { id: EMPLOYEE_B, full_name: 'B', is_approver: true, company_id: COMPANY_B },
-		error: null,
-	},
+interface Builder {
+	table: string
+	calls: Recorded[]
 }
 
-let builders: { table: string; calls: Recorded[] }[] = []
-
-const mockGetUser = jest.fn()
-
-function makeBuilder(table: string) {
-	const calls: Recorded[] = []
-	builders.push({ table, calls })
-	const result = authResults[table] ?? { data: null, error: null }
-	const chain: Record<string, unknown> = {}
-	const methods = ['select', 'insert', 'update', 'delete', 'upsert', 'eq', 'lte', 'order', 'limit', 'in']
-	methods.forEach((m) => {
-		chain[m] = (...args: unknown[]) => {
-			calls.push({ method: m, args })
-			return chain
-		}
-	})
-	const terminal = (...args: unknown[]) => {
-		calls.push({ method: 'single', args })
-		return Promise.resolve(result)
+// All mock state lives inside the factory (jest hoists jest.mock above imports;
+// keeping state inside avoids the temporal-dead-zone trap of outer `const`s).
+// We expose the state + getUser mock on the mocked module so the test body can
+// reset and assert on them.
+jest.mock('@/lib/supabase-server', () => {
+	const authResults: Record<string, { data: unknown; error: unknown }> = {
+		ess_app_users: {
+			data: { id: 'appuser-b', company_id: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', role: 'manager', is_active: true, is_super_admin: false },
+			error: null,
+		},
+		ess_employees: {
+			data: { id: 'employee-b', full_name: 'B', is_approver: true, company_id: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb' },
+			error: null,
+		},
 	}
-	chain.single = terminal
-	chain.maybeSingle = terminal
-	;(chain as { then: unknown }).then = (resolve: (v: unknown) => unknown) => resolve(result)
-	return chain
-}
 
-jest.mock('@/lib/supabase-server', () => ({
-	supabaseAdmin: {
-		auth: { getUser: (...args: unknown[]) => mockGetUser(...args) },
-		from: (table: string) => makeBuilder(table),
-	},
-}))
+	const state: { builders: { table: string; calls: { method: string; args: unknown[] }[] }[] } = { builders: [] }
+	const getUser = jest.fn()
+
+	function makeBuilder(table: string) {
+		const calls: { method: string; args: unknown[] }[] = []
+		state.builders.push({ table, calls })
+		const result = authResults[table] ?? { data: null, error: null }
+		const chain: Record<string, unknown> = {}
+		const methods = ['select', 'insert', 'update', 'delete', 'upsert', 'eq', 'lte', 'order', 'limit', 'in']
+		methods.forEach((m) => {
+			chain[m] = (...args: unknown[]) => {
+				calls.push({ method: m, args })
+				return chain
+			}
+		})
+		const terminal = (...args: unknown[]) => {
+			calls.push({ method: 'single', args })
+			return Promise.resolve(result)
+		}
+		chain.single = terminal
+		chain.maybeSingle = terminal
+		;(chain as { then: unknown }).then = (resolve: (v: unknown) => unknown) => resolve(result)
+		return chain
+	}
+
+	return {
+		supabaseAdmin: {
+			auth: { getUser: (...args: unknown[]) => getUser(...args) },
+			from: (table: string) => makeBuilder(table),
+		},
+		__state: state,
+		__getUser: getUser,
+	}
+})
+
+import * as supa from '@/lib/supabase-server'
+
+const mockState = (supa as unknown as { __state: { builders: Builder[] } }).__state
+const mockGetUser = (supa as unknown as { __getUser: jest.Mock }).__getUser
 
 function authedReq(url: string, method = 'GET'): NextRequest {
 	return new NextRequest(url, { method, headers: { authorization: 'Bearer faketoken' } })
 }
 
 function assertScopedToCompanyB(table: string) {
-	const b = [...builders].reverse().find((x) => x.table === table)
+	const b = [...mockState.builders].reverse().find((x) => x.table === table)
 	expect(b).toBeDefined()
 	const scoped = b!.calls.some((c) => c.method === 'eq' && c.args[0] === 'company_id' && c.args[1] === COMPANY_B)
 	expect(scoped).toBe(true)
@@ -81,7 +97,7 @@ function assertScopedToCompanyB(table: string) {
 describe('IDOR regression — tenant-B token gets 404 on tenant-A ids', () => {
 	beforeEach(() => {
 		jest.clearAllMocks()
-		builders = []
+		mockState.builders.length = 0
 		mockGetUser.mockResolvedValue({ data: { user: { id: 'authB', email: 'b@x.com' } }, error: null })
 	})
 

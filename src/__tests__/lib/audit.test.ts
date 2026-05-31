@@ -1,14 +1,25 @@
-// Mock supabase-server before importing the helper.
-const mockInsert = jest.fn((..._args: unknown[]) => Promise.resolve({ error: null }))
-const mockFrom = jest.fn((..._args: unknown[]) => ({ insert: mockInsert }))
+/**
+ * @jest-environment node
+ */
 
-jest.mock('@/lib/supabase-server', () => ({
-	supabaseAdmin: {
-		from: mockFrom,
-	},
-}))
+// Mock supabase-server. The factory defines its own jest.fns (names prefixed
+// with `mock` so jest's hoist guard allows them) and exposes them so tests can
+// assert on calls and swap the insert result.
+jest.mock('@/lib/supabase-server', () => {
+	const mockInsert = jest.fn().mockResolvedValue({ error: null })
+	const mockFrom = jest.fn(() => ({ insert: mockInsert }))
+	return {
+		supabaseAdmin: { from: mockFrom },
+		__mockInsert: mockInsert,
+		__mockFrom: mockFrom,
+	}
+})
 
 import { recordAudit } from '@/lib/audit'
+import * as supa from '@/lib/supabase-server'
+
+const mockInsert = (supa as unknown as { __mockInsert: jest.Mock }).__mockInsert
+const mockFrom = (supa as unknown as { __mockFrom: jest.Mock }).__mockFrom
 
 describe('recordAudit', () => {
 	beforeEach(() => {
@@ -26,7 +37,7 @@ describe('recordAudit', () => {
 		})
 
 		expect(mockFrom).toHaveBeenCalledWith('ess_audit_log')
-		const row = mockInsert.mock.calls[0][0]
+		const row = mockInsert.mock.calls[0][0] as Record<string, unknown>
 		expect(row.action).toBe('tenant.created')
 		expect(row.company_id).toBe('c1')
 		expect(row.actor_app_user_id).toBe('u1')
