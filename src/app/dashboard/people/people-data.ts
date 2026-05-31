@@ -1,13 +1,13 @@
-import { createRouteClient } from '@/lib/auth-middleware';
-import { isModuleEnabled } from '@/lib/modules';
-import type { AppRole } from '@/types/roles';
+import { supabaseAdmin } from '@/lib/supabase-server';
+import { getEnabledModules } from '@/lib/modules';
+import type { UserRole } from '@/types/roles';
 import type { OnboardingStatus } from '@/lib/onboarding';
 
 export interface PersonRow {
   id: string;
   name: string;
   email: string | null;
-  role: AppRole;
+  role: UserRole;
   orgUnit: string | null;
   onboardingStatus: OnboardingStatus;
   // Defensive cross-phase sources. "—" means the source is absent/disabled.
@@ -20,8 +20,10 @@ interface EmployeeRecord {
   full_name?: string | null;
   name?: string | null;
   email?: string | null;
-  role: AppRole;
+  role?: UserRole | null;
+  app_user_id?: string | null;
   org_unit?: string | null;
+  department?: string | null;
 }
 
 /**
@@ -30,7 +32,9 @@ interface EmployeeRecord {
  * documents (exists in the merged base). Missing sources surface as "—".
  */
 export async function loadPeople(companyId: string): Promise<PersonRow[]> {
-  const supabase = createRouteClient();
+  const supabase = supabaseAdmin;
+
+  const enabledModules = await getEnabledModules(companyId);
 
   const { data: employees } = await supabase
     .from('ess_employees')
@@ -43,6 +47,22 @@ export async function loadPeople(companyId: string): Promise<PersonRow[]> {
   }
 
   const employeeIds = rows.map((e) => e.id);
+
+  // Role lives on ess_app_users (employees link via app_user_id).
+  const roleByAppUser = new Map<string, UserRole>();
+  const appUserIds = rows
+    .map((e) => e.app_user_id)
+    .filter((id): id is string => Boolean(id));
+  if (appUserIds.length > 0) {
+    const { data: appUsers } = await supabase
+      .from('ess_app_users')
+      .select('id, role')
+      .eq('company_id', companyId)
+      .in('id', appUserIds);
+    for (const u of (appUsers ?? []) as { id: string; role: UserRole }[]) {
+      roleByAppUser.set(u.id, u.role);
+    }
+  }
 
   // Onboarding states.
   const stateByEmployee = new Map<string, OnboardingStatus>();
@@ -59,7 +79,7 @@ export async function loadPeople(companyId: string): Promise<PersonRow[]> {
   const docsByEmployee = new Map<string, number>();
   let docsAvailable = false;
   try {
-    if (await isModuleEnabled(companyId, 'documents')) {
+    if (enabledModules.includes('documents_esign') || enabledModules.includes('documents')) {
       const { data: docs, error } = await supabase
         .from('ess_signed_documents')
         .select('employee_id')
@@ -81,7 +101,7 @@ export async function loadPeople(companyId: string): Promise<PersonRow[]> {
   const certsByEmployee = new Map<string, number>();
   let certsAvailable = false;
   try {
-    if (await isModuleEnabled(companyId, 'certifications')) {
+    if (enabledModules.includes('compliance')) {
       const { data: certs, error } = await supabase
         .from('ess_certifications')
         .select('employee_id')
@@ -103,8 +123,8 @@ export async function loadPeople(companyId: string): Promise<PersonRow[]> {
     id: e.id,
     name: e.full_name ?? e.name ?? '(unnamed)',
     email: e.email ?? null,
-    role: e.role,
-    orgUnit: e.org_unit ?? null,
+    role: (e.app_user_id ? roleByAppUser.get(e.app_user_id) : undefined) ?? 'employee',
+    orgUnit: e.org_unit ?? e.department ?? null,
     onboardingStatus: stateByEmployee.get(e.id) ?? 'not_started',
     certifications: certsAvailable ? certsByEmployee.get(e.id) ?? 0 : '—',
     signedDocuments: docsAvailable ? docsByEmployee.get(e.id) ?? 0 : '—',

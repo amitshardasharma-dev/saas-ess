@@ -1,21 +1,21 @@
-import { NextResponse } from 'next/server';
-import { withAuth, createRouteClient } from '@/lib/auth-middleware';
+import { NextRequest, NextResponse } from 'next/server';
+import { supabaseAdmin } from '@/lib/supabase-server';
+import { withAuth } from '@/lib/auth-middleware';
 
 // GET /api/onboarding?employee_id=<uuid> → { state, steps }
 // Defaults to the caller's own employee record when employee_id is omitted.
-export const GET = withAuth(async (req, ctx) => {
-  const supabase = createRouteClient();
-  const url = new URL(req.url);
-  const employeeId = url.searchParams.get('employee_id') ?? ctx.employeeId;
+export const GET = withAuth(async (request: NextRequest, { companyId, employee }) => {
+  const url = new URL(request.url);
+  const employeeId = url.searchParams.get('employee_id') ?? employee?.id ?? null;
 
   if (!employeeId) {
     return NextResponse.json({ error: 'employee_id required' }, { status: 400 });
   }
 
-  const { data: state, error: stateError } = await supabase
+  const { data: state, error: stateError } = await supabaseAdmin
     .from('ess_onboarding_states')
     .select('*')
-    .eq('company_id', ctx.companyId)
+    .eq('company_id', companyId)
     .eq('employee_id', employeeId)
     .maybeSingle();
 
@@ -23,10 +23,10 @@ export const GET = withAuth(async (req, ctx) => {
     return NextResponse.json({ error: stateError.message }, { status: 500 });
   }
 
-  const { data: steps, error: stepsError } = await supabase
+  const { data: steps, error: stepsError } = await supabaseAdmin
     .from('ess_onboarding_steps')
     .select('*')
-    .eq('company_id', ctx.companyId)
+    .eq('company_id', companyId)
     .eq('employee_id', employeeId)
     .order('sort_order', { ascending: true });
 

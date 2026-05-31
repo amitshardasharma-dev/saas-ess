@@ -1,7 +1,7 @@
 // Phase 2 — Onboarding state machine + published contracts.
 // Other phases (3/5) depend on the EXACT names/signatures exported here.
 
-import { createRouteClient } from '@/lib/auth-middleware';
+import { supabaseAdmin } from '@/lib/supabase-server';
 
 export type OnboardingStatus =
   | 'not_started'
@@ -70,7 +70,7 @@ export function computeOnboardingStatus(
 export async function advanceOnboarding(
   employeeId: string
 ): Promise<OnboardingStatus> {
-  const supabase = createRouteClient();
+  const supabase = supabaseAdmin;
 
   const { data: steps } = await supabase
     .from('ess_onboarding_steps')
@@ -124,7 +124,7 @@ export async function initOnboarding(
   employeeId: string,
   companyId: string
 ): Promise<void> {
-  const supabase = createRouteClient();
+  const supabase = supabaseAdmin;
 
   const { data: existing } = await supabase
     .from('ess_onboarding_states')

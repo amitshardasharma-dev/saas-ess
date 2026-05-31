@@ -1,35 +1,55 @@
-import { createRouteClient } from '@/lib/auth-middleware';
-import { loadPeople } from './people-data';
+'use client';
+
+import { useEffect, useState } from 'react';
 import { PeopleTable } from './people-table';
+import type { PersonRow } from './people-data';
 
 // Admin "People" dashboard. Searchable/filterable by role, org unit and
 // onboarding status. Cross-phase columns degrade gracefully to "—".
-export default async function PeoplePage() {
-  const supabase = createRouteClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+export default function PeoplePage() {
+  const [people, setPeople] = useState<PersonRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  if (!user) {
-    return <div>Please sign in.</div>;
-  }
-
-  const { data: employee } = await supabase
-    .from('ess_employees')
-    .select('company_id, role')
-    .eq('auth_user_id', user.id)
-    .single();
-
-  if (!employee) {
-    return <div>No employee record.</div>;
-  }
-
-  const people = await loadPeople(employee.company_id);
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const token =
+          typeof window !== 'undefined'
+            ? localStorage.getItem('ess_access_token')
+            : null;
+        const res = await fetch('/api/people', {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+        const data = (await res.json()) as { people: PersonRow[] };
+        if (active) {
+          setPeople(data.people ?? []);
+        }
+      } catch (e) {
+        if (active) {
+          setError(e instanceof Error ? e.message : 'failed to load');
+        }
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   return (
     <div>
       <h1>People</h1>
-      <PeopleTable people={people} />
+      {loading ? <p>Loading…</p> : null}
+      {error ? <p role="alert">Could not load people: {error}</p> : null}
+      {!loading && !error ? <PeopleTable people={people} /> : null}
     </div>
   );
 }

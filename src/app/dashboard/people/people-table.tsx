@@ -1,8 +1,8 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { roleDisplayLabel, ALL_ROLES } from '@/types/roles';
-import type { AppRole } from '@/types/roles';
+import { roleDisplayLabel, USER_ROLES } from '@/types/roles';
+import type { UserRole } from '@/types/roles';
 import type { OnboardingStatus } from '@/lib/onboarding';
 import type { PersonRow } from './people-data';
 
@@ -15,7 +15,7 @@ const ONBOARDING_STATUSES: OnboardingStatus[] = [
 
 export function PeopleTable({ people }: { people: PersonRow[] }) {
   const [query, setQuery] = useState('');
-  const [roleFilter, setRoleFilter] = useState<AppRole | 'all'>('all');
+  const [roleFilter, setRoleFilter] = useState<UserRole | 'all'>('all');
   const [orgFilter, setOrgFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<OnboardingStatus | 'all'>('all');
 
@@ -63,11 +63,11 @@ export function PeopleTable({ people }: { people: PersonRow[] }) {
         />
         <select
           value={roleFilter}
-          onChange={(e) => setRoleFilter(e.target.value as AppRole | 'all')}
+          onChange={(e) => setRoleFilter(e.target.value as UserRole | 'all')}
           aria-label="Filter by role"
         >
           <option value="all">All roles</option>
-          {ALL_ROLES.map((r) => (
+          {USER_ROLES.map((r) => (
             <option key={r} value={r}>
               {roleDisplayLabel(r)}
             </option>
