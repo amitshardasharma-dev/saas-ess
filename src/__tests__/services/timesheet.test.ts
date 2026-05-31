@@ -3,11 +3,14 @@ import { TimesheetConfig } from '@/types/timesheet'
 
 // Base config used across tests
 const baseConfig: TimesheetConfig = {
+  id: 'cfg-1',
+  company_id: 'co-1',
+  mode: 'simple_hours',
   submission_cycle: 'weekly',
   week_start_day: 1, // Monday
-  entry_mode: 'daily',
-  allow_overtime: false,
-  require_project: false,
+  required_hours_per_day: 8,
+  overtime_enabled: false,
+  projects_enabled: false,
 }
 
 describe('getCurrentPeriod', () => {

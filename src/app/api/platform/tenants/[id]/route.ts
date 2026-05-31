@@ -1,129 +1,143 @@
+// src/app/api/platform/tenants/[id]/route.ts
+
 import { NextRequest, NextResponse } from 'next/server'
-import { withSuperAdmin } from '@/lib/super-admin-middleware'
 import { supabaseAdmin } from '@/lib/supabase-server'
+import { withSuperAdmin } from '@/lib/super-admin-middleware'
+import { MODULE_IDS, ModuleId } from '@/types/roles'
+import { validateModuleSet } from '@/lib/modules'
 import { recordAudit } from '@/lib/audit'
 
-// GET /api/platform/tenants/[id] — get a single tenant with details
-export const GET = withSuperAdmin(async (request: NextRequest, context, params) => {
-	const tenantId = params?.id as string
+export const GET = withSuperAdmin(async (_request, _ctx, params) => {
+  const id = params?.id
+  if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 })
 
-	const { data: company, error } = await supabaseAdmin
-		.from('ess_companies')
-		.select('*')
-		.eq('id', tenantId)
-		.single()
+  const { data: company, error } = await supabaseAdmin
+    .from('ess_companies')
+    .select('*')
+    .eq('id', id)
+    .single()
 
-	if (error || !company) {
-		return NextResponse.json({ error: 'Tenant not found' }, { status: 404 })
-	}
+  if (error || !company) {
+    return NextResponse.json({ error: 'Tenant not found' }, { status: 404 })
+  }
 
-	// Get user count
-	const { count: userCount } = await supabaseAdmin
-		.from('ess_app_users')
-		.select('*', { count: 'exact', head: true })
-		.eq('company_id', tenantId)
+  // User count
+  const { count: userCount } = await supabaseAdmin
+    .from('ess_app_users')
+    .select('*', { count: 'exact', head: true })
+    .eq('company_id', id)
+    .eq('is_active', true)
 
-	// Get employee count
-	const { count: employeeCount } = await supabaseAdmin
-		.from('ess_employees')
-		.select('*', { count: 'exact', head: true })
-		.eq('company_id', tenantId)
+  // Employee count
+  const { count: empCount } = await supabaseAdmin
+    .from('ess_employees')
+    .select('*', { count: 'exact', head: true })
+    .eq('company_id', id)
+    .eq('status', 'Active')
 
-	return NextResponse.json({
-		company: {
-			...company,
-			userCount: userCount || 0,
-			employeeCount: employeeCount || 0,
-		},
-	})
+  const settings = company.settings || {}
+  return NextResponse.json({
+    tenant: {
+      id: company.id,
+      name: company.name,
+      slug: company.slug,
+      plan: company.plan,
+      status: company.status,
+      max_users: company.max_users,
+      max_storage_mb: company.max_storage_mb,
+      user_count: userCount || 0,
+      employee_count: empCount || 0,
+      modules_enabled: settings.modules_enabled || ['leave', 'expense'],
+      bc_enabled: company.bc_enabled || false,
+      bc_api_url: company.bc_api_url || null,
+      bc_company_id: company.bc_company_id || null,
+      created_at: company.created_at,
+      settings,
+    },
+  })
 })
 
-// PATCH /api/platform/tenants/[id] — update a tenant
-export const PATCH = withSuperAdmin(async (request: NextRequest, context, params) => {
-	const tenantId = params?.id as string
-	const body = await request.json()
+export const PUT = withSuperAdmin(async (request, ctx, params) => {
+  const id = params?.id
+  if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 })
 
-	const { data: existing } = await supabaseAdmin
-		.from('ess_companies')
-		.select('id')
-		.eq('id', tenantId)
-		.single()
+  const body = await request.json()
+  const updates: Record<string, any> = {}
+  let modulesChanged: ModuleId[] | null = null
 
-	if (!existing) {
-		return NextResponse.json({ error: 'Tenant not found' }, { status: 404 })
-	}
+  if (body.plan !== undefined) updates.plan = body.plan
+  if (body.status !== undefined) updates.status = body.status
+  if (body.max_users !== undefined) updates.max_users = body.max_users
+  if (body.max_storage_mb !== undefined) updates.max_storage_mb = body.max_storage_mb
+  if (body.name !== undefined) updates.name = body.name
 
-	const updates: Record<string, unknown> = {}
-	if (typeof body.name === 'string') updates.name = body.name
-	if (typeof body.is_active === 'boolean') updates.is_active = body.is_active
-	if (body.settings && typeof body.settings === 'object') updates.settings = body.settings
+  // Handle modules_enabled in settings (with dependency validation)
+  if (body.modules_enabled !== undefined) {
+    if (!Array.isArray(body.modules_enabled)) {
+      return NextResponse.json({ error: 'modules_enabled must be an array' }, { status: 400 })
+    }
 
-	// Validate module dependencies if settings.modules_enabled is being updated
-	if (updates.settings && typeof updates.settings === 'object') {
-		const mods = (updates.settings as Record<string, unknown>).modules_enabled
-		if (Array.isArray(mods)) {
-			const { validateModuleSet } = await import('@/lib/modules-deps')
-			const result = validateModuleSet(mods as string[])
-			if (!result.valid) {
-				return NextResponse.json({ error: result.error }, { status: 409 })
-			}
-		}
-	}
+    const desired = body.modules_enabled.filter(
+      (m: string): m is ModuleId => MODULE_IDS.includes(m as ModuleId)
+    )
 
-	const { data: updated, error } = await supabaseAdmin
-		.from('ess_companies')
-		.update(updates)
-		.eq('id', tenantId)
-		.select()
-		.single()
+    const { ok, errors } = validateModuleSet(desired)
+    if (!ok) {
+      return NextResponse.json(
+        { error: `Module dependencies not met: ${errors.join('; ')}` },
+        { status: 409 }
+      )
+    }
 
-	if (error) {
-		return NextResponse.json({ error: 'Failed to update tenant' }, { status: 500 })
-	}
+    const { data: current } = await supabaseAdmin
+      .from('ess_companies')
+      .select('settings')
+      .eq('id', id)
+      .single()
 
-	await recordAudit({
-		companyId: tenantId,
-		actorAppUserId: context.appUser.id,
-		action: 'tenant.updated',
-		targetType: 'company',
-		targetId: tenantId,
-	})
+    updates.settings = { ...(current?.settings || {}), modules_enabled: desired }
+    modulesChanged = desired
+  }
 
-	return NextResponse.json({ company: updated })
+  const { error } = await supabaseAdmin
+    .from('ess_companies')
+    .update(updates)
+    .eq('id', id)
+
+  if (error) throw error
+
+  await recordAudit({
+    companyId: id,
+    actorId: ctx.appUser.id,
+    action: modulesChanged
+      ? 'modules.updated'
+      : body.status
+        ? `tenant.status.${body.status}`
+        : 'tenant.updated',
+    target: { type: 'company', id },
+    meta: modulesChanged ? { modules_enabled: modulesChanged } : updates,
+  })
+
+  return NextResponse.json({ success: true })
 })
 
-// DELETE /api/platform/tenants/[id] — soft-delete a tenant
-export const DELETE = withSuperAdmin(async (request: NextRequest, context, params) => {
-	const tenantId = params?.id as string
+export const DELETE = withSuperAdmin(async (_request, ctx, params) => {
+  const id = params?.id
+  if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 })
 
-	const { data: existing } = await supabaseAdmin
-		.from('ess_companies')
-		.select('id')
-		.eq('id', tenantId)
-		.single()
+  const { error } = await supabaseAdmin
+    .from('ess_companies')
+    .update({ status: 'cancelled' })
+    .eq('id', id)
 
-	if (!existing) {
-		return NextResponse.json({ error: 'Tenant not found' }, { status: 404 })
-	}
+  if (error) throw error
 
-	const { data: updated, error } = await supabaseAdmin
-		.from('ess_companies')
-		.update({ is_active: false })
-		.eq('id', tenantId)
-		.select()
-		.single()
+  await recordAudit({
+    companyId: id,
+    actorId: ctx.appUser.id,
+    action: 'tenant.cancelled',
+    target: { type: 'company', id },
+  })
 
-	if (error) {
-		return NextResponse.json({ error: 'Failed to delete tenant' }, { status: 500 })
-	}
-
-	await recordAudit({
-		companyId: tenantId,
-		actorAppUserId: context.appUser.id,
-		action: 'tenant.deleted',
-		targetType: 'company',
-		targetId: tenantId,
-	})
-
-	return NextResponse.json({ company: updated })
+  return NextResponse.json({ success: true })
 })

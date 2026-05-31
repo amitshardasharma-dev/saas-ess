@@ -61,9 +61,8 @@ export const PUT = withSuperAdmin(async (request, ctx, params) => {
     companyId: id,
     actorId: ctx.appUser.id,
     action: 'terminology.updated',
-    entityType: 'tenant_label',
-    entityId: termKey,
-    metadata: { termKey, singular, plural },
+    target: { type: 'tenant_label', id: termKey },
+    meta: { termKey, singular, plural },
   })
 
   return NextResponse.json({ message: 'Terminology updated' })
