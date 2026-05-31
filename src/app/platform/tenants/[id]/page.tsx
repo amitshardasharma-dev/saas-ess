@@ -14,16 +14,46 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { platformService } from '@/services/platform'
 import { TenantDetail, TenantUser, TenantUsage } from '@/types/platform'
+import { TerminologyPanel } from '@/components/platform/terminology-panel'
+import { MODULE_IDS, MODULE_DEPENDENCIES, ModuleId } from '@/types/roles'
 
-const ALL_MODULES = [
-  { value: 'leave', label: 'Leave Management' },
-  { value: 'expense', label: 'Expense Claims' },
-  { value: 'timesheets', label: 'Timesheets' },
-  { value: 'documents', label: 'Documents' },
-  { value: 'appraisals', label: 'Appraisals' },
-  { value: 'contracts', label: 'Contracts' },
-  { value: 'team_calendar', label: 'Team Calendar' },
-]
+const MODULE_LABELS: Record<ModuleId, string> = {
+  leave: 'Leave Management',
+  expense: 'Expense Claims',
+  timesheets: 'Timesheets',
+  documents: 'Documents',
+  appraisals: 'Appraisals',
+  contracts: 'Contracts',
+  team_calendar: 'Team Calendar',
+  profiles: 'Profiles',
+  documents_esign: 'E-Signatures',
+  communications: 'Communications',
+  training: 'Training',
+  quizzes: 'Quizzes',
+  training_tracking: 'Training Tracking',
+  reporting: 'Reporting',
+  compliance: 'Compliance',
+  expiry_reminders: 'Expiry Reminders',
+  recertification: 'Recertification',
+}
+
+const ALL_MODULES = MODULE_IDS.map(value => ({ value, label: MODULE_LABELS[value] }))
+
+// Apply a module toggle with dependency cascade (client mirror of server rules):
+// enabling pulls in missing dependencies; disabling drops dependents too.
+function applyModuleToggle(current: string[], value: ModuleId, checked: boolean): string[] {
+  const set = new Set(current as ModuleId[])
+  if (checked) {
+    set.add(value)
+    for (const dep of MODULE_DEPENDENCIES[value] ?? []) set.add(dep)
+  } else {
+    set.delete(value)
+    for (const id of MODULE_IDS) {
+      if (set.has(id) && (MODULE_DEPENDENCIES[id] ?? []).includes(value)) set.delete(id)
+    }
+  }
+  return MODULE_IDS.filter(id => set.has(id))
+}
 
 const PLAN_OPTIONS = ['free', 'starter', 'professional', 'enterprise']
 
@@ -432,9 +462,7 @@ export default function TenantDetailPage() {
                   checked={modulesEnabled.includes(mod.value)}
                   onCheckedChange={checked => {
                     setModulesEnabled(prev =>
-                      checked
-                        ? [...prev, mod.value]
-                        : prev.filter(m => m !== mod.value)
+                      applyModuleToggle(prev, mod.value, Boolean(checked))
                     )
                   }}
                 />
@@ -454,6 +482,9 @@ export default function TenantDetailPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Terminology */}
+      <TerminologyPanel companyId={id} />
 
       {/* Usage History */}
       <Card>

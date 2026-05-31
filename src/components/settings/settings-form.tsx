@@ -253,7 +253,9 @@ export function SettingsForm() {
           <CardContent className="pt-0">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {MODULE_IDS.map((moduleId) => {
-                const labels: Record<ModuleId, { name: string; desc: string }> = {
+                // Known descriptions for core modules; later-phase modules fall
+                // back to a humanized id (their own phases own richer copy).
+                const labels: Partial<Record<ModuleId, { name: string; desc: string }>> = {
                   leave: { name: 'Leave Management', desc: 'Leave applications and approvals' },
                   expense: { name: 'Expense Claims', desc: 'Expense submission and tracking' },
                   timesheets: { name: 'Timesheets', desc: 'Time tracking and approval' },
@@ -262,7 +264,13 @@ export function SettingsForm() {
                   contracts: { name: 'Contracts', desc: 'Employment contracts' },
                   team_calendar: { name: 'Team Calendar', desc: 'Team leave calendar view' },
                 }
-                const label = labels[moduleId]
+                const label = labels[moduleId] ?? {
+                  name: moduleId
+                    .split('_')
+                    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+                    .join(' '),
+                  desc: '',
+                }
                 return (
                   <div
                     key={moduleId}

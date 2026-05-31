@@ -3,6 +3,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-server'
 import { withSuperAdmin } from '@/lib/super-admin-middleware'
+import { MODULE_IDS, ModuleId } from '@/types/roles'
+import { validateModuleSet } from '@/lib/modules'
+import { recordAudit } from '@/lib/audit'
 
 export const GET = withSuperAdmin(async (_request, _ctx, params) => {
   const id = params?.id
@@ -54,12 +57,13 @@ export const GET = withSuperAdmin(async (_request, _ctx, params) => {
   })
 })
 
-export const PUT = withSuperAdmin(async (request, _ctx, params) => {
+export const PUT = withSuperAdmin(async (request, ctx, params) => {
   const id = params?.id
   if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 })
 
   const body = await request.json()
   const updates: Record<string, any> = {}
+  let modulesChanged: ModuleId[] | null = null
 
   if (body.plan !== undefined) updates.plan = body.plan
   if (body.status !== undefined) updates.status = body.status
@@ -67,15 +71,32 @@ export const PUT = withSuperAdmin(async (request, _ctx, params) => {
   if (body.max_storage_mb !== undefined) updates.max_storage_mb = body.max_storage_mb
   if (body.name !== undefined) updates.name = body.name
 
-  // Handle modules_enabled in settings
+  // Handle modules_enabled in settings (with dependency validation)
   if (body.modules_enabled !== undefined) {
+    if (!Array.isArray(body.modules_enabled)) {
+      return NextResponse.json({ error: 'modules_enabled must be an array' }, { status: 400 })
+    }
+
+    const desired = body.modules_enabled.filter(
+      (m: string): m is ModuleId => MODULE_IDS.includes(m as ModuleId)
+    )
+
+    const { ok, errors } = validateModuleSet(desired)
+    if (!ok) {
+      return NextResponse.json(
+        { error: `Module dependencies not met: ${errors.join('; ')}` },
+        { status: 409 }
+      )
+    }
+
     const { data: current } = await supabaseAdmin
       .from('ess_companies')
       .select('settings')
       .eq('id', id)
       .single()
 
-    updates.settings = { ...(current?.settings || {}), modules_enabled: body.modules_enabled }
+    updates.settings = { ...(current?.settings || {}), modules_enabled: desired }
+    modulesChanged = desired
   }
 
   const { error } = await supabaseAdmin
@@ -84,6 +105,18 @@ export const PUT = withSuperAdmin(async (request, _ctx, params) => {
     .eq('id', id)
 
   if (error) throw error
+
+  if (modulesChanged) {
+    await recordAudit({
+      companyId: id,
+      actorId: ctx.appUser.id,
+      action: 'modules.updated',
+      entityType: 'company_settings',
+      entityId: id,
+      metadata: { modules_enabled: modulesChanged },
+    })
+  }
+
   return NextResponse.json({ message: 'Tenant updated' })
 })
 
