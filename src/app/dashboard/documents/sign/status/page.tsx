@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { esignService, type SignatureStatusReport } from '@/services/esign-client'
 import { Badge } from '@/components/ui/badge'
@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge'
  * Signature status (hr+): who has / hasn't signed a document. Mirrors the
  * acknowledgment-report layout.
  */
-export default function SignatureStatusPage() {
+function SignatureStatusInner() {
   const search = useSearchParams()
   const documentId = search.get('documentId')
   const [report, setReport] = useState<SignatureStatusReport | null>(null)
@@ -62,5 +62,13 @@ export default function SignatureStatusPage() {
         </>
       )}
     </div>
+  )
+}
+
+export default function SignatureStatusPage() {
+  return (
+    <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Loading…</div>}>
+      <SignatureStatusInner />
+    </Suspense>
   )
 }

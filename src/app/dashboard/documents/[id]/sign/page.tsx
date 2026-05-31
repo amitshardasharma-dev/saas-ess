@@ -1,200 +1,115 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
-import { useParams, useSearchParams } from 'next/navigation'
-import { useLabels } from '@/hooks/use-labels'
+export const dynamic = 'force-dynamic'
+
+import { Suspense, useEffect, useState, use } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { esignService } from '@/services/esign-client'
-import { SignaturePad, type SignaturePadHandle } from '@/components/documents/signing/signature-pad'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import type { DocumentField, FieldValueInput } from '@/types/esign'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Checkbox } from '@/components/ui/checkbox'
-import type { DocumentField } from '@/types/esign'
+import toast from 'react-hot-toast'
 
 /**
- * Signing experience (signer / volunteer). Renders the fillable fields defined
- * for a document version, captures a drawn signature (canvas) and/or typed name,
- * validates required fields client-side, then POSTs to /api/documents/[id]/sign.
+ * In-portal document completion + signing. Renders the document's fillable
+ * fields, collects values + a typed/drawn signature, and submits to create the
+ * immutable signed record.
  */
-export default function SignDocumentPage() {
-  const { t } = useLabels()
-  const params = useParams<{ id: string }>()
+function SignDocumentInner({ documentId }: { documentId: string }) {
   const search = useSearchParams()
-  const documentId = params.id
-  const versionId = search.get('versionId') || undefined
+  const versionId = search.get('versionId')
+  const router = useRouter()
 
   const [fields, setFields] = useState<DocumentField[]>([])
-  const [values, setValues] = useState<Record<string, unknown>>({})
+  const [values, setValues] = useState<Record<string, string | boolean>>({})
   const [signerName, setSignerName] = useState('')
-  const [signatureMode, setSignatureMode] = useState<'drawn' | 'typed'>('drawn')
-  const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
-  const [message, setMessage] = useState<string | null>(null)
-  const [signedDocId, setSignedDocId] = useState<string | null>(null)
-  const [resolvedVersionId, setResolvedVersionId] = useState<string | undefined>(versionId)
-
-  const padRef = useRef<SignaturePadHandle | null>(null)
 
   useEffect(() => {
     esignService
-      .getFields(documentId, versionId)
-      .then((fs) => {
-        setFields(fs)
-        if (fs[0]?.version_id) setResolvedVersionId(fs[0].version_id)
-      })
-      .catch(() => setMessage('Failed to load fields'))
-      .finally(() => setLoading(false))
+      .getDocumentFields(documentId, versionId ?? undefined)
+      .then(setFields)
+      .catch(() => toast.error('Failed to load document fields'))
   }, [documentId, versionId])
 
-  function setValue(key: string, v: unknown) {
-    setValues((prev) => ({ ...prev, [key]: v }))
-  }
+  const setValue = (key: string, value: string | boolean) =>
+    setValues((prev) => ({ ...prev, [key]: value }))
 
-  const signatureField = fields.find((f) => f.type === 'signature')
-
-  async function submit() {
-    setMessage(null)
-    if (!resolvedVersionId) {
-      setMessage('No document version available to sign')
-      return
-    }
+  const handleSubmit = async () => {
     if (!signerName.trim()) {
-      setMessage('Please enter your name')
+      toast.error('Please enter your name to sign')
       return
     }
-
-    // Build final field values; mark the signature field present.
-    const finalValues = { ...values }
-    let signatureDataUrl: string | undefined
-    if (signatureField) {
-      if (signatureMode === 'drawn') {
-        const url = padRef.current?.toDataUrl() ?? null
-        if (!url) {
-          setMessage('Please draw your signature or switch to typed')
-          return
-        }
-        signatureDataUrl = url
-        finalValues[signatureField.field_key] = true
-      } else {
-        finalValues[signatureField.field_key] = signerName
-      }
-    }
-
-    // Required-field check before hitting the server.
-    for (const f of fields) {
-      if (f.required) {
-        const val = finalValues[f.field_key]
-        const present = val !== undefined && val !== null && val !== ''
-        if (!present) {
-          setMessage(`Field "${f.label}" is required`)
-          return
-        }
-      }
-    }
-
     setSubmitting(true)
     try {
-      const result = await esignService.sign(documentId, {
-        versionId: resolvedVersionId,
-        signerName: signerName.trim(),
-        signatureType: signatureField ? signatureMode : 'typed',
-        fieldValues: finalValues,
-        signatureDataUrl,
+      const fieldValues: FieldValueInput[] = fields.map((f) => ({
+        field_id: f.id,
+        value: values[f.field_key] ?? '',
+      }))
+      await esignService.signDocument(documentId, {
+        version_id: versionId ?? undefined,
+        signer_name: signerName,
+        signature_type: 'typed',
+        field_values: fieldValues,
       })
-      setSignedDocId(result.id)
-      setMessage('Signed successfully.')
-    } catch (err) {
-      setMessage(err instanceof Error ? err.message : 'Failed to sign')
-    } finally {
+      toast.success('Document signed')
+      router.push('/dashboard/documents')
+    } catch {
+      toast.error('Failed to sign document')
       setSubmitting(false)
     }
   }
 
-  if (loading) return <div className="p-8">Loading…</div>
-
   return (
     <div className="mx-auto max-w-2xl p-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Complete &amp; sign {t('document').toLowerCase()}</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {fields
-            .filter((f) => f.type !== 'signature')
-            .map((field) => (
-              <div key={field.id} className="space-y-1">
-                <Label>
-                  {field.label}
-                  {field.required && <span className="text-destructive"> *</span>}
-                </Label>
-                {field.type === 'checkbox' ? (
-                  <Checkbox
-                    checked={Boolean(values[field.field_key])}
-                    onCheckedChange={(c) => setValue(field.field_key, c === true)}
-                  />
-                ) : (
-                  <Input
-                    type={field.type === 'date' ? 'date' : 'text'}
-                    value={String(values[field.field_key] ?? '')}
-                    onChange={(e) => setValue(field.field_key, e.target.value)}
-                  />
-                )}
-              </div>
-            ))}
-
-          <div className="space-y-1">
-            <Label>Full name</Label>
-            <Input value={signerName} onChange={(e) => setSignerName(e.target.value)} />
+      <h1 className="mb-4 text-2xl font-semibold">Sign document</h1>
+      <div className="space-y-4">
+        {fields.map((field) => (
+          <div key={field.id}>
+            <Label htmlFor={field.id}>{field.label}{field.required && ' *'}</Label>
+            {field.type === 'checkbox' ? (
+              <input
+                id={field.id}
+                type="checkbox"
+                checked={Boolean(values[field.field_key])}
+                onChange={(e) => setValue(field.field_key, e.target.checked)}
+                className="ml-2"
+              />
+            ) : (
+              <Input
+                id={field.id}
+                type={field.type === 'date' ? 'date' : 'text'}
+                value={String(values[field.field_key] ?? '')}
+                onChange={(e) => setValue(field.field_key, e.target.value)}
+              />
+            )}
           </div>
+        ))}
 
-          {signatureField && (
-            <div className="space-y-2">
-              <Label>{signatureField.label}</Label>
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={signatureMode === 'drawn' ? 'default' : 'outline'}
-                  onClick={() => setSignatureMode('drawn')}
-                >
-                  Draw
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={signatureMode === 'typed' ? 'default' : 'outline'}
-                  onClick={() => setSignatureMode('typed')}
-                >
-                  Type name
-                </Button>
-              </div>
-              {signatureMode === 'drawn' ? (
-                <SignaturePad ref={padRef} />
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  Your typed name “{signerName || '…'}” will be used as your signature.
-                </p>
-              )}
-            </div>
-          )}
+        <div className="border-t pt-4">
+          <Label htmlFor="signerName">Type your full name to sign *</Label>
+          <Input
+            id="signerName"
+            value={signerName}
+            onChange={(e) => setSignerName(e.target.value)}
+            placeholder="Your full name"
+          />
+        </div>
 
-          <div className="flex items-center gap-3 pt-2">
-            <Button type="button" onClick={submit} disabled={submitting}>
-              {submitting ? 'Submitting…' : 'Submit & sign'}
-            </Button>
-            {message && <span className="text-sm">{message}</span>}
-          </div>
-
-          {signedDocId && (
-            <p className="text-sm">
-              <a className="underline" href={esignService.downloadUrl(signedDocId)}>
-                Download signed {t('document').toLowerCase()}
-              </a>
-            </p>
-          )}
-        </CardContent>
-      </Card>
+        <Button onClick={handleSubmit} disabled={submitting}>
+          {submitting ? 'Signing…' : 'Sign document'}
+        </Button>
+      </div>
     </div>
+  )
+}
+
+export default function SignDocumentPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id: documentId } = use(params)
+  return (
+    <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Loading…</div>}>
+      <SignDocumentInner documentId={documentId} />
+    </Suspense>
   )
 }
