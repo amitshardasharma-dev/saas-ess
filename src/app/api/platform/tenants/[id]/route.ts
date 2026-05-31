@@ -55,7 +55,7 @@ export const GET = withSuperAdmin(async (_request, _ctx, params) => {
   })
 })
 
-export const PUT = withSuperAdmin(async (request, _ctx, params) => {
+export const PUT = withSuperAdmin(async (request, ctx, params) => {
   const id = params?.id
   if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 })
 
@@ -85,10 +85,19 @@ export const PUT = withSuperAdmin(async (request, _ctx, params) => {
     .eq('id', id)
 
   if (error) throw error
+
+  await recordAudit({
+    companyId: id,
+    actorId: ctx.appUser.id,
+    action: body.status ? `tenant.status.${body.status}` : 'tenant.updated',
+    target: { type: 'company', id },
+    meta: updates,
+  })
+
   return NextResponse.json({ message: 'Tenant updated' })
 })
 
-export const DELETE = withSuperAdmin(async (_request, _ctx, params) => {
+export const DELETE = withSuperAdmin(async (_request, ctx, params) => {
   const id = params?.id
   if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 })
 
@@ -99,5 +108,13 @@ export const DELETE = withSuperAdmin(async (_request, _ctx, params) => {
     .eq('id', id)
 
   if (error) throw error
+
+  await recordAudit({
+    companyId: id,
+    actorId: ctx.appUser.id,
+    action: 'tenant.cancelled',
+    target: { type: 'company', id },
+  })
+
   return NextResponse.json({ message: 'Tenant cancelled' })
 })

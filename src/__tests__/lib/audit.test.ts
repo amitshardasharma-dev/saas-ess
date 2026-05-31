@@ -1,10 +1,10 @@
 // Mock supabase-server before importing the helper.
-const mockInsert = jest.fn()
-const mockFrom = jest.fn(() => ({ insert: (...args: unknown[]) => mockInsert(...args) }))
+const mockInsert = jest.fn((..._args: unknown[]) => Promise.resolve({ error: null }))
+const mockFrom = jest.fn((..._args: unknown[]) => ({ insert: mockInsert }))
 
 jest.mock('@/lib/supabase-server', () => ({
 	supabaseAdmin: {
-		from: (...args: unknown[]) => mockFrom(...args),
+		from: mockFrom,
 	},
 }))
 

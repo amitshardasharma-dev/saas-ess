@@ -18,7 +18,7 @@ function nextResult(): Result {
 	return resultQueue.shift() ?? { data: null, error: null }
 }
 
-const mockFrom = jest.fn(() => {
+const mockFrom = jest.fn((..._args: unknown[]) => {
 	const calls: Recorded[] = []
 	recorded.push(calls)
 	const result = nextResult()
@@ -39,7 +39,7 @@ const mockFrom = jest.fn(() => {
 })
 
 jest.mock('@/lib/supabase-server', () => ({
-	supabaseAdmin: { from: (...args: unknown[]) => mockFrom(...args) },
+	supabaseAdmin: { from: mockFrom },
 }))
 
 import { enqueueJob, claimDueJobs, markJobDone, markJobFailed, type Job } from '@/lib/jobs/dispatch'

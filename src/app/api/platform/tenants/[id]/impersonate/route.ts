@@ -3,8 +3,9 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-server'
 import { withSuperAdmin } from '@/lib/super-admin-middleware'
+import { recordAudit } from '@/lib/audit'
 
-export const POST = withSuperAdmin(async (_request, _ctx, params) => {
+export const POST = withSuperAdmin(async (_request, ctx, params) => {
   const id = params?.id
   if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 })
 
@@ -37,6 +38,14 @@ export const POST = withSuperAdmin(async (_request, _ctx, params) => {
   if (linkError || !linkData) {
     return NextResponse.json({ error: `Failed to generate link: ${linkError?.message}` }, { status: 500 })
   }
+
+  await recordAudit({
+    companyId: id,
+    actorId: ctx.appUser.id,
+    action: 'tenant.impersonated',
+    target: { type: 'company', id },
+    meta: { impersonated_email: authUser.user.email },
+  })
 
   return NextResponse.json({
     magic_link: linkData.properties?.action_link || null,
