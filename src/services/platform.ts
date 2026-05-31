@@ -19,6 +19,12 @@ export interface CreatePlanInput {
 
 export type UpdatePlanInput = Partial<CreatePlanInput>
 
+export interface TenantLabelOverride {
+  term_key: string
+  singular: string
+  plural: string
+}
+
 const getToken = () => typeof window !== 'undefined' ? localStorage.getItem('ess_access_token') : null
 const authHeaders = (): HeadersInit => {
   const token = getToken()
@@ -165,6 +171,28 @@ export const platformService = {
     if (!res.ok) return []
     const data = await res.json()
     return data.usage || []
+  },
+
+  async getTenantLabels(id: string): Promise<TenantLabelOverride[]> {
+    const res = await fetch(`/api/platform/tenants/${id}/labels`, { headers: authHeaders() })
+    if (!res.ok) return []
+    const data = await res.json()
+    return data.overrides || []
+  },
+
+  async updateTenantLabel(
+    id: string,
+    input: { termKey: string; singular: string; plural: string }
+  ): Promise<void> {
+    const res = await fetch(`/api/platform/tenants/${id}/labels`, {
+      method: 'PUT',
+      headers: authHeaders(),
+      body: JSON.stringify(input),
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.error || 'Failed to update terminology')
+    }
   },
 
   async getAnnouncements(): Promise<Announcement[]> {

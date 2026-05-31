@@ -8,42 +8,24 @@ import { Button } from '@/components/ui/button'
 import { useAuthStore } from '@/stores/auth'
 import { useEmployee } from '@/hooks/use-employee'
 import { useModules } from '@/hooks/use-modules'
-import { UserRole, hasMinRole } from '@/types/roles'
+import { useLabels } from '@/hooks/use-labels'
+import { UserRole } from '@/types/roles'
+import { navRegistry } from '@/config/navigation'
+import { isNavSectionVisible, visibleSubItems, type NavFilterContext } from '@/config/nav/filter'
+import type { NavItem } from '@/config/nav/types'
 import toast from 'react-hot-toast'
 import {
-	LayoutDashboard,
-	Calendar,
-	Receipt,
-	FileText,
-	User as UserIcon,
 	ChevronLeft,
 	ChevronRight,
 	ChevronDown,
 	ChevronUp,
 	Building,
 	LogOut,
-	History,
-	Clock,
-	Settings,
-	Timer,
-	FolderOpen,
-	Star,
-	FileSignature,
-	CalendarDays,
-	Users,
 	Shield,
 } from 'lucide-react'
 
 interface SidebarProps {
 	className?: string
-}
-
-interface NavigationItem {
-	title: string
-	href?: string
-	icon: any
-	description: string
-	subItems?: NavigationItem[]
 }
 
 export function Sidebar({ className }: SidebarProps) {
@@ -53,7 +35,8 @@ export function Sidebar({ className }: SidebarProps) {
 	const router = useRouter()
 	const { logout, user } = useAuthStore()
 	const { hasLeaveApprovalAccess, loading: employeeLoading } = useEmployee()
-	const { isModuleEnabled, loading: modulesLoading } = useModules()
+	const { isModuleEnabled } = useModules()
+	const { t } = useLabels()
 	const userRole = (user?.role || 'employee') as UserRole
 
 	const toggleSidebar = () => {
@@ -61,8 +44,8 @@ export function Sidebar({ className }: SidebarProps) {
 	}
 
 	const toggleMenu = (menuKey: string) => {
-		setExpandedMenus(prev => 
-			prev.includes(menuKey) 
+		setExpandedMenus(prev =>
+			prev.includes(menuKey)
 				? prev.filter(key => key !== menuKey)
 				: [...prev, menuKey]
 		)
@@ -97,290 +80,55 @@ export function Sidebar({ className }: SidebarProps) {
 		}
 	}
 
-	const getNavigationItems = (): NavigationItem[] => {
-		const items: NavigationItem[] = [
-			{
-				title: 'Dashboard',
-				href: '/dashboard',
-				icon: LayoutDashboard,
-				description: 'Overview and statistics'
-			},
-		]
-
-		// Leave module
-		if (isModuleEnabled('leave')) {
-			const leaveSubItems: NavigationItem[] = []
-			if (!employeeLoading && hasLeaveApprovalAccess) {
-				leaveSubItems.push(
-					{
-						title: 'Pending Approvals',
-						href: '/dashboard/pending-approvals',
-						icon: Clock,
-						description: 'Review leave approvals'
-					},
-					{
-						title: 'Approval History',
-						href: '/dashboard/approval-history',
-						icon: History,
-						description: 'View approval history'
-					}
-				)
-			}
-			if (hasMinRole(userRole, 'manager')) {
-				leaveSubItems.push({
-					title: 'Team Calendar',
-					href: '/dashboard/team-calendar',
-					icon: CalendarDays,
-					description: 'Team leave calendar'
-				})
-				leaveSubItems.push({
-					title: 'Team Balances',
-					href: '/dashboard/team-balances',
-					icon: Users,
-					description: 'Staff leave balances'
-				})
-			}
-			items.push({
-				title: 'Leave',
-				href: '/dashboard/leave-applications',
-				icon: Calendar,
-				description: 'Apply and manage leave',
-				subItems: leaveSubItems.length > 0 ? leaveSubItems : undefined
-			})
-		}
-
-		// Expense module
-		if (isModuleEnabled('expense')) {
-			items.push({
-				title: 'Expense Claims',
-				href: '/dashboard/expense-claims',
-				icon: Receipt,
-				description: 'Submit and track expenses'
-			})
-		}
-
-		// Timesheets module
-		if (isModuleEnabled('timesheets')) {
-			const timesheetSubItems: NavigationItem[] = []
-			if (hasMinRole(userRole, 'manager')) {
-				timesheetSubItems.push({
-					title: 'Team Timesheets',
-					href: '/dashboard/team-timesheets',
-					icon: Users,
-					description: 'Review team timesheets'
-				})
-			}
-			items.push({
-				title: 'Timesheets',
-				href: '/dashboard/timesheets',
-				icon: Timer,
-				description: 'Submit and track timesheets',
-				subItems: timesheetSubItems.length > 0 ? timesheetSubItems : undefined
-			})
-		}
-
-		// Documents module
-		if (isModuleEnabled('documents')) {
-			const docSubItems: NavigationItem[] = []
-			if (hasMinRole(userRole, 'hr')) {
-				docSubItems.push({
-					title: 'Manage Documents',
-					href: '/dashboard/documents/manage',
-					icon: FolderOpen,
-					description: 'Upload and manage policies'
-				})
-			}
-			items.push({
-				title: 'Documents',
-				href: '/dashboard/documents',
-				icon: FolderOpen,
-				description: 'Policies & HR documents',
-				subItems: docSubItems.length > 0 ? docSubItems : undefined
-			})
-		}
-
-		// Appraisals module
-		if (isModuleEnabled('appraisals')) {
-			const appraisalSubItems: NavigationItem[] = []
-			if (hasMinRole(userRole, 'hr')) {
-				appraisalSubItems.push({
-					title: 'Manage Cycles',
-					href: '/dashboard/appraisals/cycles',
-					icon: Star,
-					description: 'Manage appraisal cycles'
-				})
-			}
-			items.push({
-				title: 'Appraisals',
-				href: '/dashboard/appraisals',
-				icon: Star,
-				description: 'Performance reviews',
-				subItems: appraisalSubItems.length > 0 ? appraisalSubItems : undefined
-			})
-		}
-
-		// Contracts module
-		if (isModuleEnabled('contracts')) {
-			const contractSubItems: NavigationItem[] = []
-			if (hasMinRole(userRole, 'hr')) {
-				contractSubItems.push({
-					title: 'Manage Contracts',
-					href: '/dashboard/contracts/manage',
-					icon: FileSignature,
-					description: 'All employee contracts'
-				})
-			}
-			items.push({
-				title: 'My Contract',
-				href: '/dashboard/contracts',
-				icon: FileSignature,
-				description: 'View contract details',
-				subItems: contractSubItems.length > 0 ? contractSubItems : undefined
-			})
-		}
-
-		// Payslips (always visible)
-		items.push({
-			title: 'Payslips',
-			href: '/dashboard/payslips',
-			icon: FileText,
-			description: 'View salary statements'
-		})
-
-		// Profile (always visible)
-		items.push({
-			title: 'Profile',
-			href: '/dashboard/profile',
-			icon: UserIcon,
-			description: 'Account settings'
-		})
-
-		// Settings — admin only
-		if (hasMinRole(userRole, 'admin')) {
-			items.push({
-				title: 'Settings',
-				href: '/dashboard/settings',
-				icon: Settings,
-				description: 'System settings'
-			})
-		}
-
-		return items
+	// Visibility context for the registry filter. Sub-items that depend on
+	// leave-approval access are hidden until the employee record has loaded
+	// (matches the previous `!employeeLoading && hasLeaveApprovalAccess` gate).
+	const filterCtx: NavFilterContext = {
+		role: userRole,
+		hasLeaveApprovalAccess: !employeeLoading && hasLeaveApprovalAccess,
+		isSuperAdmin: Boolean(user?.is_super_admin),
+		isModuleEnabled,
 	}
 
-	const renderNavigationItem = (item: NavigationItem, level: number = 0) => {
-		const IconComponent = item.icon
-		const hasSubItems = item.subItems && item.subItems.length > 0
-		const isExpanded = expandedMenus.includes(item.title.toLowerCase().replace(' ', '-'))
-		const isActive = pathname === item.href
-		const isSubItemActive = item.subItems?.some(subItem => pathname === subItem.href)
-		const shouldHighlight = isActive || isSubItemActive
+	// Resolve an item's display title: terminology key (plural) wins over static.
+	const titleFor = (item: NavItem): string =>
+		item.titleKey ? t(item.titleKey, { plural: true }) : item.title ?? ''
 
-		return (
-			<div key={item.title}>
-				{/* Main Item */}
-				<div className={cn(
-					"group flex items-center space-x-3 px-3 py-2.5 rounded-xl transition-all duration-200 hover-lift cursor-pointer",
-					shouldHighlight 
-						? "bg-primary text-primary-foreground shadow-sm" 
-						: "hover:bg-accent hover:text-accent-foreground",
-					isCollapsed && "justify-center",
-					level > 0 && "ml-4 pl-6" // Indent sub-items
-				)}
-				onClick={() => {
-					if (hasSubItems && !isCollapsed) {
-						toggleMenu(item.title.toLowerCase().replace(' ', '-'))
-					}
-					if (item.href) {
-						router.push(item.href)
-					}
-				}}
-				>
-					<IconComponent className={cn(
-						"h-5 w-5 shrink-0",
-						shouldHighlight ? "text-primary-foreground" : "text-muted-foreground group-hover:text-accent-foreground",
-						level > 0 && "h-4 w-4" // Smaller icons for sub-items
-					)} />
-					
-					{!isCollapsed && (
-						<div className="flex-1 min-w-0">
-							<div className={cn(
-								"font-medium text-sm truncate",
-								shouldHighlight ? "text-primary-foreground" : "text-foreground",
-								level > 0 && "text-xs" // Smaller text for sub-items
-							)}>
-								{item.title}
-							</div>
-							<div className={cn(
-								"text-xs truncate",
-								shouldHighlight ? "text-primary-foreground/80" : "text-muted-foreground",
-								level > 0 && "text-xs opacity-75" // More subtle description for sub-items
-							)}>
-								{item.description}
-							</div>
-						</div>
-					)}
+	const renderSubItem = (item: NavItem) => (
+		<Link key={item.href} href={item.href}>
+			<div className={cn(
+				"group flex items-center space-x-3 px-3 py-2 ml-6 rounded-lg transition-all duration-200 hover-lift",
+				pathname === item.href
+					? "bg-primary/10 text-primary border-l-2 border-primary"
+					: "hover:bg-accent/50 hover:text-accent-foreground"
+			)}>
+				<item.icon className={cn(
+					"h-4 w-4 shrink-0",
+					pathname === item.href ? "text-primary" : "text-muted-foreground group-hover:text-accent-foreground"
+				)} />
 
-					{/* Expand/Collapse Icon for items with sub-items */}
-					{hasSubItems && !isCollapsed && (
-						<div className="shrink-0">
-							{isExpanded ? (
-								<ChevronUp className="h-4 w-4" />
-							) : (
-								<ChevronDown className="h-4 w-4" />
-							)}
-						</div>
-					)}
-
-					{/* Active indicator */}
-					{shouldHighlight && (
-						<div className="w-2 h-2 rounded-full bg-primary-foreground shrink-0" />
-					)}
+				<div className="flex-1 min-w-0">
+					<div className={cn(
+						"font-medium text-xs truncate",
+						pathname === item.href ? "text-primary" : "text-foreground"
+					)}>
+						{titleFor(item)}
+					</div>
+					<div className={cn(
+						"text-xs truncate opacity-75",
+						pathname === item.href ? "text-primary/70" : "text-muted-foreground"
+					)}>
+						{item.description}
+					</div>
 				</div>
 
-				{/* Sub Items */}
-				{hasSubItems && isExpanded && !isCollapsed && (
-					<div className="mt-1 space-y-1">
-						{item.subItems!.map(subItem => (
-							<Link key={subItem.href} href={subItem.href!}>
-								<div className={cn(
-									"group flex items-center space-x-3 px-3 py-2 ml-6 rounded-lg transition-all duration-200 hover-lift",
-									pathname === subItem.href
-										? "bg-primary/10 text-primary border-l-2 border-primary" 
-										: "hover:bg-accent/50 hover:text-accent-foreground"
-								)}>
-									<subItem.icon className={cn(
-										"h-4 w-4 shrink-0",
-										pathname === subItem.href ? "text-primary" : "text-muted-foreground group-hover:text-accent-foreground"
-									)} />
-									
-									<div className="flex-1 min-w-0">
-										<div className={cn(
-											"font-medium text-xs truncate",
-											pathname === subItem.href ? "text-primary" : "text-foreground"
-										)}>
-											{subItem.title}
-										</div>
-										<div className={cn(
-											"text-xs truncate opacity-75",
-											pathname === subItem.href ? "text-primary/70" : "text-muted-foreground"
-										)}>
-											{subItem.description}
-										</div>
-									</div>
-
-									{/* Active indicator for sub-items */}
-									{pathname === subItem.href && (
-										<div className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
-									)}
-								</div>
-							</Link>
-						))}
-					</div>
+				{/* Active indicator for sub-items */}
+				{pathname === item.href && (
+					<div className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
 				)}
 			</div>
-		)
-	}
+		</Link>
+	)
 
 	return (
 		<div className={cn(
@@ -419,7 +167,86 @@ export function Sidebar({ className }: SidebarProps) {
 
 			{/* Navigation */}
 			<nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-				{getNavigationItems().map(item => renderNavigationItem(item))}
+				{navRegistry
+					.filter(section => isNavSectionVisible(section, filterCtx))
+					.map(section => {
+						const item = section.item
+						const subItems = visibleSubItems(section, filterCtx)
+						const hasSubItems = subItems.length > 0
+						const IconComponent = item.icon
+						const menuKey = item.key
+						const isExpanded = expandedMenus.includes(menuKey)
+						const isActive = pathname === item.href
+						const isSubItemActive = subItems.some(sub => pathname === sub.href)
+						const shouldHighlight = isActive || isSubItemActive
+
+						return (
+							<div key={section.id}>
+								{/* Main Item */}
+								<div className={cn(
+									"group flex items-center space-x-3 px-3 py-2.5 rounded-xl transition-all duration-200 hover-lift cursor-pointer",
+									shouldHighlight
+										? "bg-primary text-primary-foreground shadow-sm"
+										: "hover:bg-accent hover:text-accent-foreground",
+									isCollapsed && "justify-center"
+								)}
+								onClick={() => {
+									if (hasSubItems && !isCollapsed) {
+										toggleMenu(menuKey)
+									}
+									if (item.href) {
+										router.push(item.href)
+									}
+								}}
+								>
+									<IconComponent className={cn(
+										"h-5 w-5 shrink-0",
+										shouldHighlight ? "text-primary-foreground" : "text-muted-foreground group-hover:text-accent-foreground"
+									)} />
+
+									{!isCollapsed && (
+										<div className="flex-1 min-w-0">
+											<div className={cn(
+												"font-medium text-sm truncate",
+												shouldHighlight ? "text-primary-foreground" : "text-foreground"
+											)}>
+												{titleFor(item)}
+											</div>
+											<div className={cn(
+												"text-xs truncate",
+												shouldHighlight ? "text-primary-foreground/80" : "text-muted-foreground"
+											)}>
+												{item.description}
+											</div>
+										</div>
+									)}
+
+									{/* Expand/Collapse Icon for items with sub-items */}
+									{hasSubItems && !isCollapsed && (
+										<div className="shrink-0">
+											{isExpanded ? (
+												<ChevronUp className="h-4 w-4" />
+											) : (
+												<ChevronDown className="h-4 w-4" />
+											)}
+										</div>
+									)}
+
+									{/* Active indicator */}
+									{shouldHighlight && (
+										<div className="w-2 h-2 rounded-full bg-primary-foreground shrink-0" />
+									)}
+								</div>
+
+								{/* Sub Items */}
+								{hasSubItems && isExpanded && !isCollapsed && (
+									<div className="mt-1 space-y-1">
+										{subItems.map(renderSubItem)}
+									</div>
+								)}
+							</div>
+						)
+					})}
 			</nav>
 
 			{/* Footer with Logout */}
@@ -461,9 +288,9 @@ export function Sidebar({ className }: SidebarProps) {
 							<div className="font-semibold text-foreground mb-1">ESS System</div>
 							<div>
 								Powered by{' '}
-								<a 
-									href="https://techmeridian.in" 
-									target="_blank" 
+								<a
+									href="https://techmeridian.in"
+									target="_blank"
 									rel="noopener noreferrer"
 									className="text-primary hover:text-primary/80 font-medium transition-colors"
 								>
@@ -481,4 +308,4 @@ export function Sidebar({ className }: SidebarProps) {
 			)}
 		</div>
 	)
-} 
+}
