@@ -16,6 +16,7 @@
 import type { NavSection } from './nav/types'
 import { coreNav } from './nav/core.nav'
 // === PHASE-2 NAV (insert import above this line) ===
+import { phase2OnboardingNav } from './nav/phase-2-onboarding.nav'
 // === PHASE-3 NAV ===
 import { phase3ComplianceNav } from './nav/phase-3-compliance.nav'
 // === PHASE-4 NAV ===
@@ -28,6 +29,7 @@ import { trainingNav } from './nav/phase-5-training.nav'
 export const navRegistry: NavSection[] = [
 	...coreNav,
 	// PHASE-2 ENTRIES
+	...phase2OnboardingNav,
 	// PHASE-3 ENTRIES
 	...phase3ComplianceNav,
 	// PHASE-4 ENTRIES

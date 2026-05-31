@@ -453,3 +453,106 @@ Built on WIP commit `94d161b`; finished + verified in a resumed session.
   the runner here does not apply) to get the final green tally. Expected
   passing Phase-3 suites: `compliance-expiry.test.ts`, `cert-types.contract.test.ts`,
   `certifications.contract.test.ts`, `export-csv.test.ts`, `compliance-idor.test.ts`.
+# MERGE_NOTES — Phase 2 (Profiles, Onboarding Workflow & RBAC Relabel)
+
+Branch: `feature/phase-2-profiles-onboarding-rbac`. Merges third (after 0, 1).
+
+## Migrations added (block 020–024 → used 020 only)
+- `supabase/migrations/020_onboarding.sql` — creates `ess_onboarding_templates`,
+  `ess_onboarding_steps`, `ess_onboarding_states`. Each: `id uuid pk default
+  gen_random_uuid()`, `company_id uuid not null references ess_companies(id)`,
+  `created_at`, `updated_at`. `ess_onboarding_states` has `unique (company_id,
+  employee_id)`. RLS + `tenant_isolation` policy
+  (`company_id = current_company_id()`) shipped in the SAME migration for all
+  three tables. Indexes on employee_id / template_id.
+  - NOTE: uses the simpler `using/with check (company_id = current_company_id())`
+    form. The base `006` direct-`company_id` pattern additionally has
+    `force row level security`, `to authenticated`, and `or is_super_admin()`.
+    Functionally compatible (app routes use service-role and scope by companyId in
+    code); orchestrator may align 020 to the full 006 form before live apply.
+- 021–024 reserved / unused.
+
+## Published contracts (other phases depend on EXACT names) — `src/lib/onboarding.ts`
+- `type OnboardingStatus = 'not_started' | 'in_progress' | 'blocked' | 'completed'`
+- `type OnboardingStepStatus = 'pending' | 'done' | 'skipped'`
+- `async advanceOnboarding(employeeId: string): Promise<OnboardingStatus>`
+- `async initOnboarding(employeeId: string, companyId: string): Promise<void>`
+- `computeOnboardingStatus(steps, isBlocked?)` — pure helper (tested).
+- interfaces `OnboardingState`, `OnboardingStep`.
+- API: `GET /api/onboarding?employee_id=<uuid>` → `{ state, steps }` (defaults to
+  caller's own employee); `PATCH /api/onboarding/steps/[id]` → `{ step }` (body
+  `{ status }`; cross-tenant 404 ownership re-check; recomputes parent state via
+  `advanceOnboarding`); `GET /api/people` → `{ people }` (minRole `manager`).
+- Phases 3/4/5 may call `advanceOnboarding` after their events (cert added, doc
+  signed, training done).
+
+## Files created (Phase 2 namespace)
+- `src/lib/onboarding.ts` (state machine + contracts; uses `supabaseAdmin`)
+- `src/app/api/onboarding/route.ts`, `src/app/api/onboarding/steps/[id]/route.ts`
+- `src/app/api/people/route.ts`
+- `src/components/onboarding/onboarding-checklist.tsx` (profile checklist, client)
+- `src/app/dashboard/onboarding/page.tsx` ("My Onboarding")
+- `src/app/dashboard/people/page.tsx` (client; fetches `/api/people`),
+  `people-data.ts` (server loader), `people-table.tsx` (search/filter by role,
+  org unit, onboarding status)
+- `src/config/nav/phase-2-onboarding.nav.tsx`
+- `scripts/seed-phase-2.ts` (idempotent; NOT run)
+- Tests: `src/__tests__/onboarding-state-machine.test.ts`, `phase-2-rls.test.ts`,
+  `role-relabel.test.ts`
+
+## Coordination-file edits (append-only protocol)
+- `src/config/navigation.ts` — ONE import above `// === PHASE-2 NAV ===` and ONE
+  spread under `// PHASE-2 ENTRIES`. Nothing else touched.
+
+## RBAC relabel
+- Display-only via existing `roleDisplayLabel()` (admin→Admin, hr→Staff,
+  manager→Staff, employee→Volunteer, super_admin→Super Admin). No new role
+  values, no permission changes. People table + role filter use `USER_ROLES` +
+  `roleDisplayLabel()`.
+
+## Cross-phase defensive consumption (people dashboard)
+- Module state read once via `getEnabledModules(companyId)` (Phase 1 contract).
+- Phase 4 signed docs: queries `ess_signed_documents` when `documents_esign` (or
+  `documents`) enabled, inside try/catch; `—` when unavailable.
+- Phase 3 certs: queries `ess_certifications` when `compliance` enabled, inside
+  try/catch; `—` when the table is absent (it does NOT exist in this base).
+- Neither table is created by this phase. Role read from `ess_app_users` (joined
+  via `ess_employees.app_user_id`); org unit falls back `org_unit` → `department`.
+
+## Dependencies added
+- None.
+
+## STUBs to delete before merge
+- None.
+
+## Verification status (at hand-off)
+- `npx tsc --noEmit --pretty false`: **0 errors** — confirmed (ran cleanly 3x on
+  the final tree, after the contract-mismatch fixes).
+- `npx jest`: a reliable summary could NOT be captured in this session — the
+  harness intermittently returned exit 194 with no output (environment/sandbox
+  flake on the symlinked `node_modules` + stdout capture), alternating with real
+  runs. The 3 new suites are PURE logic / file-parse only (no `fetch`, no Supabase
+  import at module load) so they have no runtime dependency that could fail, but
+  jest-green is NOT independently re-confirmed here. Orchestrator: run `npx jest`
+  once in a stable shell; expect base 246 + 3 new Phase-2 suites green.
+
+## Contract mismatches found by reading real foundation files, then FIXED (commit 2)
+A first pass guessed wrong APIs; reading the actual base files corrected them:
+1. `createRouteClient` / `ctx.employeeId` / `ctx.userId` do NOT exist. Real:
+   `withAuth(handler, { minRole })` → `AuthContext { authUser, appUser, employee,
+   companyId, role }`; DB access via `supabaseAdmin` from `@/lib/supabase-server`.
+2. `AppRole` / `ALL_ROLES` → use `UserRole` / `USER_ROLES`.
+3. `isModuleEnabled` free function → use `getEnabledModules` (or `assertModuleEnabled`).
+4. Role lives on `ess_app_users`, not `ess_employees`; org column is `department`
+   in base employees (added `org_unit` fallback).
+5. People page can't be a server component using a route client → client page +
+   new `GET /api/people` route.
+
+## OPEN ITEMS for orchestrator
+1. `initOnboarding` is NOT yet wired into a real user-create route. The intended
+   `src/app/api/tenants/route.ts` does NOT exist in the base; the real super-admin
+   user-create flow is `src/app/api/platform/tenants/[id]/users/route.ts`. Call
+   `initOnboarding(newEmployee.id, companyId)` there after a user/employee is
+   created. The published `initOnboarding` contract exists and is callable.
+2. Run `npx jest` in a stable shell to confirm green (see Verification status).
+3. Optionally align 020 RLS to the full 006 form.
