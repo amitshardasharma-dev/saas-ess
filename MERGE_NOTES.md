@@ -264,3 +264,75 @@ reporting, compliance, expiry_reminders, recertification                       /
       (parity test + verbatim core.nav migration).
 - [x] Terminology resolver: unknown tenant → defaults; override applies; plural works.
 - [x] Platform admin can edit per-tenant terminology (Terminology panel) and modules.
+
+## Phase 3 — finishing-agent notes (resumed session)
+
+Continued from WIP commit `94d161b`. Most of Phase 3 was already built; the
+items below were finished/fixed in this session.
+
+### Migrations (025–027, RLS in-migration)
+- `025_cert_types.sql` — `cert_types` (+ same-company select/modify RLS).
+- `026_certifications.sql` — `cert_status` enum + `certifications`
+  (employee-own / manager+admin team+all RLS).
+- `027_cert_history.sql` — append-only `cert_history` (status-change log).
+
+### Marker appends (keep conflict-free on merge into base)
+- Job handler: `src/lib/jobs/handlers.ts` under `// === PHASE-3 HANDLERS ===`
+  registers `compliance.refresh-status` → `complianceRefreshStatus` in the
+  `handlers` registry (idempotent: only writes + logs cert_history on a real
+  status change). NOTE: in this isolated worktree the base `handlers.ts` was an
+  empty stub, so this file is self-contained (defines its own `handlers`
+  registry + `runJob` dispatcher). When merging into the real foundation,
+  fold `complianceRefreshStatus` into the existing registry under the marker
+  rather than replacing the base file.
+- Nav: `src/lib/nav.ts` — appended the `compliance` entry under
+  `// === PHASE-3 NAV ===` / `// PHASE-3 ENTRIES`. Base `nav.ts` was a 0-byte
+  stub here; on merge, splice only the marked entry into the real NAV_ITEMS.
+
+### Files created this session
+- `scripts/seed-phase-3.ts` — guarded seed (company existence check): 3 cert
+  types + ~8 certifications with varied expiry (valid/expiring/expired). Uses
+  `createServiceClient` + `calcExpiry`/`calcStatus`. Code-only, not executed.
+- `src/lib/nav.ts` — nav registry with phase markers (see above).
+
+### `src/lib/export/csv.ts`
+- Created in Phase 3 (`toCsv(rows, columns)`; escapes `" , \n \r`).
+  **Phase 7 (reporting) may also ship a CSV util — de-dupe on merge**; this
+  one is the shared implementation per spec §8.
+
+### Storage
+- Certification documents use `document_url` on `certifications`. A
+  `certifications` storage bucket is assumed for uploaded documents (not
+  provisioned in this code-only worktree; create the bucket on deploy).
+
+### Contracts consumed (foundation, exact shapes)
+- `recordAudit({companyId, actorId?, action, target?:{type,id}, meta?})`
+  — called on cert-type and certification create/update/delete.
+- `assertModuleEnabled(companyId, 'compliance')` — gates all routes + dashboard.
+- `getLabels`/`useLabels` — label keys `compliance`, `certification`,
+  `certType`, `expiryDate`, `complianceStatus` registered in DEFAULT_LABELS.
+- Jobs `JobContext`/`JobResult` from `@/lib/jobs/types`.
+
+### Cert contract test fix
+- `src/__tests__/api/certifications.contract.test.ts` previously imported the
+  fetch-based client service `@/services/compliance` and assigned `global.fetch`
+  under `@jest-environment node`, failing at compile time with
+  `TS2304: Cannot find name 'fetch'`. Rewrote it to assert the contract via the
+  **pure expiry library** (`calcExpiry`/`calcStatus`/`daysUntil`) and the shared
+  **type shapes** (`Certification`/`CertType`/`CertStatus`) — no fetch, no DOM
+  lib hack, no server-route imports. Suite now passes.
+
+### Onboarding hook (Phase 2)
+- Any call into Phase 2 `advanceOnboarding` is/should be wrapped in try/catch
+  (Phase 2 not present in this worktree).
+
+### Deps
+- No new runtime dependencies added.
+
+### Verification at handoff
+- `npx tsc --noEmit --pretty false` → 0 errors.
+- `npx jest` → Phase-3 suites green: `expiry.test.ts` (14) +
+  `certifications.contract.test.ts` (4) = 18 tests passing. The 2 reported
+  suite "failures" are pre-existing non-suite noise (`test-helpers.ts`,
+  `api-test-runner.ts` — "Your test suite must contain at least one test"),
+  which vanish when merged into base.

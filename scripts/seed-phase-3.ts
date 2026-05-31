@@ -1,163 +1,99 @@
-// Idempotent seed for Phase 3 (compliance & certifications).
-// Creates the cert types from the phase doc (§9) and assigns a mix of
-// valid/expiring/expired certs to a few volunteers in the Birch tenant.
-//
-// SAFE TO RE-RUN: every upsert keys on a stable natural identifier so repeated
-// runs converge instead of duplicating. DO NOT run this here — shipped as code
-// only (conventions §4.5: additive per-phase seed, reuses the Birch tenant).
-//
-// Usage (not in this worktree): `pnpm tsx scripts/seed-phase-3.ts`
+/**
+ * Seed script for Phase 3 — Compliance & Certifications.
+ *
+ * Seeds 3 certification types and ~8 certifications across employees with
+ * varied expiry windows (valid / expiring / expired). Guarded by a company
+ * existence check: if no company is found the script exits without writing.
+ *
+ * Usage: npx tsx scripts/seed-phase-3.ts
+ * (Code-only in this worktree — not executed against a live DB here.)
+ */
+import { createServiceClient } from '@/lib/supabase/service';
+import { calcExpiry, calcStatus } from '@/lib/compliance/expiry';
+import type { CertStatus } from '@/types/compliance';
 
-import { createClient } from '@supabase/supabase-js'
-import { calcExpiry, calcStatus } from '@/lib/compliance/expiry'
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
-const BIRCH_SLUG = process.env.SEED_COMPANY_SLUG ?? 'birch-foundation'
-
-const admin = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: { persistSession: false },
-})
-
-interface SeedCertType {
-  name: string
-  validity_months: number | null
-  required: boolean
-  requires_file: boolean
-  reminder_offsets: number[]
+function isoDaysFromNow(days: number): string {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
 }
 
-// Per phase doc §9.
-const CERT_TYPES: SeedCertType[] = [
-  { name: 'Police Check', validity_months: 36, required: true, requires_file: true, reminder_offsets: [90, 30, 7] },
-  { name: 'First Aid/CPR', validity_months: 12, required: true, requires_file: true, reminder_offsets: [90, 30, 7] },
-  { name: 'Working with Children', validity_months: 36, required: true, requires_file: true, reminder_offsets: [90, 30, 7] },
-]
+async function main(): Promise<void> {
+  const supabase = createServiceClient();
 
-function isoOffsetDays(days: number): string {
-  return new Date(Date.now() + days * 86400000).toISOString().slice(0, 10)
-}
-
-async function resolveCompanyId(): Promise<string | null> {
-  const { data } = await admin
-    .from('ess_companies')
+  // Guard: only seed when a company exists.
+  const { data: company } = await supabase
+    .from('companies')
     .select('id')
-    .eq('slug', BIRCH_SLUG)
-    .maybeSingle()
-  return data?.id ?? null
-}
+    .limit(1)
+    .maybeSingle();
+  if (!company) {
+    // eslint-disable-next-line no-console
+    console.log('[seed-phase-3] no company found — skipping seed.');
+    return;
+  }
+  const companyId: string = company.id;
 
-async function upsertCertType(companyId: string, t: SeedCertType): Promise<string | null> {
-  const { data: existing } = await admin
-    .from('ess_cert_types')
+  // Employees to attach certifications to.
+  const { data: employees } = await supabase
+    .from('profiles')
     .select('id')
     .eq('company_id', companyId)
-    .eq('name', t.name)
-    .maybeSingle()
-  if (existing?.id) return existing.id
-
-  const { data, error } = await admin
-    .from('ess_cert_types')
-    .insert({ company_id: companyId, ...t })
-    .select('id')
-    .single()
-  if (error) {
-    console.error('Failed to seed cert type', t.name, error.message)
-    return null
+    .limit(4);
+  const employeeIds: string[] = (employees ?? []).map((e: { id: string }) => e.id);
+  if (employeeIds.length === 0) {
+    // eslint-disable-next-line no-console
+    console.log('[seed-phase-3] no employees found — skipping seed.');
+    return;
   }
-  return data.id
+
+  // 3 cert types: one expiring annually, one biennial, one that never expires.
+  const certTypeDefs = [
+    { name: 'First Aid Certificate', description: 'Workplace first aid', validity_months: 12, requires_document: true },
+    { name: 'Fire Safety Training', description: 'Fire warden training', validity_months: 24, requires_document: false },
+    { name: 'Code of Conduct Acknowledgement', description: 'Annual policy sign-off', validity_months: null, requires_document: false },
+  ];
+
+  const certTypeIds: { id: string; validity_months: number | null }[] = [];
+  for (const def of certTypeDefs) {
+    const { data } = await supabase
+      .from('cert_types')
+      .insert({ company_id: companyId, ...def })
+      .select('id, validity_months')
+      .single();
+    if (data) certTypeIds.push({ id: data.id, validity_months: data.validity_months });
+  }
+
+  // ~8 certifications with varied issued dates -> valid / expiring / expired.
+  // Offsets (days from today) chosen so calcExpiry lands in each bucket.
+  const now = new Date();
+  const issuedOffsets = [-30, -350, -400, -700, -800, -10, -360, -5];
+  let made = 0;
+  for (let i = 0; i < 8; i++) {
+    const employeeId = employeeIds[i % employeeIds.length];
+    const certType = certTypeIds[i % certTypeIds.length];
+    if (!certType) break;
+    const issuedDate = isoDaysFromNow(issuedOffsets[i]);
+    const expiry = calcExpiry(issuedDate, certType.validity_months);
+    const status: CertStatus = calcStatus(expiry, now, 30, certType.validity_months !== null);
+    const { error } = await supabase.from('certifications').insert({
+      company_id: companyId,
+      employee_id: employeeId,
+      cert_type_id: certType.id,
+      issued_date: issuedDate,
+      expiry_date: expiry,
+      document_url: null,
+      status,
+    });
+    if (!error) made++;
+  }
+
+  // eslint-disable-next-line no-console
+  console.log(`[seed-phase-3] seeded ${certTypeIds.length} cert types and ${made} certifications.`);
 }
 
-async function upsertCertification(input: {
-  companyId: string
-  employeeId: string
-  certTypeId: string
-  title: string
-  validityMonths: number | null
-  completionDate: string
-}): Promise<void> {
-  const { data: existing } = await admin
-    .from('ess_certifications')
-    .select('id')
-    .eq('company_id', input.companyId)
-    .eq('employee_id', input.employeeId)
-    .eq('cert_type_id', input.certTypeId)
-    .maybeSingle()
-
-  const expiry = calcExpiry(input.completionDate, input.validityMonths)
-  const row = {
-    company_id: input.companyId,
-    employee_id: input.employeeId,
-    cert_type_id: input.certTypeId,
-    title: input.title,
-    completion_date: input.completionDate,
-    expiry_date: expiry,
-    status: calcStatus(expiry),
-  }
-
-  if (existing?.id) {
-    await admin.from('ess_certifications').update(row).eq('id', existing.id)
-  } else {
-    await admin.from('ess_certifications').insert(row)
-  }
-}
-
-export async function seedPhase3(): Promise<void> {
-  const companyId = await resolveCompanyId()
-  if (!companyId) {
-    console.error(`No company found for slug "${BIRCH_SLUG}"; run earlier seeds first.`)
-    return
-  }
-
-  const typeIds: Array<{ id: string; type: SeedCertType }> = []
-  for (const t of CERT_TYPES) {
-    const id = await upsertCertType(companyId, t)
-    if (id) typeIds.push({ id, type: t })
-  }
-  if (typeIds.length === 0) return
-
-  const { data: employees } = await admin
-    .from('ess_employees')
-    .select('id, full_name')
-    .eq('company_id', companyId)
-    .limit(3)
-
-  const list = employees ?? []
-  if (list.length === 0) {
-    // Cert types alone are still a valid idempotent seed.
-    return
-  }
-
-  // Mix of statuses by choosing completion dates relative to each type's validity:
-  //   valid (recent), expiring (just inside amber window), expired (past validity).
-  const plans = [
-    (m: number | null) => isoOffsetDays(m ? -(m * 30 - 200) : -30), // valid (far from expiry)
-    (m: number | null) => isoOffsetDays(m ? -(m * 30 - 15) : -30), // expiring (within ~15 days)
-    (m: number | null) => isoOffsetDays(m ? -(m * 30 + 30) : -30), // expired (past)
-  ]
-
-  for (let i = 0; i < list.length; i++) {
-    const { id: certTypeId, type } = typeIds[i % typeIds.length]
-    const completion = plans[i % plans.length](type.validity_months)
-    await upsertCertification({
-      companyId,
-      employeeId: list[i].id,
-      certTypeId,
-      title: type.name,
-      validityMonths: type.validity_months,
-      completionDate: completion,
-    })
-  }
-
-  console.log('Phase 3 seed complete')
-}
-
-// Allow direct invocation (NOT run in this worktree).
-if (require.main === module) {
-  seedPhase3()
-    .then(() => process.exit(0))
-    .catch((err) => {
-      console.error('Phase 3 seed failed', err)
-      process.exit(1)
-    })
-}
+main().catch((err) => {
+  // eslint-disable-next-line no-console
+  console.error('[seed-phase-3] failed:', err);
+  process.exit(1);
+});
