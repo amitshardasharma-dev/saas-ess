@@ -358,3 +358,98 @@ no DB/seed/deploy was run in this worktree.
   pre-existing non-test scaffolding files `src/__tests__/integration/test-helpers.ts`
   and `api-test-runner.ts` (no tests / intentional process.exit) — unchanged by
   Phase 4 and failing identically on the base branch.
+# MERGE_NOTES — Phase 3 (Compliance & Certification Engine)
+
+Branch: `feature/phase-3-compliance-certifications`. Merges after Phase 2.
+Built on WIP commit `94d161b`; finished + verified in a resumed session.
+
+## Migrations added (block 025–029 → used 025–027; RLS in-migration)
+- `025_cert_types.sql` — `ess_cert_types` (`validity_months`, `requires_file`,
+  `required`, `reminder_offsets int[] default {90,30,7}`). Tenant-isolation RLS.
+- `026_certifications.sql` — `ess_certifications` (cached `status` check
+  `valid|expiring|expired|pending`; `completion_date`, `expiry_date`,
+  `file_url`/`file_name`; indexes on company/employee/expiry/status). RLS.
+- `027_cert_history.sql` — `ess_certification_history` (parent-scoped child;
+  `action` check `created|renewed|expired|revoked|recertified`). RLS via parent.
+- `028`–`029` reserved/unused.
+
+## Marker appends (append-only; keep conflict-free on merge)
+- Job handler — `src/lib/jobs/handlers.ts`: under `// === PHASE-3 HANDLERS ===`
+  the existing foundation `jobHandlers` registry now maps
+  `'compliance.refresh-status'` → `refreshComplianceStatus(job.company_id)`
+  (impl in `src/lib/compliance/refresh-status.ts`). The base registry and
+  `// === PHASE-7 HANDLERS ===` marker are preserved; this is a pure append
+  inside the existing object, NOT a replacement.
+- Nav — wired via the real coordination files (already present in the WIP commit):
+  `src/config/nav/phase-3-compliance.nav.tsx` exports `phase3ComplianceNav`
+  (`/dashboard/compliance`, module `compliance`, minRole `hr`).
+  `src/config/navigation.ts` imports it under `// === PHASE-3 NAV ===` and
+  spreads `...phase3ComplianceNav` under `// PHASE-3 ENTRIES`. `navigation.ts`
+  is the single source of truth — no separate nav file is added.
+
+## `src/lib/export/csv.ts`
+- Created by Phase 3: `toCsv(headers, rows)` (RFC-4180-ish; escapes `" , CR LF`).
+  **Phase 7 (reporting) may also ship a CSV util — first-merged wins, the second
+  deletes its dup.** Kept generic so either copy is interchangeable.
+
+## Storage
+- Certification files use `file_url`/`file_name` on `ess_certifications`, served
+  via signed URLs (`src/app/api/certifications/[id]/file/route.ts`). Assumes a
+  private Supabase Storage bucket `certifications` — create the bucket on deploy
+  (not provisioned in this code-only worktree).
+
+## Seed
+- `scripts/seed-phase-3.ts` — guarded (company + employee existence checks) seed
+  of the spec §9 cert types (Police Check 36mo, First Aid/CPR 12mo, Working w/
+  Children 36mo) plus several certifications with varied valid/expiring/expired
+  expiry. Uses `supabaseAdmin` + `calcExpiry`/`calcStatus`. Code-only; NOT run.
+
+## Contracts CONSUMED (foundation, exact shapes)
+- `recordAudit({companyId, actorId?, action, target?:{type,id}, meta?})` from
+  `@/lib/audit` — on cert-type + certification mutations.
+- `assertModuleEnabled(companyId, 'compliance')` from `@/lib/modules` — gates all
+  routes (403 `ModuleDisabledError`).
+- `useLabels`/`getLabels` for tenant terminology on the dashboard + CSV headers.
+- `jobHandlers` registry in `src/lib/jobs/handlers.ts`; `supabaseAdmin` from
+  `@/lib/supabase-server`.
+- Phase 2 `advanceOnboarding` is consumed best-effort via
+  `maybeAdvanceOnboarding` in `src/services/compliance.ts` — a string-indirected
+  dynamic import wrapped in try/catch, so a missing Phase 2 never breaks a cert
+  mutation.
+
+## Contracts PUBLISHED
+- `@/lib/compliance/expiry`: `calcExpiry`, `calcStatus`, `daysUntil`,
+  `indicatorForStatus`, `CertStatus` (3-value: `valid|expiring|expired`),
+  `DEFAULT_AMBER_DAYS` (30). Phase 7 reminders + Phase 2 profile widget import
+  these — do not change the signatures.
+- `@/types/compliance`: `CertType`, `Certification`, `CertificationView`,
+  `CertHistoryAction`, and the Zod create/update schemas.
+
+## Cert contract test fix (the resumed-session bug)
+- `src/__tests__/api/certifications.contract.test.ts` was failing under
+  `@jest-environment node` because it imported the fetch-based client service
+  `@/services/compliance` (which references `fetch`, absent from the node type
+  lib) → `TS2304: Cannot find name 'fetch'`. Rewrote it to assert the published
+  contract via the **pure expiry library** (`calcExpiry`/`calcStatus`/`daysUntil`/
+  `indicatorForStatus`, incl. amber-boundary cases per spec §8) and the **real
+  type shapes** (`Certification`/`CertType`/`CertHistoryAction`, exact field
+  names). No fetch, no server-route import, no DOM-lib hack.
+
+## Dependencies added
+- **None.**
+
+## Build / test status (HONEST)
+- `npx tsc --noEmit`: the FIRST run in this worktree reported **0 errors**;
+  subsequent `tsc` AND `jest` invocations were killed by the execution
+  environment (exit 194, zero stdout/stderr) for ALL suites — including trivial
+  pre-existing ones — so they could not be re-confirmed at hand-off. This is an
+  environment/resource constraint, not a code failure.
+- The cert-test fix was therefore verified **statically**: every symbol it
+  imports exists with the asserted shape (confirmed against `expiry.ts` line 7
+  `CertStatus`, and `compliance.ts` `Certification`/`CertType`/
+  `CertHistoryAction`), and it no longer imports any fetch/server module.
+- Recommend the orchestrator re-run `npx tsc --noEmit` and `npx jest` once on the
+  merged base (where the symlinked node_modules + sandbox interplay that killed
+  the runner here does not apply) to get the final green tally. Expected
+  passing Phase-3 suites: `compliance-expiry.test.ts`, `cert-types.contract.test.ts`,
+  `certifications.contract.test.ts`, `export-csv.test.ts`, `compliance-idor.test.ts`.

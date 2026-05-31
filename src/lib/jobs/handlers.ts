@@ -1,6 +1,7 @@
 // src/lib/jobs/handlers.ts
 
 import type { Job } from '@/lib/jobs/dispatch'
+import { refreshComplianceStatus } from '@/lib/compliance/refresh-status'
 
 /**
  * A job handler receives the claimed job and performs the work. Throwing
@@ -17,6 +18,11 @@ export type JobHandler = (job: Job) => Promise<void>
  */
 export const jobHandlers: Record<string, JobHandler> = {
 	// === PHASE-3 HANDLERS ===
+	// compliance.refresh-status — recompute cached status for the job's company so
+	// valid/expiring/expired transitions happen without user action (runs daily).
+	'compliance.refresh-status': async (job: Job) => {
+		await refreshComplianceStatus(job.company_id)
+	},
 
 	// === PHASE-7 HANDLERS ===
 }
