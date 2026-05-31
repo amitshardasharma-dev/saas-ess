@@ -264,3 +264,97 @@ reporting, compliance, expiry_reminders, recertification                       /
       (parity test + verbatim core.nav migration).
 - [x] Terminology resolver: unknown tenant → defaults; override applies; plural works.
 - [x] Platform admin can edit per-tenant terminology (Terminology panel) and modules.
+
+
+---
+
+# MERGE_NOTES — Phase 4 (E-Signatures & In-Portal Document Completion)
+
+Branch: `feature/phase-4-esignatures`. Merge after Phase 3 (ascending order).
+Built ON the existing documents module (migration 002). Code + typecheck only —
+no DB/seed/deploy was run in this worktree.
+
+## Migrations added (block 030–034 → used 030–032)
+- `supabase/migrations/030_document_fields.sql` — `ess_document_fields`
+  (fillable field definitions on a document version) + indexes + RLS (direct
+  `company_id` `tenant_isolation` policy, copied from 006).
+- `supabase/migrations/031_signed_documents.sql` — `ess_signed_documents`
+  (the IMMUTABLE signed artifact) + indexes + RLS. **IMMUTABLE: SELECT + INSERT
+  policies only — NO UPDATE and NO DELETE policy on purpose.** A re-sign creates
+  a new row. Columns follow spec §4 (`document_id, version_id, employee_id,
+  signer_name, signature_type, signature_data, field_values, signed_pdf_url,
+  content_hash, signed_at, ip_address, user_agent`).
+- `supabase/migrations/032_esign_audit.sql` — `ess_esign_events` (append-only
+  e-sign event log: `field_defined | signing_started | signed | downloaded`) +
+  indexes + RLS (SELECT + INSERT only).
+- `033`–`034` reserved/unused.
+- No STUB migrations were added. Phase 4 builds against the existing 002 + Phase
+  0/1 tables already present in this worktree.
+
+## Coordination-file appends
+- `src/types/roles.ts` — NOT edited (`documents_esign` already present from Phase 1).
+- `src/config/navigation.ts` — ONE import under `// === PHASE-4 NAV ===`
+  (`import { phase4EsignNav } from './nav/phase-4-esign.nav'`) and ONE spread
+  under `// PHASE-4 ENTRIES` (`...phase4EsignNav,`). No other markers touched.
+- `package.json` — added `"pdf-lib": "1.17.1"` to `dependencies` (exact pin).
+  **Orchestrator must run `pnpm install` after merge** (node_modules is symlinked;
+  pdf-lib is NOT installed in this worktree — see ambient shim below).
+
+## Dependencies added
+- `pdf-lib@1.17.1` (exact). Used server-side for signed-PDF generation.
+
+## Type shim (delete-after-install candidate)
+- `src/types/pdf-lib.d.ts` — minimal ambient `declare module 'pdf-lib'` so `tsc`
+  stays clean WITHOUT installing the package in this worktree. Once
+  `pnpm install` brings pdf-lib's bundled types, this shim is harmless (the
+  package's own types take precedence within node_modules) but may be deleted.
+
+## Storage
+- New PRIVATE bucket `signed-documents` (create at deploy time; private). Signed
+  PDFs are stored at `{companyId}/{documentId}/{versionId}/{employeeId}-{ts}.pdf`.
+  Downloads ONLY via the ownership-checked route below (short-lived signed URL).
+- Source PDFs are read from the existing `ess-documents` bucket (002 convention).
+
+## Contracts PUBLISHED (stable — Phase 2 + Phase 7 depend on these)
+- Tables: `ess_document_fields`, `ess_signed_documents`, `ess_esign_events`.
+- `GET /api/signed-documents?employee_id=&document_id=&version_id=` (company-scoped)
+  — Phase 2 profile widget + Phase 7 reporting read this. Returns
+  `{ signed_documents: SignedDocument[] }`.
+- `GET /api/signed-documents/[id]/download` — ownership-checked short-lived URL.
+- TS types in `src/types/esign.ts` (`SignedDocument`, `DocumentField`, …).
+
+## Other API routes added
+- `GET/POST /api/documents/[id]/fields` — field designer (POST = hr+).
+- `POST /api/documents/[id]/sign` — signing operation (captures IP + UA).
+- `GET /api/documents/[id]/signature-status` — staff "who has/hasn't signed" (hr+).
+
+## Cross-phase assumptions / stubs
+- Phase 2 `advanceOnboarding(employeeId)` is called best-effort via a dynamic
+  `import('@/services/onboarding')` inside try/catch (it does NOT exist here).
+  When Phase 2 merges and provides that export, the hook activates automatically;
+  until then it is a safe no-op. No onboarding tables were created.
+- Role mapping (binding): hr/manager → "Staff", employee → "Volunteer". Field
+  designer + status are gated at `minRole: 'hr'`; signing is open to any member.
+
+## UI added (under existing documents namespace)
+- `src/app/dashboard/documents/sign/page.tsx` (e-sign dashboard)
+- `src/app/dashboard/documents/sign/[id]/design/page.tsx` (field designer)
+- `src/app/dashboard/documents/sign/status/page.tsx` (signature status)
+- `src/app/dashboard/documents/[id]/sign/page.tsx` (signing experience)
+- `src/components/documents/signing/signature-pad.tsx` (canvas signature pad)
+- `src/services/esign-client.ts` (client fetch wrapper)
+- All module-gated (`documents_esign`) via nav + route `assertModuleEnabled`,
+  role-gated, and use the Phase 1 label resolver (`t('document')`, `t('employee')`).
+
+## Tests added (all green)
+- `src/services/__tests__/esign.test.ts` (validation, hash stability, render,
+  tenant-isolation null returns, immutability assertion).
+- `src/app/api/documents/__tests__/esign-routes.test.ts` (module + role gating,
+  cross-tenant 404, IP/UA capture).
+
+## Verification (in this worktree)
+- `npx tsc --noEmit --pretty false` → clean (0 errors).
+- `npx jest` → 83/83 tests pass (65 base + 18 new). The 2 "failed suites" are the
+  pre-existing non-test scaffolding files `src/__tests__/integration/test-helpers.ts`
+  and `api-test-runner.ts` (no tests / intentional process.exit) — unchanged by
+  Phase 4 and failing identically on the base branch.
