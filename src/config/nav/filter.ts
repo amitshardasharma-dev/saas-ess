@@ -21,6 +21,8 @@ export function isNavItemVisible(item: NavItem, ctx: NavFilterContext): boolean 
 export function isNavSectionVisible(section: NavSection, ctx: NavFilterContext): boolean {
 	if (section.moduleId && !ctx.isModuleEnabled(section.moduleId)) return false
 	if (section.minRole && !hasMinRole(ctx.role, section.minRole)) return false
+	// Defensive: a malformed section without an item should be hidden, not crash render.
+	if (!section.item) return false
 	return isNavItemVisible(section.item, ctx)
 }
 
