@@ -24,6 +24,7 @@ import { phase4EsignNav } from './nav/phase-4-esign.nav'
 // === PHASE-5 NAV ===
 import { trainingNav } from './nav/phase-5-training.nav'
 // === PHASE-6 NAV ===
+import { quizzesNav } from './nav/phase-6-quizzes.nav'
 // === PHASE-7 NAV ===
 
 export const navRegistry: NavSection[] = [
@@ -37,5 +38,6 @@ export const navRegistry: NavSection[] = [
 	// PHASE-5 ENTRIES
 	...trainingNav,
 	// PHASE-6 ENTRIES
+	...quizzesNav,
 	// PHASE-7 ENTRIES
 ].sort((a, b) => a.order - b.order)
