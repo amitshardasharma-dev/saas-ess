@@ -241,13 +241,15 @@ do $$ begin
   end if;
 end $$;
 
--- expense claim items -> ess_expense_claims
+-- expense items -> ess_expense_claims
+-- (live table is `ess_expense_items`, not `ess_expense_claim_items`; it carries both
+--  expense_claim_id and a direct company_id — parent-scoped policy below is sufficient.)
 do $$ begin
-  if to_regclass('public.ess_expense_claim_items') is not null then
-    alter table public.ess_expense_claim_items enable row level security;
-    alter table public.ess_expense_claim_items force row level security;
-    drop policy if exists tenant_isolation on public.ess_expense_claim_items;
-    create policy tenant_isolation on public.ess_expense_claim_items
+  if to_regclass('public.ess_expense_items') is not null then
+    alter table public.ess_expense_items enable row level security;
+    alter table public.ess_expense_items force row level security;
+    drop policy if exists tenant_isolation on public.ess_expense_items;
+    create policy tenant_isolation on public.ess_expense_items
       for all to authenticated
       using (exists (select 1 from public.ess_expense_claims p
                      where p.id = expense_claim_id
@@ -292,22 +294,9 @@ do $$ begin
   end if;
 end $$;
 
--- leave application days -> ess_leave_applications
-do $$ begin
-  if to_regclass('public.ess_leave_application_days') is not null then
-    alter table public.ess_leave_application_days enable row level security;
-    alter table public.ess_leave_application_days force row level security;
-    drop policy if exists tenant_isolation on public.ess_leave_application_days;
-    create policy tenant_isolation on public.ess_leave_application_days
-      for all to authenticated
-      using (exists (select 1 from public.ess_leave_applications p
-                     where p.id = leave_application_id
-                       and (p.company_id = public.current_company_id() or public.is_super_admin())))
-      with check (exists (select 1 from public.ess_leave_applications p
-                          where p.id = leave_application_id
-                            and (p.company_id = public.current_company_id() or public.is_super_admin())));
-  end if;
-end $$;
+-- NOTE: there is no `ess_leave_application_days` table in this schema (leave-day
+-- breakdown is not stored as a separate child table). The previously-present block
+-- targeting it was a code-derived guess and has been removed.
 
 -- announcement dismissals -> per-user (scoped by the dismissing user's company via app_user)
 do $$ begin
@@ -367,8 +356,8 @@ end $$;
 --     'ess_expense_categories','ess_expense_claims','ess_timesheet_entries',
 --     'ess_timesheet_approval_entries','ess_document_versions','ess_document_acknowledgments',
 --     'ess_document_read_tracking','ess_contract_history','ess_appraisal_responses',
---     'ess_expense_claim_items','ess_expense_approval_entries','ess_leave_approval_entries',
---     'ess_leave_application_days','ess_announcement_dismissals','ess_companies'
+--     'ess_expense_items','ess_expense_approval_entries','ess_leave_approval_entries',
+--     'ess_announcement_dismissals','ess_companies'
 --   ] loop
 --     if to_regclass('public.'||t) is not null then
 --       execute format('alter table public.%I disable row level security;', t);
