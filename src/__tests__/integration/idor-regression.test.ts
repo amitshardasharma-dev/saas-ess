@@ -49,7 +49,6 @@ jest.mock('@/lib/supabase-server', () => {
 	function makeBuilder(table: string) {
 		const calls: { method: string; args: unknown[] }[] = []
 		state.builders.push({ table, calls })
-		const result = authResults[table] ?? { data: null, error: null }
 		const chain: Record<string, unknown> = {}
 		const methods = ['select', 'insert', 'update', 'delete', 'upsert', 'eq', 'lte', 'order', 'limit', 'in']
 		methods.forEach((m) => {
@@ -58,13 +57,27 @@ jest.mock('@/lib/supabase-server', () => {
 				return chain
 			}
 		})
+		// Resolve the result at terminal time based on the filters actually applied.
+		// The auth middleware looks up the caller's identity by a stable key
+		// (ess_app_users by auth_user_id, ess_employees by app_user_id), so those
+		// must return the tenant-B identity. Any OTHER lookup on those tables — e.g.
+		// a route fetching a target row by id/company_id — is the cross-tenant
+		// access under test and must resolve to null (→ 404). This is what proves
+		// the ownership scoping, rather than the mock blindly returning a row.
+		const resolveResult = () => {
+			const hasEq = (col: string) =>
+				calls.some((c) => c.method === 'eq' && c.args[0] === col)
+			if (table === 'ess_app_users' && hasEq('auth_user_id')) return authResults.ess_app_users
+			if (table === 'ess_employees' && hasEq('app_user_id')) return authResults.ess_employees
+			return { data: null, error: null }
+		}
 		const terminal = (...args: unknown[]) => {
 			calls.push({ method: 'single', args })
-			return Promise.resolve(result)
+			return Promise.resolve(resolveResult())
 		}
 		chain.single = terminal
 		chain.maybeSingle = terminal
-		;(chain as { then: unknown }).then = (resolve: (v: unknown) => unknown) => resolve(result)
+		;(chain as { then: unknown }).then = (resolve: (v: unknown) => unknown) => resolve(resolveResult())
 		return chain
 	}
 
