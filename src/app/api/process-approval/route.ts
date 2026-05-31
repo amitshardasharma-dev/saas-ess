@@ -26,10 +26,11 @@ export async function POST(request: NextRequest) {
 			return NextResponse.json({ error: 'Action must be "approve" or "reject"' }, { status: 400 })
 		}
 
-		// Get current user's employee ID
+		// Get current user's employee ID + company (company used for an explicit
+		// defense-in-depth tenant assertion on every parent lookup below).
 		const { data: appUser } = await supabaseAdmin
 			.from('ess_app_users')
-			.select('id')
+			.select('id, company_id')
 			.eq('auth_user_id', authUser.id)
 			.eq('is_active', true)
 			.single()
@@ -37,6 +38,8 @@ export async function POST(request: NextRequest) {
 		if (!appUser) {
 			return NextResponse.json({ error: 'Not registered for ESS' }, { status: 403 })
 		}
+
+		const companyId = appUser.company_id
 
 		const { data: employee } = await supabaseAdmin
 			.from('ess_employees')
@@ -57,6 +60,7 @@ export async function POST(request: NextRequest) {
 				.from('ess_expense_claims')
 				.select('id')
 				.eq('display_id', leave_id)
+				.eq('company_id', companyId)
 				.single()
 
 			if (!claim) {
@@ -101,6 +105,7 @@ export async function POST(request: NextRequest) {
 				.from('ess_timesheets')
 				.select('id')
 				.eq('display_id', leave_id)
+				.eq('company_id', companyId)
 				.eq('status', 'Submitted')
 				.limit(1)
 				.single()
@@ -147,6 +152,7 @@ export async function POST(request: NextRequest) {
 				.from('ess_leave_applications')
 				.select('id')
 				.eq('display_id', leave_id)
+				.eq('company_id', companyId)
 				.single()
 
 			if (!leaveApp) {

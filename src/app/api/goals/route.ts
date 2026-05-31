@@ -1,19 +1,42 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-server'
 import { withAuth } from '@/lib/auth-middleware'
+import { hasMinRole } from '@/types/roles'
 
-export const GET = withAuth(async (request: NextRequest, { employee }) => {
+export const GET = withAuth(async (request: NextRequest, { employee, companyId, role }) => {
 	if (!employee) {
 		return NextResponse.json({ goals: [] })
 	}
 
 	const { searchParams } = new URL(request.url)
 	const cycle_id = searchParams.get('cycle_id')
+	const employee_id = searchParams.get('employee_id')
+
+	// IDOR fix: the list previously honored an `employee_id` query param with no
+	// tenant/permission check, returning any employee's goals. Now: default to the
+	// caller's own goals; allow viewing another employee's goals only when that
+	// employee is in the SAME company AND the caller is manager+.
+	let targetEmployeeId = employee.id
+	if (employee_id && employee_id !== employee.id) {
+		if (!hasMinRole(role, 'manager')) {
+			return NextResponse.json({ error: 'Not found' }, { status: 404 })
+		}
+		const { data: target } = await supabaseAdmin
+			.from('ess_employees')
+			.select('id')
+			.eq('id', employee_id)
+			.eq('company_id', companyId)
+			.single()
+		if (!target) {
+			return NextResponse.json({ error: 'Not found' }, { status: 404 })
+		}
+		targetEmployeeId = target.id
+	}
 
 	let query = supabaseAdmin
 		.from('ess_goals')
 		.select('*')
-		.eq('employee_id', employee.id)
+		.eq('employee_id', targetEmployeeId)
 		.order('created_at', { ascending: false })
 
 	if (cycle_id) {

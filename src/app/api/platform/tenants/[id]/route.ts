@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-server'
 import { withSuperAdmin } from '@/lib/super-admin-middleware'
+import { recordAudit } from '@/lib/audit'
 
 export const GET = withSuperAdmin(async (_request, _ctx, params) => {
   const id = params?.id
