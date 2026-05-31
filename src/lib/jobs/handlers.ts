@@ -2,6 +2,8 @@
 
 import type { Job } from '@/lib/jobs/dispatch'
 import { refreshComplianceStatus } from '@/lib/compliance/refresh-status'
+import { scanReminders } from '@/lib/reminders/scan'
+import { scanRecertifications } from '@/lib/recertification/scan'
 
 /**
  * A job handler receives the claimed job and performs the work. Throwing
@@ -25,6 +27,18 @@ export const jobHandlers: Record<string, JobHandler> = {
 	},
 
 	// === PHASE-7 HANDLERS ===
+	// reminders.scan — for the job's company, find certs at a configured offset and
+	// send/escalate templated expiry reminders (dedupe via ess_reminder_sends).
+	'reminders.scan': async (job: Job) => {
+		if (!job.company_id) return
+		await scanReminders(job.company_id)
+	},
+	// recert.scan — for the job's company, open recertifications for expired certs,
+	// auto-assign the mapped refresher module, and notify the volunteer.
+	'recert.scan': async (job: Job) => {
+		if (!job.company_id) return
+		await scanRecertifications(job.company_id)
+	},
 }
 
 /** Look up a handler by job type. Returns undefined if none is registered. */
