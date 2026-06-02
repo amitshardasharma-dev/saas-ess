@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useLabels } from '@/hooks/use-labels';
 import type {
   OnboardingState,
   OnboardingStep,
@@ -28,7 +27,6 @@ function authHeaders(extra: HeadersInit = {}): HeadersInit {
 }
 
 export function OnboardingChecklist({ employeeId }: { employeeId?: string }) {
-  const { t } = useLabels();
   const [data, setData] = useState<OnboardingResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -77,8 +75,8 @@ export function OnboardingChecklist({ employeeId }: { employeeId?: string }) {
   const stateStatus = data?.state?.status ?? 'not_started';
 
   return (
-    <section aria-label={t('onboarding.title')}>
-      <h2>{t('onboarding.title')}</h2>
+    <section aria-label="Onboarding">
+      <h2>Onboarding</h2>
       <p>
         Status: <strong>{STATUS_LABEL[stateStatus] ?? stateStatus}</strong>
       </p>

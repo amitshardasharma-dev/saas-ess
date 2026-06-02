@@ -39,7 +39,10 @@ export function resolveLabels(overrides: LabelOverrideRow[]): ResolvedLabels {
  */
 export function makeLabelFn(labels: ResolvedLabels) {
   return function t(key: TermKey, options?: LabelOptions): string {
+    // Defensive: an unknown/invalid key (e.g. a UI string mistakenly passed in)
+    // must never crash the page — fall back to the key itself.
     const entry = labels[key] ?? DEFAULT_LABELS[key]
+    if (!entry) return String(key)
     return options?.plural ? entry.plural : entry.singular
   }
 }
