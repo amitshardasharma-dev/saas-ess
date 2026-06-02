@@ -6,7 +6,13 @@ import { withAuth } from '@/lib/auth-middleware'
 // scoping, leaking employee PII across tenants. It is now wrapped in withAuth
 // and every lookup is constrained to the caller's company_id; a cross-tenant id
 // returns 404 (don't reveal existence).
-export const GET = withAuth(async (_request: NextRequest, { companyId }, params) => {
+//
+// Authorization (E2E B4 finding): same-tenant scoping alone let any volunteer
+// read another employee's record by id. Now a base-tier user may read ONLY their
+// own record; manager+ may read any record in their company.
+import { hasMinRole } from '@/types/roles'
+
+export const GET = withAuth(async (_request: NextRequest, { companyId, role, employee: caller }, params) => {
 	const employeeId = params?.id
 
 	if (!employeeId) {
@@ -26,6 +32,13 @@ export const GET = withAuth(async (_request: NextRequest, { companyId }, params)
 	const { data: employee, error } = await query.single()
 
 	if (error || !employee) {
+		return NextResponse.json({ error: 'Employee not found' }, { status: 404 })
+	}
+
+	// Below manager, you may only read your OWN employee record.
+	const isSelf = caller?.id === employee.id
+	if (!hasMinRole(role, 'manager') && !isSelf) {
+		// 404 (not 403) to avoid revealing that the record exists.
 		return NextResponse.json({ error: 'Employee not found' }, { status: 404 })
 	}
 
