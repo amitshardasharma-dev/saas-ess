@@ -32,11 +32,20 @@ export class ModuleDisabledError extends Error {
  * filtered to known ids. Returns DEFAULT_MODULES when unset.
  */
 export async function getEnabledModules(companyId: string): Promise<ModuleId[]> {
-  const { data: company } = await supabaseAdmin
+  // maybeSingle (not single) so a transient/empty read returns null instead of
+  // throwing; and we distinguish "row not found / query error" from "row found
+  // but no modules_enabled set". Only the latter falls back to DEFAULT_MODULES.
+  const { data: company, error } = await supabaseAdmin
     .from('ess_companies')
     .select('settings')
     .eq('id', companyId)
-    .single()
+    .maybeSingle()
+
+  // On a query error we cannot trust the result — surface it rather than
+  // silently stripping every tenant module (which produced spurious 403s).
+  if (error) {
+    throw new Error(`getEnabledModules: failed to read company ${companyId}: ${error.message}`)
+  }
 
   const settings = company?.settings as Record<string, unknown> | null
   const raw = settings?.modules_enabled

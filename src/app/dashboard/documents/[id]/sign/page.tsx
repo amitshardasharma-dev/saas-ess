@@ -28,7 +28,7 @@ function SignDocumentInner({ documentId }: { documentId: string }) {
 
   useEffect(() => {
     esignService
-      .getDocumentFields(documentId, versionId ?? undefined)
+      .getFields(documentId, versionId ?? undefined)
       .then(setFields)
       .catch(() => toast.error('Failed to load document fields'))
   }, [documentId, versionId])

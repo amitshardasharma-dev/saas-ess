@@ -20,6 +20,13 @@ const STATUS_LABEL: Record<string, string> = {
   completed: 'Completed',
 };
 
+// Bearer auth header — the API (withAuth) requires Authorization: Bearer <token>;
+// there is no cookie fallback. Mirrors the pattern used across the app's services.
+function authHeaders(extra: HeadersInit = {}): HeadersInit {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('ess_access_token') : null;
+  return { ...extra, ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+}
+
 export function OnboardingChecklist({ employeeId }: { employeeId?: string }) {
   const { t } = useLabels();
   const [data, setData] = useState<OnboardingResponse | null>(null);
@@ -31,7 +38,7 @@ export function OnboardingChecklist({ employeeId }: { employeeId?: string }) {
     setError(null);
     try {
       const qs = employeeId ? `?employee_id=${encodeURIComponent(employeeId)}` : '';
-      const res = await fetch(`/api/onboarding${qs}`);
+      const res = await fetch(`/api/onboarding${qs}`, { headers: authHeaders() });
       if (!res.ok) {
         throw new Error(`HTTP ${res.status}`);
       }
@@ -51,7 +58,7 @@ export function OnboardingChecklist({ employeeId }: { employeeId?: string }) {
     async (id: string, status: OnboardingStepStatus) => {
       await fetch(`/api/onboarding/steps/${id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ status }),
       });
       await load();

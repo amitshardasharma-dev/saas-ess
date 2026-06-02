@@ -111,6 +111,7 @@ export async function POST(request: NextRequest) {
 			.insert({
 				display_id: displayId,
 				employee_id: employee.id,
+				company_id: appUser.company_id, // required (NOT NULL) on the live table
 				title: body.title,
 				description: body.description || '',
 				total_amount: 0,
@@ -120,7 +121,13 @@ export async function POST(request: NextRequest) {
 			.select()
 			.single()
 
-		if (error) throw error
+		if (error) {
+			console.error('Create expense claim insert error:', error)
+			return NextResponse.json(
+				{ error: 'Failed to create claim', detail: error.message },
+				{ status: 500 }
+			)
+		}
 
 		return NextResponse.json({
 			message: 'Expense claim created',

@@ -3,7 +3,6 @@
 // Client-side fetch wrappers for the Phase 6 quiz APIs. Bearer token comes from
 // the auth store (same pattern as services/training.ts).
 
-import { useAuthStore } from '@/stores/auth'
 import type {
   Quiz,
   QuizAttempt,
@@ -16,8 +15,12 @@ import type {
   SubmitAttemptInput,
 } from '@/lib/quiz/schemas'
 
+// Bearer token comes from localStorage ('ess_access_token') — the canonical
+// source the app's auth-proxy writes and every other service reads. (The auth
+// store does not expose a hydrated `token` field, so reading it returned
+// undefined and produced spurious 401s.)
 function authHeaders(): Record<string, string> {
-  const token = useAuthStore.getState().token
+  const token = typeof window !== 'undefined' ? localStorage.getItem('ess_access_token') : null
   return {
     'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),

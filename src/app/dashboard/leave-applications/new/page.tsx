@@ -273,9 +273,9 @@ export default function NewLeaveApplicationPage() {
 	}
 
 	const formatLeaveType = (leaveType: LeaveType) => {
-		// Use leave_mapping_code as the primary display name since leave_type_name is often empty
-		const displayName = leaveType.leave_mapping_code || leaveType.leave_type_name || leaveType.name
-		return `${displayName} - ${leaveType.bc_leave_code} (${leaveType.eligible_days} days)`
+		// Prefer the human-readable name; fall back to the code only if it's empty.
+		const displayName = leaveType.leave_type_name || leaveType.leave_mapping_code || leaveType.name
+		return `${displayName} (${leaveType.eligible_days} days)`
 	}
 
 	const formatDate = (dateString: string) => {

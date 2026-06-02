@@ -6,14 +6,12 @@
 // PUBLISHED CONTRACT: resolveAssignees(moduleId) — re-exported from @/lib/training.
 
 import { supabaseAdmin } from '@/lib/supabase-admin'
-import type { TrainingAssignment } from '@/types/training'
+import type { TrainingAssignment, Assignee } from '@/types/training'
 
-/** A resolved assignee (the minimal shape callers need). */
-export interface Assignee {
-  employee_id: string
-  full_name: string | null
-  department: string | null
-}
+// Assignee now lives in @/types/training (types-only module) so client code can
+// import it without dragging this server-only module (and supabaseAdmin) into the
+// browser bundle. Re-exported here to preserve the existing import path.
+export type { Assignee }
 
 /**
  * Resolve every employee assigned a module, de-duplicated, tenant-scoped.

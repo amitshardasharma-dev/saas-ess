@@ -15,7 +15,7 @@ import { useAuthStore } from '@/stores/auth'
 import config from '@/config/environment'
 
 const loginSchema = z.object({
-	username: z.string().min(1, 'Username is required'),
+	username: z.string().min(1, 'Email is required').email('Enter a valid email'),
 	password: z.string().min(1, 'Password is required'),
 })
 
@@ -92,14 +92,15 @@ export function LoginForm() {
 			<form onSubmit={handleSubmit} className="space-y-6">
 				<div className="space-y-2">
 					<Label htmlFor="username" className="text-sm font-semibold text-foreground">
-						Username
+						Email
 					</Label>
 					<Input
 						id="username"
-						type="text"
+						type="email"
+						autoComplete="email"
 						value={formData.username}
 						onChange={(e) => updateField('username', e.target.value)}
-						placeholder="Enter your username"
+						placeholder="you@company.com"
 						disabled={isLoading}
 						className={`h-12 ${errors.username ? 'border-destructive' : ''} floating-element border-0 focus:ring-2 focus:ring-primary/20`}
 					/>

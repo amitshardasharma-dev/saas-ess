@@ -18,8 +18,8 @@ import type {
   TrainingModuleWithItems,
   TrainingProgress,
   UpdateModuleInput,
+  Assignee,
 } from '@/types/training'
-import type { Assignee } from '@/lib/training/assignments'
 
 const getToken = () =>
   typeof window !== 'undefined' ? localStorage.getItem('ess_access_token') : null

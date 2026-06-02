@@ -2,38 +2,19 @@
 
 export const dynamic = 'force-dynamic'
 
-import { Suspense, useEffect, useState, use } from 'react'
-import { useSearchParams, useRouter } from 'next/navigation'
-import { quizService } from '@/services/quiz'
-import type { QuizForRuntime } from '@/types/quiz'
-import { Button } from '@/components/ui/button'
-import toast from 'react-hot-toast'
+// Phase 6 — take-quiz runtime, launched from a training item. The route param is
+// the quiz id; an optional ?item= query param carries the launching training
+// item id so a graded pass/fail feeds back into Phase 5 training completion.
+
+import { Suspense, use } from 'react'
+import { useSearchParams } from 'next/navigation'
+import QuizPlayer from '@/components/quizzes/QuizPlayer'
 
 function TakeQuizInner({ quizId }: { quizId: string }) {
-  // trainingItemId drives the post-pass recordQuizResult link (Phase 5).
   const search = useSearchParams()
-  const _trainingItemId = search.get('trainingItemId')
-  const router = useRouter()
-
-  const [quiz, setQuiz] = useState<QuizForRuntime | null>(null)
-  const [submitting] = useState(false)
-
-  useEffect(() => {
-    quizService
-      .getQuizForRuntime(quizId)
-      .then(setQuiz)
-      .catch(() => toast.error('Failed to load quiz'))
-  }, [quizId])
-
-  return (
-    <div className="mx-auto max-w-2xl p-6">
-      <h1 className="mb-4 text-2xl font-semibold">{quiz?.title ?? 'Quiz'}</h1>
-      <p className="text-sm text-muted-foreground">Quiz runtime UI…</p>
-      <Button disabled={submitting} onClick={() => router.push('/dashboard/training')}>
-        Back to training
-      </Button>
-    </div>
-  )
+  const itemId = search?.get('item') ?? search?.get('trainingItemId') ?? null
+  if (!quizId) return <p className="p-6 text-sm text-red-600">Missing quiz id.</p>
+  return <QuizPlayer quizId={quizId} trainingItemId={itemId} />
 }
 
 export default function TakeQuizPage({ params }: { params: Promise<{ id: string }> }) {

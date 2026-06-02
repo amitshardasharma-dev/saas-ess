@@ -225,3 +225,15 @@ export type ReorderItemsInput = z.infer<typeof reorderItemsSchema>
 export type CreateAssignmentInput = z.infer<typeof createAssignmentSchema>
 export type CreateGroupInput = z.infer<typeof createGroupSchema>
 export type TrackEventInput = z.infer<typeof trackEventSchema>
+
+/**
+ * A resolved training assignee. Defined here (a types-only module) rather than in
+ * @/lib/training/assignments so client code can import the type without pulling
+ * the server-only assignments module — which value-imports supabaseAdmin and
+ * throws "supabaseKey is required" in the browser bundle.
+ */
+export interface Assignee {
+  employee_id: string
+  full_name: string | null
+  department: string | null
+}
