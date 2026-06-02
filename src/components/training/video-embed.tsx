@@ -5,7 +5,10 @@
 
 'use client'
 
-import { videoEmbedUrl } from '@/lib/training'
+// Import the pure video helper directly (NOT the @/lib/training barrel, which
+// re-exports server-only modules that value-import supabaseAdmin and crash the
+// client bundle with "supabaseKey is required").
+import { videoEmbedUrl } from '@/lib/training/video'
 
 interface VideoEmbedProps {
   url: string

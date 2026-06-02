@@ -108,10 +108,11 @@ export async function POST(request: NextRequest) {
 
 		const { data: newClaim, error } = await supabaseAdmin
 			.from('ess_expense_claims')
+			// ess_expense_claims is employee-scoped (no company_id column — tenant is
+			// derived via ess_employees). Columns match the detail route's known-good shape.
 			.insert({
 				display_id: displayId,
 				employee_id: employee.id,
-				company_id: appUser.company_id, // required (NOT NULL) on the live table
 				title: body.title,
 				description: body.description || '',
 				total_amount: 0,

@@ -2,35 +2,21 @@
 // Other phases (3/5) depend on the EXACT names/signatures exported here.
 
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import type {
+  OnboardingStatus,
+  OnboardingStepStatus,
+  OnboardingStep,
+  OnboardingState,
+} from '@/types/onboarding';
 
-export type OnboardingStatus =
-  | 'not_started'
-  | 'in_progress'
-  | 'blocked'
-  | 'completed';
-
-export type OnboardingStepStatus = 'pending' | 'done' | 'skipped';
-
-export interface OnboardingStep {
-  id: string;
-  company_id: string;
-  template_id: string | null;
-  employee_id: string | null;
-  title: string;
-  description: string | null;
-  sort_order: number;
-  status: OnboardingStepStatus;
-  completed_at: string | null;
-}
-
-export interface OnboardingState {
-  id: string;
-  company_id: string;
-  employee_id: string;
-  status: OnboardingStatus;
-  blocked_reason: string | null;
-  completed_at: string | null;
-}
+// Re-export the types (now defined in @/types/onboarding, a server-free module)
+// so existing `@/lib/onboarding` type imports keep working.
+export type {
+  OnboardingStatus,
+  OnboardingStepStatus,
+  OnboardingStep,
+  OnboardingState,
+} from '@/types/onboarding';
 
 /**
  * Pure status computation — given an employee's steps and whether the state row

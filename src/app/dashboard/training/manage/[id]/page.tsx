@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { trainingService } from '@/services/training'
-import { detectVideoProvider } from '@/lib/training'
+import { detectVideoProvider } from '@/lib/training/video'
 import type {
   TrainingAssignment,
   TrainingItemType,

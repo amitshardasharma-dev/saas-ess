@@ -6,7 +6,7 @@ import type {
   OnboardingState,
   OnboardingStep,
   OnboardingStepStatus,
-} from '@/lib/onboarding';
+} from '@/types/onboarding';
 
 interface OnboardingResponse {
   state: OnboardingState | null;
