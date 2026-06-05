@@ -30,3 +30,8 @@ coverage/
 *.tsbuildinfo
 .mcp.json
 .vercel
+tests/fixtures/users.json
+test-results/
+# E2E generated artifacts (screenshots + captured run results) — not source
+e2e/shots/
+e2e/results/
