@@ -40,7 +40,7 @@ export default function NewExpenseClaimPage() {
 			}
 
 			// Navigate to the new claim detail page to add items
-			router.push(`/dashboard/expense-claims/${data.claim.display_id}`)
+			router.push(`/dashboard/expense-claims/${data.claim.id}`)
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Failed to create claim')
 		} finally {

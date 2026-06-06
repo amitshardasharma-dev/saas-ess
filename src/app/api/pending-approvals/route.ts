@@ -124,6 +124,7 @@ export async function GET(request: NextRequest) {
 
 			pendingApprovals.push({
 				name: claim?.display_id,
+				expense_id: claim?.id, // UUID for detail navigation (display_id stays the label)
 				type: 'expense',
 				employee: emp?.employee_no || '',
 				employee_name: emp?.full_name || '',

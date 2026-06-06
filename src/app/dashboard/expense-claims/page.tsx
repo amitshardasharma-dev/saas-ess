@@ -134,7 +134,7 @@ export default function ExpenseClaimsPage() {
 							<div
 								key={claim.id}
 								className={`p-4 rounded-lg border ${config.border} ${config.bg} cursor-pointer hover:shadow-md transition-shadow`}
-								onClick={() => router.push(`/dashboard/expense-claims/${claim.display_id}`)}
+								onClick={() => router.push(`/dashboard/expense-claims/${claim.id}`)}
 							>
 								<div className="flex items-center justify-between mb-2">
 									<div className="flex items-center gap-2">

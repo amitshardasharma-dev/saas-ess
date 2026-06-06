@@ -24,6 +24,7 @@ export interface MyLeaveApplication {
 
 export interface MyExpenseClaim {
 	id: string
+	displayId?: string
 	description: string
 	amount: number
 	currency: string

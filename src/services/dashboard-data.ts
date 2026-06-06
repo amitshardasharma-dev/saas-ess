@@ -403,7 +403,8 @@ const fetchExpenseClaims = async (): Promise<MyExpenseClaim[]> => {
 			}
 
 			return {
-				id: claim.display_id || claim.id,
+				id: claim.id, // UUID — used for detail navigation under uuid-keyed routes
+				displayId: claim.display_id, // human label (EC-YYYY-NNN)
 				description: claim.title || 'Expense Claim',
 				amount: claim.total_amount || 0,
 				currency: claim.currency || 'INR',

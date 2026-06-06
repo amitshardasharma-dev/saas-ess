@@ -127,7 +127,7 @@ test.describe('D. Tenant-isolation sweep — foreign/random id (no leak, no 500)
   // any tenant's employee is readable by email. This is an unauthenticated IDOR /
   // PII disclosure. Un-skip once the route enforces withAuth + company scoping
   // (no token → 401; foreign-tenant email → 404).
-  test.fixme('D[iso] employee/by-user/[userId] — must require auth & tenant-scope (currently UNAUTH PII leak)', async () => {
+  test('D[iso] employee/by-user/[userId] — must require auth & tenant-scope', async () => {
     const VICTIM = ROLE_USERS.hr.email
     const FOREIGN = FIXTURES.tenantB.admin.email
     // 1) No token must NOT return data.
@@ -138,22 +138,23 @@ test.describe('D. Tenant-isolation sweep — foreign/random id (no leak, no 500)
     expect([403, 404], 'cross-tenant email lookup must be denied').toContain(cross.status)
   })
 
-  // DEFECT (HIGH — file separately): /api/expense-claims/[id] (GET/PUT/POST) has
-  // NO auth and NO tenant scoping. `[id]` is the display_id natural key
-  // (EC-YYYY-NNN, sequential/guessable). Proven against prod 2026-06-05: an
-  // UNAUTHENTICATED GET of a tenant-B claim (seeded with a unique display_id)
-  // returned 200 + full claim + employee PII (name, dept, employee_no). PUT/POST
-  // likewise let anyone edit/submit a draft claim by display_id with no auth. The
-  // earlier UUID sweep gave a false PASS because a uuid never matches a display_id
-  // (and current duplicate display_ids also mask GET via .single()). Un-skip once
-  // the route enforces withAuth + scopes the claim to the caller's company.
-  test.fixme('D[iso] expense-claims/[id] — must require auth & tenant-scope (currently UNAUTH IDOR by display_id)', async () => {
-    // No token must not return a claim (today: 200 for a unique display_id).
-    const noAuth = await apiWithToken(null, 'GET', '/api/expense-claims/EC-2026-001')
-    expect([401], 'unauthenticated expense-claim read must be 401').toContain(noAuth.status)
-    // A tenant-A caller must not read/guess a tenant-B claim by display_id.
-    const cross = await apiWithToken(tok.vol, 'GET', '/api/expense-claims/EC-2026-001')
-    expect([403, 404]).toContain(cross.status)
+  // FIXED (uuid-keyed + withAuth + company-scope via owning-employee join). Probes
+  // a REAL seeded tenant-B claim UUID — not a display_id — so a green result proves
+  // tenant scoping, not a uuid cast-error 404. Covers the items DELETE shape too:
+  // a cross-tenant DELETE must return 404 (claim not found), matching GET/POST —
+  // NOT 400 (the not-a-draft branch).
+  test('D[iso] expense-claims/[id] — auth required & tenant-scoped (uuid-keyed)', async () => {
+    const TB = FIXTURES.tenantB.artifacts.expenseClaimId
+    test.skip(!TB, 'tenant-B expense fixture not seeded (run: npx tsx tests/seed.ts)')
+    // No token → 401.
+    const noAuth = await apiWithToken(null, 'GET', `/api/expense-claims/${TB}`)
+    expect([401], `unauthenticated expense-claim read must be 401 (got ${noAuth.status})`).toContain(noAuth.status)
+    // Acme caller probing a real tenant-B claim UUID → 404 on read.
+    const crossGet = await apiWithToken(tok.vol, 'GET', `/api/expense-claims/${TB}`)
+    expect([404], `cross-tenant GET must 404 (got ${crossGet.status})`).toContain(crossGet.status)
+    // Cross-tenant items DELETE → 404 (not 400) so the shape matches GET/POST.
+    const crossDel = await apiWithToken(tok.vol, 'DELETE', `/api/expense-claims/${TB}/items?itemId=00000000-0000-0000-0000-0000000000ff`)
+    expect([404], `cross-tenant DELETE must 404 not 400 (got ${crossDel.status})`).toContain(crossDel.status)
   })
 
   // DEFECT (Med-High — file separately): /api/preview-approval-chain (GET) has NO
@@ -167,7 +168,7 @@ test.describe('D. Tenant-isolation sweep — foreign/random id (no leak, no 500)
   // 404s: the id.eq.<non-uuid> arm throws a cast error). Un-skip once the route is
   // withAuth-wrapped, scopes the employee to the caller's company, and uses
   // parameterized .eq() filters instead of string interpolation.
-  test.fixme('D[iso] preview-approval-chain — must require auth & tenant-scope (currently UNAUTH cross-tenant disclosure + .or() injection)', async () => {
+  test('D[iso] preview-approval-chain — must require auth & tenant-scope (+ no .or() injection)', async () => {
     const noAuth = await apiWithToken(null, 'GET', `/api/preview-approval-chain?employee=${FIXTURES.tenantB.admin.employeeId}&leave_type=Annual&total_days=1`)
     expect([401], 'unauthenticated approval-chain preview must be 401').toContain(noAuth.status)
     const cross = await apiWithToken(tok.vol, 'GET', `/api/preview-approval-chain?employee=${FIXTURES.tenantB.admin.employeeId}&leave_type=Annual&total_days=1`)

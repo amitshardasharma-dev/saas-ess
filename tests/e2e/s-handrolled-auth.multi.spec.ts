@@ -25,23 +25,22 @@ test.describe('S. Hand-rolled-auth boundary', () => {
   // body is []), but the boundary is INCONSISTENT with its sibling hand-rolled
   // routes (expense-claims, profile/update both 401). Marked fixme so it stays
   // red until the route is hardened to 401. See src/app/api/leave-applications/route.ts.
-  test.fixme('S: leave-applications missing Authorization → 401 (not 500)', async () => {
+  test('S: leave-applications missing Authorization → 401 (not 500)', async () => {
     const r = await apiWithToken(null, 'GET', '/api/leave-applications')
     expect(r.status).toBe(401) // currently 200-empty — DEFECT
   })
 
-  test.fixme('S: leave-applications forged token → 401', async () => {
+  test('S: leave-applications forged token → 401', async () => {
     const r = await apiWithToken('forged.jwt', 'GET', '/api/leave-applications')
     expect(r.status).toBe(401) // currently 200-empty — DEFECT
   })
 
-  // Companion assertion that DOES hold today and is worth locking: even though
-  // the status is wrong, the route must never leak another tenant's data — an
-  // unauthenticated GET returns an EMPTY set, not real applications.
-  test('S: leave-applications unauthenticated returns NO data (even though status is 200)', async () => {
+  // Post-fix contract: the fail-open 200-empty is now 401 (GET wrapped in withAuth).
+  // Still lock the no-leak property: a denied response carries no applications array.
+  test('S: leave-applications unauthenticated → 401 and no data', async () => {
     const r = await apiWithToken(null, 'GET', '/api/leave-applications')
-    expect(Array.isArray(r.body?.leave_applications)).toBeTruthy()
-    expect(r.body?.leave_applications?.length, 'no data leak for anon caller').toBe(0)
+    expect(r.status).toBe(401)
+    expect(r.body?.leave_applications, 'no applications array in a denied response').toBeUndefined()
   })
 
   test('S: leave-applications create with foreign employee_id → not trusted from body', async () => {
@@ -140,7 +139,7 @@ test.describe('S. Hand-rolled-auth boundary', () => {
   // DEFECT companion: the same inconsistency expressed as a cross-route invariant.
   // Expected: every hand-rolled route denies anon by 401. Fails today because
   // leave-applications returns 200. Kept as fixme to track parity.
-  test.fixme('S: all hand-rolled routes enforce 401 parity with middleware routes', async () => {
+  test('S: all hand-rolled routes enforce 401 parity with middleware routes', async () => {
     const mw = await apiWithToken(null, 'GET', '/api/people') // middleware → 401
     const leave = await apiWithToken(null, 'GET', '/api/leave-applications')
     const expense = await apiWithToken(null, 'GET', '/api/expense-claims')

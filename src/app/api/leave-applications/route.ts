@@ -1,42 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-server'
+import { withAuth } from '@/lib/auth-middleware'
 
-export async function GET(request: NextRequest) {
+export const GET = withAuth(async (_request, { employee }) => {
+	// withAuth already returns 401 for a missing/invalid token — no more fail-open
+	// 200-empty. An authenticated user with no employee record gets an empty set.
+	if (!employee) {
+		return NextResponse.json({ leave_applications: [], leave_summary: {}, pending_count: 0 })
+	}
+
 	try {
-		const authHeader = request.headers.get('Authorization')
-		const token = authHeader?.replace('Bearer ', '')
-
-		if (!token) {
-			return NextResponse.json({ leave_applications: [], leave_summary: {}, pending_count: 0 })
-		}
-
-		const { data: { user: authUser }, error: authError } = await supabaseAdmin.auth.getUser(token)
-		if (authError || !authUser) {
-			return NextResponse.json({ leave_applications: [], leave_summary: {}, pending_count: 0 })
-		}
-
-		// Get app user + employee
-		const { data: appUser } = await supabaseAdmin
-			.from('ess_app_users')
-			.select('id')
-			.eq('auth_user_id', authUser.id)
-			.eq('is_active', true)
-			.single()
-
-		if (!appUser) {
-			return NextResponse.json({ leave_applications: [], leave_summary: {}, pending_count: 0 })
-		}
-
-		const { data: employee } = await supabaseAdmin
-			.from('ess_employees')
-			.select('id, employee_no, full_name')
-			.eq('app_user_id', appUser.id)
-			.single()
-
-		if (!employee) {
-			return NextResponse.json({ leave_applications: [], leave_summary: {}, pending_count: 0 })
-		}
-
 		const currentYear = new Date().getFullYear()
 		const yearStart = `${currentYear}-01-01`
 		const yearEnd = `${currentYear}-12-31`
@@ -112,7 +85,7 @@ export async function GET(request: NextRequest) {
 		console.error('Leave Applications fetch error:', error)
 		return NextResponse.json({ leave_applications: [], leave_summary: {}, pending_count: 0 })
 	}
-}
+})
 
 export async function POST(request: NextRequest) {
 	try {

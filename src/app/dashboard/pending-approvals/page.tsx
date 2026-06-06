@@ -147,7 +147,7 @@ export default function PendingApprovalsPage() {
 		if (approval.type === 'timesheet') {
 			router.push(`/dashboard/timesheets/${approval.timesheet_id || approval.name}`)
 		} else if (approval.type === 'expense') {
-			router.push(`/dashboard/expense-claims/${approval.name}`)
+			router.push(`/dashboard/expense-claims/${approval.expense_id || approval.name}`)
 		} else {
 			router.push(`/dashboard/leave-applications/${approval.name}`)
 		}

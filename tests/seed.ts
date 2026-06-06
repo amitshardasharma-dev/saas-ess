@@ -88,7 +88,31 @@ async function seedTenantBArtifacts(companyId: string, employeeId: string) {
     if (error) console.warn('  (tenant-b leave insert skipped:', error.message + ')')
     if (!error && data) leaveId = data.id
   }
-  return { leaveApplicationId: leaveId, employeeId }
+
+  // A tenant-B expense claim — the cross-tenant fixture for the isolation sweep
+  // (probed by an Acme caller, must 404). ess_expense_claims is employee-scoped.
+  let expenseClaimId: string | null = null
+  const { data: existingClaim } = await sb
+    .from('ess_expense_claims')
+    .select('id')
+    .eq('employee_id', employeeId)
+    .eq('display_id', 'TB-EC-001')
+    .maybeSingle()
+  if (existingClaim) expenseClaimId = existingClaim.id
+  else {
+    const { data, error } = await sb
+      .from('ess_expense_claims')
+      .insert({
+        employee_id: employeeId, display_id: 'TB-EC-001',
+        title: 'tenant-b isolation fixture', total_amount: 0, status: 'Draft',
+      })
+      .select('id')
+      .maybeSingle()
+    if (error) console.warn('  (tenant-b expense insert skipped:', error.message + ')')
+    if (!error && data) expenseClaimId = data.id
+  }
+
+  return { leaveApplicationId: leaveId, employeeId, expenseClaimId }
 }
 
 async function ensureAuthUser(email: string): Promise<string> {
