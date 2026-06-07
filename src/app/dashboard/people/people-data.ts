@@ -10,6 +10,7 @@ export interface PersonRow {
   role: UserRole;
   orgUnit: string | null;
   onboardingStatus: OnboardingStatus;
+  isActive: boolean;
   // Defensive cross-phase sources. "—" means the source is absent/disabled.
   certifications: number | '—';
   signedDocuments: number | '—';
@@ -48,19 +49,21 @@ export async function loadPeople(companyId: string): Promise<PersonRow[]> {
 
   const employeeIds = rows.map((e) => e.id);
 
-  // Role lives on ess_app_users (employees link via app_user_id).
+  // Role + active flag live on ess_app_users (employees link via app_user_id).
   const roleByAppUser = new Map<string, UserRole>();
+  const activeByAppUser = new Map<string, boolean>();
   const appUserIds = rows
     .map((e) => e.app_user_id)
     .filter((id): id is string => Boolean(id));
   if (appUserIds.length > 0) {
     const { data: appUsers } = await supabase
       .from('ess_app_users')
-      .select('id, role')
+      .select('id, role, is_active')
       .eq('company_id', companyId)
       .in('id', appUserIds);
-    for (const u of (appUsers ?? []) as { id: string; role: UserRole }[]) {
+    for (const u of (appUsers ?? []) as { id: string; role: UserRole; is_active: boolean }[]) {
       roleByAppUser.set(u.id, u.role);
+      activeByAppUser.set(u.id, u.is_active);
     }
   }
 
@@ -126,6 +129,7 @@ export async function loadPeople(companyId: string): Promise<PersonRow[]> {
     role: (e.app_user_id ? roleByAppUser.get(e.app_user_id) : undefined) ?? 'employee',
     orgUnit: e.org_unit ?? e.department ?? null,
     onboardingStatus: stateByEmployee.get(e.id) ?? 'not_started',
+    isActive: e.app_user_id ? activeByAppUser.get(e.app_user_id) ?? true : true,
     certifications: certsAvailable ? certsByEmployee.get(e.id) ?? 0 : '—',
     signedDocuments: docsAvailable ? docsByEmployee.get(e.id) ?? 0 : '—',
   }));

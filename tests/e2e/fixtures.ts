@@ -37,6 +37,11 @@ type Fixtures = {
   expenseCategories: string[]
   sampleVolunteers: { email: string; employeeId: string; doneCount: number }[]
   scaleSeeded?: number
+  tenantB: {
+    companyId: string
+    admin: { email: string; password: string; employeeId: string; appUserId: string }
+    artifacts: { leaveApplicationId: string | null; employeeId: string; expenseClaimId: string | null }
+  }
 }
 
 export const FIXTURES: Fixtures = JSON.parse(
