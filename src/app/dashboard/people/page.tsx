@@ -6,7 +6,7 @@ import { DashboardLayout } from '@/components/layout/dashboard-layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuthStore } from '@/stores/auth';
-import { USER_ROLES, roleDisplayLabel, type UserRole } from '@/types/roles';
+import { USER_ROLES, roleManageLabel, type UserRole } from '@/types/roles';
 import { PeopleTable } from './people-table';
 import type { PersonRow } from './people-data';
 
@@ -136,7 +136,7 @@ function AddPersonForm({ onClose, onCreated }: { onClose: () => void; onCreated:
           <label className="text-xs text-muted-foreground" htmlFor="np-role">Role</label>
           <select id="np-role" className={selectClass} value={role} onChange={(e) => setRole(e.target.value as UserRole)}>
             {USER_ROLES.map((r) => (
-              <option key={r} value={r}>{roleDisplayLabel(r)}</option>
+              <option key={r} value={r}>{roleManageLabel(r)}</option>
             ))}
           </select>
         </div>

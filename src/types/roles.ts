@@ -130,3 +130,19 @@ export const ROLE_DISPLAY: Record<UserRole | 'super_admin', string> = {
 export function roleDisplayLabel(role: UserRole, isSuperAdmin = false): string {
   return isSuperAdmin ? ROLE_DISPLAY.super_admin : ROLE_DISPLAY[role]
 }
+
+/**
+ * Distinct per-role labels for ADMIN MANAGEMENT surfaces (role pickers, the
+ * people table) where hr vs manager must be distinguishable — unlike
+ * roleDisplayLabel, which intentionally collapses both to the "Staff" tier.
+ */
+export const ROLE_MANAGE_LABEL: Record<UserRole, string> = {
+  admin: 'Admin',
+  hr: 'HR',
+  manager: 'Manager',
+  employee: 'Volunteer',
+}
+
+export function roleManageLabel(role: UserRole): string {
+  return ROLE_MANAGE_LABEL[role]
+}

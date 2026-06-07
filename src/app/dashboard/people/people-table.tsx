@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { roleDisplayLabel, USER_ROLES } from '@/types/roles';
+import { roleManageLabel, USER_ROLES } from '@/types/roles';
 import type { UserRole } from '@/types/roles';
 import type { OnboardingStatus } from '@/lib/onboarding';
 import type { PersonRow } from './people-data';
@@ -114,7 +114,7 @@ export function PeopleTable({
         />
         <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value as UserRole | 'all')} aria-label="Filter by role" className={selectClass}>
           <option value="all">All roles</option>
-          {USER_ROLES.map((r) => (<option key={r} value={r}>{roleDisplayLabel(r)}</option>))}
+          {USER_ROLES.map((r) => (<option key={r} value={r}>{roleManageLabel(r)}</option>))}
         </select>
         <select value={orgFilter} onChange={(e) => setOrgFilter(e.target.value)} aria-label="Filter by org unit" className={selectClass}>
           <option value="all">All org units</option>
@@ -152,9 +152,9 @@ export function PeopleTable({
                   <td className={td}>
                     {editing ? (
                       <select value={editRole} onChange={(e) => setEditRole(e.target.value as UserRole)} aria-label={`Role for ${p.name}`} className={selectClass}>
-                        {USER_ROLES.map((r) => (<option key={r} value={r}>{roleDisplayLabel(r)}</option>))}
+                        {USER_ROLES.map((r) => (<option key={r} value={r}>{roleManageLabel(r)}</option>))}
                       </select>
-                    ) : roleDisplayLabel(p.role)}
+                    ) : roleManageLabel(p.role)}
                   </td>
                   <td className={td}>
                     {editing ? (
