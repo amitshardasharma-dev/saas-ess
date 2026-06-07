@@ -1,20 +1,34 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { roleDisplayLabel, USER_ROLES } from '@/types/roles';
 import type { UserRole } from '@/types/roles';
 import type { OnboardingStatus } from '@/lib/onboarding';
 import type { PersonRow } from './people-data';
 
-const ONBOARDING_STATUSES: OnboardingStatus[] = [
-  'not_started',
-  'in_progress',
-  'blocked',
-  'completed',
-];
+const ONBOARDING_STATUSES: OnboardingStatus[] = ['not_started', 'in_progress', 'blocked', 'completed'];
+
+const selectClass =
+  'h-9 rounded-md border border-input bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring';
 
 function authToken(): string | null {
   return typeof window !== 'undefined' ? localStorage.getItem('ess_access_token') : null;
+}
+
+function statusBadge(status: OnboardingStatus) {
+  const map: Record<OnboardingStatus, string> = {
+    not_started: 'bg-muted text-muted-foreground',
+    in_progress: 'bg-blue-100 text-blue-800',
+    blocked: 'bg-amber-100 text-amber-800',
+    completed: 'bg-green-100 text-green-800',
+  };
+  return (
+    <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${map[status]}`}>
+      {status.replace('_', ' ')}
+    </span>
+  );
 }
 
 export function PeopleTable({
@@ -31,7 +45,6 @@ export function PeopleTable({
   const [orgFilter, setOrgFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<OnboardingStatus | 'all'>('all');
 
-  // Inline edit state.
   const [editId, setEditId] = useState<string | null>(null);
   const [editRole, setEditRole] = useState<UserRole>('employee');
   const [editDept, setEditDept] = useState('');
@@ -41,11 +54,7 @@ export function PeopleTable({
 
   const orgUnits = useMemo(() => {
     const set = new Set<string>();
-    for (const p of people) {
-      if (p.orgUnit) {
-        set.add(p.orgUnit);
-      }
-    }
+    for (const p of people) if (p.orgUnit) set.add(p.orgUnit);
     return Array.from(set).sort();
   }, [people]);
 
@@ -55,10 +64,7 @@ export function PeopleTable({
       if (roleFilter !== 'all' && p.role !== roleFilter) return false;
       if (orgFilter !== 'all' && p.orgUnit !== orgFilter) return false;
       if (statusFilter !== 'all' && p.onboardingStatus !== statusFilter) return false;
-      if (q) {
-        const hay = `${p.name} ${p.email ?? ''}`.toLowerCase();
-        if (!hay.includes(q)) return false;
-      }
+      if (q && !`${p.name} ${p.email ?? ''}`.toLowerCase().includes(q)) return false;
       return true;
     });
   }, [people, query, roleFilter, orgFilter, statusFilter]);
@@ -92,115 +98,110 @@ export function PeopleTable({
     }
   }
 
-  const colCount = canManage ? 9 : 8;
+  const th = 'text-left font-medium text-muted-foreground px-3 py-2';
+  const td = 'px-3 py-2 align-middle';
 
   return (
     <div>
-      <div role="search">
-        <input
+      <div role="search" className="mb-4 flex flex-wrap items-center gap-2">
+        <Input
           type="search"
           placeholder="Search name or email"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           aria-label="Search people"
+          className="max-w-xs"
         />
-        <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value as UserRole | 'all')} aria-label="Filter by role">
+        <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value as UserRole | 'all')} aria-label="Filter by role" className={selectClass}>
           <option value="all">All roles</option>
-          {USER_ROLES.map((r) => (
-            <option key={r} value={r}>{roleDisplayLabel(r)}</option>
-          ))}
+          {USER_ROLES.map((r) => (<option key={r} value={r}>{roleDisplayLabel(r)}</option>))}
         </select>
-        <select value={orgFilter} onChange={(e) => setOrgFilter(e.target.value)} aria-label="Filter by org unit">
+        <select value={orgFilter} onChange={(e) => setOrgFilter(e.target.value)} aria-label="Filter by org unit" className={selectClass}>
           <option value="all">All org units</option>
-          {orgUnits.map((o) => (
-            <option key={o} value={o}>{o}</option>
-          ))}
+          {orgUnits.map((o) => (<option key={o} value={o}>{o}</option>))}
         </select>
-        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as OnboardingStatus | 'all')} aria-label="Filter by onboarding status">
+        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as OnboardingStatus | 'all')} aria-label="Filter by onboarding status" className={selectClass}>
           <option value="all">All statuses</option>
-          {ONBOARDING_STATUSES.map((s) => (
-            <option key={s} value={s}>{s}</option>
-          ))}
+          {ONBOARDING_STATUSES.map((s) => (<option key={s} value={s}>{s.replace('_', ' ')}</option>))}
         </select>
+        <span className="ml-auto text-sm text-muted-foreground">{filtered.length} of {people.length}</span>
       </div>
 
-      <table>
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Email</th>
-            <th>Role</th>
-            <th>Org unit</th>
-            <th>Onboarding</th>
-            <th>Active</th>
-            <th>Certifications</th>
-            <th>Signed docs</th>
-            {canManage ? <th>Actions</th> : null}
-          </tr>
-        </thead>
-        <tbody>
-          {filtered.map((p) => {
-            const editing = editId === p.id;
-            return (
-              <tr key={p.id}>
-                <td>{p.name}</td>
-                <td>{p.email ?? '—'}</td>
-                <td>
-                  {editing ? (
-                    <select value={editRole} onChange={(e) => setEditRole(e.target.value as UserRole)} aria-label={`Role for ${p.name}`}>
-                      {USER_ROLES.map((r) => (
-                        <option key={r} value={r}>{roleDisplayLabel(r)}</option>
-                      ))}
-                    </select>
-                  ) : (
-                    roleDisplayLabel(p.role)
-                  )}
-                </td>
-                <td>
-                  {editing ? (
-                    <input value={editDept} onChange={(e) => setEditDept(e.target.value)} aria-label={`Org unit for ${p.name}`} />
-                  ) : (
-                    p.orgUnit ?? '—'
-                  )}
-                </td>
-                <td>{p.onboardingStatus}</td>
-                <td>
-                  {editing ? (
-                    <label>
-                      <input type="checkbox" checked={editActive} onChange={(e) => setEditActive(e.target.checked)} aria-label={`Active for ${p.name}`} />
-                      Active
-                    </label>
-                  ) : p.isActive ? (
-                    'Active'
-                  ) : (
-                    'Inactive'
-                  )}
-                </td>
-                <td>{p.certifications}</td>
-                <td>{p.signedDocuments}</td>
-                {canManage ? (
-                  <td>
+      <div className="rounded-lg border bg-card overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead className="border-b bg-muted/40">
+            <tr>
+              <th className={th}>Name</th>
+              <th className={th}>Email</th>
+              <th className={th}>Role</th>
+              <th className={th}>Org unit</th>
+              <th className={th}>Onboarding</th>
+              <th className={th}>Active</th>
+              <th className={th}>Certs</th>
+              <th className={th}>Signed docs</th>
+              {canManage ? <th className={th}>Actions</th> : null}
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map((p) => {
+              const editing = editId === p.id;
+              return (
+                <tr key={p.id} className="border-b last:border-0 hover:bg-muted/30">
+                  <td className={`${td} font-medium`}>{p.name}</td>
+                  <td className={`${td} text-muted-foreground`}>{p.email ?? '—'}</td>
+                  <td className={td}>
                     {editing ? (
-                      <>
-                        <button onClick={() => saveEdit(p.id)} disabled={busy}>{busy ? 'Saving…' : 'Save'}</button>
-                        <button onClick={() => setEditId(null)} disabled={busy}>Cancel</button>
-                        {rowErr ? <span role="alert" style={{ color: 'crimson' }}> {rowErr}</span> : null}
-                      </>
+                      <select value={editRole} onChange={(e) => setEditRole(e.target.value as UserRole)} aria-label={`Role for ${p.name}`} className={selectClass}>
+                        {USER_ROLES.map((r) => (<option key={r} value={r}>{roleDisplayLabel(r)}</option>))}
+                      </select>
+                    ) : roleDisplayLabel(p.role)}
+                  </td>
+                  <td className={td}>
+                    {editing ? (
+                      <Input value={editDept} onChange={(e) => setEditDept(e.target.value)} aria-label={`Org unit for ${p.name}`} className="h-9 max-w-[160px]" />
+                    ) : (p.orgUnit ?? '—')}
+                  </td>
+                  <td className={td}>{statusBadge(p.onboardingStatus)}</td>
+                  <td className={td}>
+                    {editing ? (
+                      <label className="flex items-center gap-1 text-xs">
+                        <input type="checkbox" checked={editActive} onChange={(e) => setEditActive(e.target.checked)} aria-label={`Active for ${p.name}`} />
+                        Active
+                      </label>
+                    ) : p.isActive ? (
+                      <span className="text-green-700">Active</span>
                     ) : (
-                      <button onClick={() => startEdit(p)}>Edit</button>
+                      <span className="text-muted-foreground">Inactive</span>
                     )}
                   </td>
-                ) : null}
+                  <td className={td}>{p.certifications}</td>
+                  <td className={td}>{p.signedDocuments}</td>
+                  {canManage ? (
+                    <td className={td}>
+                      {editing ? (
+                        <div className="flex items-center gap-2">
+                          <Button size="sm" onClick={() => saveEdit(p.id)} disabled={busy}>{busy ? 'Saving…' : 'Save'}</Button>
+                          <Button size="sm" variant="outline" onClick={() => setEditId(null)} disabled={busy}>Cancel</Button>
+                          {rowErr ? <span role="alert" className="text-xs text-destructive">{rowErr}</span> : null}
+                        </div>
+                      ) : (
+                        <Button size="sm" variant="outline" onClick={() => startEdit(p)}>Edit</Button>
+                      )}
+                    </td>
+                  ) : null}
+                </tr>
+              );
+            })}
+            {filtered.length === 0 ? (
+              <tr>
+                <td className={`${td} text-center text-muted-foreground`} colSpan={canManage ? 9 : 8}>
+                  No people match the filters.
+                </td>
               </tr>
-            );
-          })}
-          {filtered.length === 0 ? (
-            <tr>
-              <td colSpan={colCount}>No people match the filters.</td>
-            </tr>
-          ) : null}
-        </tbody>
-      </table>
+            ) : null}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
