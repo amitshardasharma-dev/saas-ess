@@ -14,7 +14,6 @@ import { EmployeeStatsCards } from '@/components/dashboard/employee-stats-cards'
 import { useEmployee } from '@/hooks/use-employee'
 import { MyLeaveApplications } from '@/components/dashboard/my-leave-applications'
 import { MyExpenseClaims } from '@/components/dashboard/my-expense-claims'
-import { MyPayslips } from '@/components/dashboard/my-payslips'
 import { LeaveBalanceComponent } from '@/components/dashboard/leave-balance'
 import { PendingApprovalsSummary } from '@/components/dashboard/pending-approvals-summary'
 import { PendingExpenseApprovals } from '@/components/dashboard/pending-expense-approvals'
@@ -443,8 +442,8 @@ export default function DashboardPage() {
 							</p>
 						</div>
 
-						{/* Statistics Cards with Enhanced Styling */}
-						{dashboardStats && (
+						{/* Statistics Cards — leave/expense oriented; only when those modules are on */}
+						{dashboardStats && (isModuleEnabled('leave') || isModuleEnabled('expense')) && (
 							<div className="relative">
 								<EmployeeStatsCards stats={dashboardStats} />
 								<div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-accent/5 rounded-2xl -z-10 blur-3xl"></div>
@@ -458,22 +457,22 @@ export default function DashboardPage() {
 							</div>
 						)}
 
-						{/* My Applications, Claims, and Payslips Row with Modern Cards */}
-						<div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-							{isModuleEnabled('leave') && (
-								<div className="space-y-2">
-									<MyLeaveApplications applications={myLeaveApplications} />
-								</div>
-							)}
-							{isModuleEnabled('expense') && (
-								<div className="space-y-2">
-									<MyExpenseClaims claims={myExpenseClaims} />
-								</div>
-							)}
-							<div className="space-y-2">
-								<MyPayslips payslips={myPayslips} />
+						{/* My Applications & Claims — each gated by its module (Payslips removed:
+						    no payslips module/API exists, was mock data) */}
+						{(isModuleEnabled('leave') || isModuleEnabled('expense')) && (
+							<div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+								{isModuleEnabled('leave') && (
+									<div className="space-y-2">
+										<MyLeaveApplications applications={myLeaveApplications} />
+									</div>
+								)}
+								{isModuleEnabled('expense') && (
+									<div className="space-y-2">
+										<MyExpenseClaims claims={myExpenseClaims} />
+									</div>
+								)}
 							</div>
-						</div>
+						)}
 
 						{/* Timesheets Section */}
 						{isModuleEnabled('timesheets') && (
@@ -522,11 +521,13 @@ export default function DashboardPage() {
 							</div>
 						)}
 
-						{/* Approval Sections Row - Only visible to users with approval access */}
-						<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-							<PendingApprovalsSummary />
-							<PendingExpenseApprovals />
-						</div>
+						{/* Approval Sections — gated by their modules (leave / expense) */}
+						{(isModuleEnabled('leave') || isModuleEnabled('expense')) && (
+							<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+								{isModuleEnabled('leave') && <PendingApprovalsSummary />}
+								{isModuleEnabled('expense') && <PendingExpenseApprovals />}
+							</div>
+						)}
 
 						{/* Team Absences This Week - Managers only */}
 						{hasMinRole(userRole, 'manager') && isModuleEnabled('leave') && (
