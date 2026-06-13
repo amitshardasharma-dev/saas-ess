@@ -9,7 +9,6 @@ import {
 	LayoutDashboard,
 	Calendar,
 	Receipt,
-	FileText,
 	User as UserIcon,
 	History,
 	Clock,
@@ -180,17 +179,6 @@ export const coreNav: NavSection[] = [
 				minRole: 'hr',
 			},
 		],
-	},
-	{
-		id: 'payslips',
-		order: 70,
-		item: {
-			key: 'payslips',
-			title: 'Payslips',
-			href: '/dashboard/payslips',
-			icon: FileText,
-			description: 'View salary statements',
-		},
 	},
 	{
 		id: 'profile',

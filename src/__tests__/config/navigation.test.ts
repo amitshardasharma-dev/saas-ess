@@ -28,7 +28,6 @@ describe('nav registry parity (pre-Phase-1 modules preserved)', () => {
     expect(byId.get('documents')?.moduleId).toBe('documents')
     expect(byId.get('appraisals')?.moduleId).toBe('appraisals')
     expect(byId.get('contracts')?.moduleId).toBe('contracts')
-    expect(byId.get('payslips')?.item.href).toBe('/dashboard/payslips')
     expect(byId.get('profile')?.item.href).toBe('/dashboard/profile')
     expect(byId.get('settings')?.minRole).toBe('admin')
   })
