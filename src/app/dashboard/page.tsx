@@ -438,7 +438,7 @@ export default function DashboardPage() {
 								Your Personal Dashboard
 							</h2>
 							<p className="text-muted-foreground">
-								Manage your leave applications, expense claims, and view your balances
+								Your tasks and activity at a glance
 							</p>
 						</div>
 
