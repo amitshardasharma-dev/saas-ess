@@ -81,6 +81,24 @@ export const esignService = {
     return data.signed_document
   },
 
+  /**
+   * Make a document signable (hr+). `source: 'markdown'` renders the authored
+   * body to a PDF, uploads it as a new version, and fields it; `source: 'file'`
+   * fields the latest uploaded PDF version. Returns the target version id.
+   */
+  async setupSignature(documentId: string, source: 'markdown' | 'file'): Promise<{ versionId: string }> {
+    const res = await fetch(`/api/documents/${documentId}/signature-setup`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ source }),
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.error || 'Failed to enable signing')
+    }
+    return res.json()
+  },
+
   async getSignatureStatus(documentId: string): Promise<SignatureStatusReport> {
     const res = await fetch(`/api/documents/${documentId}/signature-status`, {
       headers: authHeaders(),

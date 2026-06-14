@@ -143,13 +143,20 @@ export const POST = withAuth(async (request, { companyId, employee }) => {
 
   const body = await request.json()
 
+  if (!body.title || typeof body.title !== 'string' || !body.title.trim()) {
+    return NextResponse.json({ error: 'Title is required' }, { status: 400 })
+  }
+
   const { data: doc, error } = await supabaseAdmin
     .from('ess_documents')
     .insert({
       company_id: companyId,
       category_id: body.category_id || null,
-      title: body.title,
+      title: body.title.trim(),
       description: body.description || null,
+      // In-app authored content (markdown). Rendered inline by the XSS-safe
+      // converter at read time; null when the doc is file-only.
+      body_markdown: typeof body.body_markdown === 'string' ? body.body_markdown : null,
       access_roles: body.access_roles || ['employee', 'manager', 'hr', 'admin'],
       is_published: false,
       requires_acknowledgment: body.requires_acknowledgment || false,

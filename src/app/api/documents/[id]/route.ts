@@ -94,6 +94,7 @@ export const PUT = withAuth(async (request, { companyId }, params) => {
   const updateData: Record<string, unknown> = { updated_at: new Date().toISOString() }
   if (body.title !== undefined) updateData.title = body.title
   if (body.description !== undefined) updateData.description = body.description
+  if (body.body_markdown !== undefined) updateData.body_markdown = body.body_markdown
   if (body.category_id !== undefined) updateData.category_id = body.category_id
   if (body.access_roles !== undefined) updateData.access_roles = body.access_roles
   if (body.requires_acknowledgment !== undefined) updateData.requires_acknowledgment = body.requires_acknowledgment
