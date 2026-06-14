@@ -9,6 +9,8 @@
 // re-exports server-only modules that value-import supabaseAdmin and crash the
 // client bundle with "supabaseKey is required").
 import { videoEmbedUrl } from '@/lib/training/video'
+import { Button } from '@/components/ui/button'
+import { ExternalLink } from 'lucide-react'
 
 interface VideoEmbedProps {
   url: string
@@ -20,14 +22,16 @@ export function VideoEmbed({ url, title }: VideoEmbedProps) {
 
   if (!embed) {
     return (
-      <a
-        href={url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-sm text-blue-600 underline"
-      >
-        Open video in a new tab
-      </a>
+      <div className="flex flex-col items-start gap-2 rounded-lg border bg-muted/40 p-4">
+        <p className="text-sm text-muted-foreground">
+          This video opens with its original provider.
+        </p>
+        <Button asChild variant="outline" size="sm">
+          <a href={url} target="_blank" rel="noopener noreferrer">
+            <ExternalLink className="h-4 w-4" /> Open video in a new tab
+          </a>
+        </Button>
+      </div>
     )
   }
 
