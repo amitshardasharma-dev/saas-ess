@@ -4,9 +4,13 @@
 // draft, and renders the shared QuizBuilder.
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { useParams } from 'next/navigation'
+import { AlertCircle, Loader2 } from 'lucide-react'
 import QuizBuilder from '@/components/quizzes/QuizBuilder'
 import { getQuiz } from '@/services/quiz'
+import { Card, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import type { QuizUpsertInput } from '@/lib/quiz/schemas'
 import type { QuizWithQuestions } from '@/types/quiz'
 
@@ -52,7 +56,31 @@ export default function EditQuizPage() {
       .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load quiz'))
   }, [id])
 
-  if (error) return <p className="p-6 text-sm text-red-600">{error}</p>
-  if (!initial) return <p className="p-6 text-sm text-gray-500">Loading…</p>
+  if (error) {
+    return (
+      <div className="mx-auto w-full max-w-5xl p-6">
+        <Card className="border-destructive/30">
+          <CardContent className="flex flex-col items-center gap-3 py-16 text-center text-sm">
+            <AlertCircle className="h-10 w-10 text-destructive/70" />
+            <p className="text-muted-foreground">{error}</p>
+            <Button asChild variant="outline" size="sm" className="mt-1">
+              <Link href="/dashboard/quizzes">Back to quizzes</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+  if (!initial) {
+    return (
+      <div className="mx-auto w-full max-w-5xl p-6">
+        <Card>
+          <CardContent className="flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" /> Loading quiz…
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
   return <QuizBuilder quizId={id} initial={initial} />
 }
