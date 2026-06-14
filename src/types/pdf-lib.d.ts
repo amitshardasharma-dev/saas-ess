@@ -39,10 +39,18 @@ declare module 'pdf-lib' {
     height?: number;
   }
 
+  export interface PDFPageDrawLineOptions {
+    start: { x: number; y: number };
+    end: { x: number; y: number };
+    thickness?: number;
+    color?: RGB;
+  }
+
   export interface PDFPage {
     getSize(): { width: number; height: number };
     drawText(text: string, options?: PDFPageDrawTextOptions): void;
     drawImage(image: PDFImage, options?: PDFPageDrawImageOptions): void;
+    drawLine(options: PDFPageDrawLineOptions): void;
   }
 
   export const StandardFonts: {
@@ -57,6 +65,7 @@ declare module 'pdf-lib' {
     ): Promise<PDFDocument>;
     static create(): Promise<PDFDocument>;
     getPages(): PDFPage[];
+    addPage(size?: [number, number]): PDFPage;
     embedFont(font: string): Promise<PDFFont>;
     embedPng(bytes: Uint8Array | ArrayBuffer | string): Promise<PDFImage>;
     save(): Promise<Uint8Array>;

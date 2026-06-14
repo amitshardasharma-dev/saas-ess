@@ -50,7 +50,7 @@ export const documentService = {
     return res.json()
   },
 
-  async createDocument(data: { title: string; description?: string; category_id?: string; access_roles?: string[]; requires_acknowledgment?: boolean }): Promise<Document> {
+  async createDocument(data: { title: string; description?: string; category_id?: string; body_markdown?: string | null; access_roles?: string[]; requires_acknowledgment?: boolean }): Promise<Document> {
     const res = await fetch('/api/documents', {
       method: 'POST',
       headers: authHeaders(),
