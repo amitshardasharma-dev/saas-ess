@@ -188,7 +188,12 @@ export const DELETE = withAuth(
       return NextResponse.json({ error: 'Certification not found' }, { status: 404 })
     }
 
-    // Record history BEFORE the delete (FK cascade would drop child rows).
+    // Record the 'revoked' history row BEFORE the delete. This row now SURVIVES
+    // the delete: migration 059 dropped the cascading FK on
+    // ess_certification_history.certification_id (spec #9, legal audit), so the
+    // dedicated history chain is preserved with its original certification_id as
+    // a dangling-but-auditable reference. (Before 059, ON DELETE CASCADE in
+    // migration 027 wiped this row the instant the cert was deleted.)
     await writeCertHistory({
       certificationId: existing.id,
       action: 'revoked',
