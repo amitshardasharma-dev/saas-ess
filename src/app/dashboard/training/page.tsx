@@ -1,17 +1,20 @@
 // src/app/dashboard/training/page.tsx
 //
 // Volunteer learning view: the modules assigned to me, each with a progress bar
-// and status chip. Opening a module hands off to the ModulePlayer. Module-gated
-// on 'training'; the section noun comes from the label resolver (training_module).
+// and status chip, plus a surfaced "My learning activity" timeline built from the
+// tracking engine's event stream. Opening a module hands off to the ModulePlayer.
+// Module-gated on 'training'; the section noun comes from the label resolver
+// (training_module).
 
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ProgressBar } from '@/components/training/progress-bar'
 import { ModulePlayer } from '@/components/training/module-player'
+import { LearningActivity, formatDuration } from '@/components/training/learning-activity'
 import { trainingService } from '@/services/training'
 import { useAuthStore } from '@/stores/auth'
 import { useLabels } from '@/hooks/use-labels'
@@ -24,6 +27,11 @@ import {
   CheckCircle2,
   PlayCircle,
   CalendarClock,
+  Clock,
+  ListChecks,
+  Activity,
+  LayoutGrid,
+  AlertTriangle,
 } from 'lucide-react'
 
 // Status chip presentation, keyed by the module's rolled-up progress status.
@@ -52,6 +60,40 @@ function dueLabel(due: string | null): { text: string; overdue: boolean } | null
   return { text: overdue ? `Overdue — was due ${text}` : `Due ${text}`, overdue }
 }
 
+// Total accrued active-view time across a module's items (a surfaced tracking
+// signal — time_spent_seconds is captured per item but never shown otherwise).
+function moduleTimeSpent(m: AssignedModule): number {
+  return m.items.reduce((sum, it) => sum + (it.progress?.time_spent_seconds ?? 0), 0)
+}
+
+type View = 'modules' | 'activity'
+
+// Small KPI tile for the summary row.
+function Stat({
+  icon: Icon,
+  label,
+  value,
+  hint,
+}: {
+  icon: typeof GraduationCap
+  label: string
+  value: string
+  hint?: string
+}) {
+  return (
+    <div className="flex items-start gap-3 rounded-lg border bg-card p-3">
+      <div className="mt-0.5 shrink-0 rounded-md bg-muted p-2">
+        <Icon className="h-4 w-4 text-muted-foreground" />
+      </div>
+      <div className="min-w-0">
+        <p className="text-lg font-semibold leading-tight text-foreground">{value}</p>
+        <p className="text-xs text-muted-foreground">{label}</p>
+        {hint ? <p className="text-xs text-muted-foreground/80">{hint}</p> : null}
+      </div>
+    </div>
+  )
+}
+
 export default function TrainingPage() {
   const { user, isAuthenticated, checkAuth } = useAuthStore()
   const { t } = useLabels()
@@ -59,6 +101,7 @@ export default function TrainingPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [activeId, setActiveId] = useState<string | null>(null)
+  const [view, setView] = useState<View>('modules')
 
   useEffect(() => {
     checkAuth()
@@ -85,10 +128,28 @@ export default function TrainingPage() {
   const sectionTitle = t('training_module', { plural: true })
   const active = modules.find((m) => m.id === activeId) ?? null
 
-  // Portfolio summary across all assigned modules (hidden while a module is open).
-  const total = modules.length
-  const completed = modules.filter((m) => m.module_status === 'complete').length
-  const overallPct = total > 0 ? Math.round((completed / total) * 100) : 0
+  // ---- Portfolio summary across all assigned modules ----
+  const summary = useMemo(() => {
+    const total = modules.length
+    const completed = modules.filter((m) => m.module_status === 'complete').length
+    const inProgress = modules.filter((m) => m.module_status === 'in_progress').length
+    const overallPct = total > 0 ? Math.round((completed / total) * 100) : 0
+
+    let requiredRemaining = 0
+    let totalSeconds = 0
+    let overdue = 0
+    for (const m of modules) {
+      requiredRemaining += m.items.filter(
+        (i) => i.required && i.progress?.status !== 'complete'
+      ).length
+      totalSeconds += moduleTimeSpent(m)
+      const due = dueLabel(m.due_at)
+      if (due?.overdue && m.module_status !== 'complete') overdue += 1
+    }
+    return { total, completed, inProgress, overallPct, requiredRemaining, totalSeconds, overdue }
+  }, [modules])
+
+  const showSummaryBadge = !active && !loading && !error && summary.total > 0
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-6 p-6">
@@ -97,20 +158,25 @@ export default function TrainingPage() {
         <div>
           <h1 className="text-2xl font-semibold text-foreground">{sectionTitle}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Your assigned learning — work through each module to stay compliant and confident.
+            Your assigned learning — work through each module to stay compliant and confident. Your
+            progress is tracked automatically.
           </p>
         </div>
-        {!active && !loading && !error && total > 0 ? (
+        {showSummaryBadge ? (
           <Badge
-            variant={completed === total ? 'secondary' : 'outline'}
-            className={completed === total ? 'bg-green-100 text-green-800 hover:bg-green-100' : ''}
+            variant={summary.completed === summary.total ? 'secondary' : 'outline'}
+            className={
+              summary.completed === summary.total
+                ? 'bg-green-100 text-green-800 hover:bg-green-100'
+                : ''
+            }
           >
-            {completed === total ? (
+            {summary.completed === summary.total ? (
               <>
                 <CheckCircle2 className="h-3.5 w-3.5" /> All complete
               </>
             ) : (
-              `${completed} of ${total} complete`
+              `${summary.completed} of ${summary.total} complete`
             )}
           </Badge>
         ) : null}
@@ -142,7 +208,7 @@ export default function TrainingPage() {
           </Button>
           <ModulePlayer module={active} onProgress={load} />
         </div>
-      ) : total === 0 ? (
+      ) : summary.total === 0 ? (
         // ---- Empty state ----
         <Card>
           <CardContent className="flex flex-col items-center gap-2 py-16 text-center text-sm text-muted-foreground">
@@ -152,87 +218,151 @@ export default function TrainingPage() {
           </CardContent>
         </Card>
       ) : (
-        // ---- Module list ----
+        // ---- Module list + activity ----
         <div className="space-y-6">
-          {/* Overall progress across all modules */}
+          {/* Overall progress + KPI tiles */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-base">
                 <GraduationCap className="h-4 w-4 text-muted-foreground" /> Overall progress
               </CardTitle>
               <CardDescription>
-                {completed === total
+                {summary.completed === summary.total
                   ? 'You have completed all assigned modules. Nicely done.'
-                  : `${total - completed} module${total - completed === 1 ? '' : 's'} still need your attention.`}
+                  : `${summary.total - summary.completed} module${
+                      summary.total - summary.completed === 1 ? '' : 's'
+                    } still need your attention.`}
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <ProgressBar percent={overallPct} />
+            <CardContent className="space-y-4">
+              <ProgressBar percent={summary.overallPct} />
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <Stat
+                  icon={CheckCircle2}
+                  label="Modules complete"
+                  value={`${summary.completed}/${summary.total}`}
+                  hint={summary.inProgress > 0 ? `${summary.inProgress} in progress` : undefined}
+                />
+                <Stat
+                  icon={ListChecks}
+                  label="Required items left"
+                  value={String(summary.requiredRemaining)}
+                  hint={summary.requiredRemaining === 0 ? 'All done' : undefined}
+                />
+                <Stat
+                  icon={Clock}
+                  label="Time spent learning"
+                  value={summary.totalSeconds > 0 ? formatDuration(summary.totalSeconds) : '—'}
+                />
+                <Stat
+                  icon={AlertTriangle}
+                  label="Overdue"
+                  value={String(summary.overdue)}
+                  hint={summary.overdue === 0 ? 'On track' : undefined}
+                />
+              </div>
             </CardContent>
           </Card>
 
-          {/* Cards */}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {modules.map((m) => {
-              const requiredRemaining = m.items.filter(
-                (i) => i.required && i.progress?.status !== 'complete'
-              ).length
-              const isComplete = m.module_status === 'complete'
-              const due = dueLabel(m.due_at)
-
-              return (
-                <Card key={m.id} className="flex flex-col transition-shadow hover:shadow-md">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <CardTitle className="text-base leading-snug">{m.title}</CardTitle>
-                      <StatusChip status={m.module_status} />
-                    </div>
-                    {m.description ? (
-                      <CardDescription className="line-clamp-2">{m.description}</CardDescription>
-                    ) : null}
-                  </CardHeader>
-
-                  <CardContent className="flex flex-1 flex-col gap-3">
-                    <ProgressBar percent={m.percent_complete} />
-
-                    <div className="flex flex-col gap-1.5 text-xs text-muted-foreground">
-                      <span className="inline-flex items-center gap-1.5">
-                        {requiredRemaining === 0 ? (
-                          <>
-                            <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
-                            All required items done
-                          </>
-                        ) : (
-                          <>
-                            <PlayCircle className="h-3.5 w-3.5" />
-                            {requiredRemaining} required item{requiredRemaining === 1 ? '' : 's'} remaining
-                          </>
-                        )}
-                      </span>
-                      {due ? (
-                        <span
-                          className={`inline-flex items-center gap-1.5 ${
-                            due.overdue ? 'text-destructive' : ''
-                          }`}
-                        >
-                          <CalendarClock className="h-3.5 w-3.5" />
-                          {due.text}
-                        </span>
-                      ) : null}
-                    </div>
-
-                    <Button
-                      className="mt-auto w-full"
-                      variant={isComplete ? 'outline' : 'default'}
-                      onClick={() => setActiveId(m.id)}
-                    >
-                      {isComplete ? 'Review' : m.module_status === 'not_started' ? 'Start' : 'Continue'}
-                    </Button>
-                  </CardContent>
-                </Card>
-              )
-            })}
+          {/* View toggle: modules grid vs. surfaced activity timeline */}
+          <div className="flex items-center gap-1 rounded-lg border bg-muted/40 p-1 w-fit">
+            <Button
+              variant={view === 'modules' ? 'default' : 'ghost'}
+              size="sm"
+              className="gap-1.5"
+              onClick={() => setView('modules')}
+              aria-pressed={view === 'modules'}
+            >
+              <LayoutGrid className="h-4 w-4" /> My {sectionTitle.toLowerCase()}
+            </Button>
+            <Button
+              variant={view === 'activity' ? 'default' : 'ghost'}
+              size="sm"
+              className="gap-1.5"
+              onClick={() => setView('activity')}
+              aria-pressed={view === 'activity'}
+            >
+              <Activity className="h-4 w-4" /> My learning activity
+            </Button>
           </div>
+
+          {view === 'activity' ? (
+            <LearningActivity modules={modules} />
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {modules.map((m) => {
+                const requiredRemaining = m.items.filter(
+                  (i) => i.required && i.progress?.status !== 'complete'
+                ).length
+                const isComplete = m.module_status === 'complete'
+                const due = dueLabel(m.due_at)
+                const spent = moduleTimeSpent(m)
+                const itemsDone = m.items.filter((i) => i.progress?.status === 'complete').length
+
+                return (
+                  <Card key={m.id} className="flex flex-col transition-shadow hover:shadow-md">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <CardTitle className="text-base leading-snug">{m.title}</CardTitle>
+                        <StatusChip status={m.module_status} />
+                      </div>
+                      {m.description ? (
+                        <CardDescription className="line-clamp-2">{m.description}</CardDescription>
+                      ) : null}
+                    </CardHeader>
+
+                    <CardContent className="flex flex-1 flex-col gap-3">
+                      <ProgressBar percent={m.percent_complete} />
+
+                      <div className="flex flex-col gap-1.5 text-xs text-muted-foreground">
+                        <span className="inline-flex items-center gap-1.5">
+                          <ListChecks className="h-3.5 w-3.5" />
+                          {itemsDone} of {m.items.length} item{m.items.length === 1 ? '' : 's'} done
+                        </span>
+                        <span className="inline-flex items-center gap-1.5">
+                          {requiredRemaining === 0 ? (
+                            <>
+                              <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
+                              All required items done
+                            </>
+                          ) : (
+                            <>
+                              <PlayCircle className="h-3.5 w-3.5" />
+                              {requiredRemaining} required item{requiredRemaining === 1 ? '' : 's'} remaining
+                            </>
+                          )}
+                        </span>
+                        {spent > 0 ? (
+                          <span className="inline-flex items-center gap-1.5">
+                            <Clock className="h-3.5 w-3.5" />
+                            {formatDuration(spent)} spent
+                          </span>
+                        ) : null}
+                        {due ? (
+                          <span
+                            className={`inline-flex items-center gap-1.5 ${
+                              due.overdue && !isComplete ? 'text-destructive' : ''
+                            }`}
+                          >
+                            <CalendarClock className="h-3.5 w-3.5" />
+                            {due.text}
+                          </span>
+                        ) : null}
+                      </div>
+
+                      <Button
+                        className="mt-auto w-full"
+                        variant={isComplete ? 'outline' : 'default'}
+                        onClick={() => setActiveId(m.id)}
+                      >
+                        {isComplete ? 'Review' : m.module_status === 'not_started' ? 'Start' : 'Continue'}
+                      </Button>
+                    </CardContent>
+                  </Card>
+                )
+              })}
+            </div>
+          )}
         </div>
       )}
     </div>

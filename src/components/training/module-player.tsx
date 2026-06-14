@@ -4,10 +4,15 @@
 // quiz), records acknowledgement + time ticks via the training service, and
 // reflects per-item completion. Time ticks are throttled client-side to one
 // every 15s of active view (server also caps + throttles).
+//
+// Surfaces tracking data the engine captures but the learner never saw before:
+// per-item time spent, per-item completion dates, the module's total accrued
+// time, and an explicit "what's left to finish this module" summary. All
+// track() calls + event names are unchanged — this layer only reads + presents.
 
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
 import { Button } from '@/components/ui/button'
@@ -15,11 +20,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { VideoEmbed } from './video-embed'
 import { ProgressBar } from './progress-bar'
+import { formatDuration, formatDateTime } from './learning-activity'
 import { trainingService } from '@/services/training'
 import type { AssignedModule, TrainingItemWithProgress, TrainingItemType } from '@/types/training'
 import {
   CheckCircle2,
   Circle,
+  CircleDashed,
   FileText,
   PlayCircle,
   HelpCircle,
@@ -27,6 +34,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Lock,
+  Clock,
+  ListChecks,
+  ExternalLink,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -60,6 +70,7 @@ export function ModulePlayer({ module, onProgress }: ModulePlayerProps) {
   }, [module.items])
 
   // Throttled time-tick for the active item while it is open and incomplete.
+  // (Unchanged contract — fires trainingService.track(id, 'time_tick', 15).)
   useEffect(() => {
     if (!active || active.progress?.status === 'complete') return
     tickRef.current = setInterval(() => {
@@ -84,13 +95,31 @@ export function ModulePlayer({ module, onProgress }: ModulePlayerProps) {
     }
   }
 
+  // Record the download event (unchanged contract), reflect in-progress locally,
+  // then open the document surface where the file actually lives.
   const onDownload = async (item: TrainingItemWithProgress) => {
-    await trainingService.track(item.id, 'doc_downloaded')
-    if (item.video_url) return // (defensive — documents use document_id, opened by the doc surface)
+    const progress = await trainingService.track(item.id, 'doc_downloaded')
+    if (progress) {
+      setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, progress } : i)))
+      onProgress?.()
+    }
+    if (item.document_id && typeof window !== 'undefined') {
+      window.open(`/dashboard/documents/${item.document_id}`, '_blank', 'noopener,noreferrer')
+    }
   }
 
   const completedCount = items.filter((i) => i.progress?.status === 'complete').length
   const totalCount = items.length
+
+  // Surfaced tracking rollups.
+  const moduleSeconds = useMemo(
+    () => items.reduce((sum, i) => sum + (i.progress?.time_spent_seconds ?? 0), 0),
+    [items]
+  )
+  const remainingRequired = useMemo(
+    () => items.filter((i) => i.required && i.progress?.status !== 'complete'),
+    [items]
+  )
 
   return (
     <div className="space-y-4">
@@ -120,12 +149,63 @@ export function ModulePlayer({ module, onProgress }: ModulePlayerProps) {
             </Badge>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-3">
           <ProgressBar percent={module.percent_complete} />
-          <p className="mt-2 text-sm text-muted-foreground">
-            <span className="font-medium text-foreground">{completedCount}</span> of {totalCount}{' '}
-            item{totalCount === 1 ? '' : 's'} complete
-          </p>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+            <span className="inline-flex items-center gap-1.5">
+              <ListChecks className="h-4 w-4" />
+              <span className="font-medium text-foreground">{completedCount}</span>&nbsp;of&nbsp;
+              {totalCount} item{totalCount === 1 ? '' : 's'} complete
+            </span>
+            {moduleSeconds > 0 ? (
+              <span className="inline-flex items-center gap-1.5">
+                <Clock className="h-4 w-4" />
+                <span className="font-medium text-foreground">{formatDuration(moduleSeconds)}</span>
+                &nbsp;spent
+              </span>
+            ) : null}
+          </div>
+
+          {/* What's left to finish this module */}
+          {module.module_status === 'complete' ? (
+            <div className="flex items-center gap-2 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800">
+              <CheckCircle2 className="h-4 w-4 shrink-0" />
+              You&apos;ve completed this module. Feel free to review any item below.
+            </div>
+          ) : remainingRequired.length > 0 ? (
+            <div className="rounded-md border bg-muted/40 px-3 py-2 text-sm">
+              <p className="font-medium text-foreground">
+                {remainingRequired.length} required item
+                {remainingRequired.length === 1 ? '' : 's'} left to finish this module
+              </p>
+              <ul className="mt-1 space-y-0.5 text-muted-foreground">
+                {remainingRequired.slice(0, 4).map((i) => {
+                  const idx = items.findIndex((x) => x.id === i.id)
+                  const Icon = typeMeta(i.type).icon
+                  return (
+                    <li key={i.id}>
+                      <button
+                        type="button"
+                        onClick={() => idx >= 0 && setActiveIndex(idx)}
+                        className="inline-flex items-center gap-1.5 text-left hover:text-foreground hover:underline"
+                      >
+                        <Icon className="h-3.5 w-3.5 shrink-0" />
+                        {i.title}
+                      </button>
+                    </li>
+                  )
+                })}
+                {remainingRequired.length > 4 ? (
+                  <li className="text-xs">+{remainingRequired.length - 4} more</li>
+                ) : null}
+              </ul>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              <CircleDashed className="h-4 w-4 shrink-0" />
+              All required items are done — this module will complete automatically.
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -136,33 +216,52 @@ export function ModulePlayer({ module, onProgress }: ModulePlayerProps) {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4 md:grid-cols-[240px_1fr]">
+        <div className="grid gap-4 md:grid-cols-[260px_1fr]">
           {/* Item list / outline */}
           <nav aria-label="Module items" className="space-y-1">
             {items.map((item, idx) => {
               const isDone = item.progress?.status === 'complete'
+              const inProgress = item.progress?.status === 'in_progress'
               const TypeIcon = typeMeta(item.type).icon
               const isActive = idx === activeIndex
+              const secs = item.progress?.time_spent_seconds ?? 0
               return (
                 <button
                   key={item.id}
                   onClick={() => setActiveIndex(idx)}
                   aria-current={isActive ? 'true' : undefined}
-                  className={`flex w-full items-center gap-2.5 rounded-md border px-3 py-2 text-left text-sm transition-colors ${
+                  className={`flex w-full items-start gap-2.5 rounded-md border px-3 py-2 text-left text-sm transition-colors ${
                     isActive
                       ? 'border-border bg-muted/60 font-medium text-foreground'
                       : 'border-transparent text-muted-foreground hover:bg-muted/40 hover:text-foreground'
                   }`}
                 >
                   {isDone ? (
-                    <CheckCircle2 className="h-4 w-4 shrink-0 text-green-600" aria-label="Complete" />
+                    <CheckCircle2
+                      className="mt-0.5 h-4 w-4 shrink-0 text-green-600"
+                      aria-label="Complete"
+                    />
+                  ) : inProgress ? (
+                    <CircleDashed
+                      className="mt-0.5 h-4 w-4 shrink-0 text-amber-500"
+                      aria-label="In progress"
+                    />
                   ) : (
-                    <Circle className="h-4 w-4 shrink-0 text-muted-foreground/40" />
+                    <Circle className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground/40" />
                   )}
-                  <TypeIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
-                  <span className="truncate">{item.title}</span>
+                  <TypeIcon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate">{item.title}</span>
+                    {secs > 0 ? (
+                      <span className="block text-xs text-muted-foreground/80">
+                        {formatDuration(secs)} spent
+                      </span>
+                    ) : null}
+                  </span>
                   {!item.required ? (
-                    <span className="ml-auto shrink-0 text-xs text-muted-foreground/70">Optional</span>
+                    <span className="ml-auto mt-0.5 shrink-0 text-xs text-muted-foreground/70">
+                      Optional
+                    </span>
                   ) : null}
                 </button>
               )
@@ -189,7 +288,10 @@ export function ModulePlayer({ module, onProgress }: ModulePlayerProps) {
                       {typeMeta(active.type).label}
                     </Badge>
                     {active.progress?.status === 'complete' ? (
-                      <Badge variant="secondary" className="bg-green-100 text-green-800 hover:bg-green-100">
+                      <Badge
+                        variant="secondary"
+                        className="bg-green-100 text-green-800 hover:bg-green-100"
+                      >
                         <CheckCircle2 className="h-3.5 w-3.5" /> Complete
                       </Badge>
                     ) : !active.required ? (
@@ -197,6 +299,24 @@ export function ModulePlayer({ module, onProgress }: ModulePlayerProps) {
                     ) : null}
                   </div>
                 </div>
+                {/* Per-item tracking line (time spent + completion date) */}
+                {(active.progress?.time_spent_seconds ?? 0) > 0 ||
+                active.progress?.completed_at ? (
+                  <p className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+                    {(active.progress?.time_spent_seconds ?? 0) > 0 ? (
+                      <span className="inline-flex items-center gap-1">
+                        <Clock className="h-3.5 w-3.5" />
+                        {formatDuration(active.progress?.time_spent_seconds)} spent
+                      </span>
+                    ) : null}
+                    {active.progress?.completed_at ? (
+                      <span className="inline-flex items-center gap-1">
+                        <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
+                        Completed {formatDateTime(active.progress.completed_at)}
+                      </span>
+                    ) : null}
+                  </p>
+                ) : null}
               </CardHeader>
 
               <CardContent className="space-y-4">
@@ -214,6 +334,13 @@ export function ModulePlayer({ module, onProgress }: ModulePlayerProps) {
                   </>
                 ) : null}
 
+                {/* Video item with no URL (defensive) */}
+                {active.type === 'video' && !active.video_url ? (
+                  <div className="flex items-center gap-2 rounded-lg border bg-muted/40 p-4 text-sm text-muted-foreground">
+                    <Lock className="h-4 w-4 shrink-0" /> This video isn&apos;t available yet.
+                  </div>
+                ) : null}
+
                 {/* Document */}
                 {active.type === 'document' ? (
                   <div className="space-y-3">
@@ -223,14 +350,19 @@ export function ModulePlayer({ module, onProgress }: ModulePlayerProps) {
                           <FileText className="h-5 w-5 text-primary" />
                         </div>
                         <p className="text-sm text-muted-foreground">
-                          Download and read this document, then confirm you&apos;ve read and
+                          Open and read this document, then confirm you&apos;ve read and
                           acknowledged it.
                         </p>
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      <Button variant="outline" onClick={() => onDownload(active)}>
-                        <Download className="h-4 w-4" /> Download
+                      <Button
+                        variant="outline"
+                        onClick={() => onDownload(active)}
+                        disabled={!active.document_id}
+                      >
+                        <Download className="h-4 w-4" /> Open document
+                        <ExternalLink className="h-3.5 w-3.5 opacity-70" />
                       </Button>
                       <Button
                         disabled={active.progress?.status === 'complete'}
@@ -260,13 +392,17 @@ export function ModulePlayer({ module, onProgress }: ModulePlayerProps) {
                       </div>
                     </div>
                     {active.progress?.status === 'complete' ? (
-                      <Badge variant="secondary" className="bg-green-100 text-green-800 hover:bg-green-100">
+                      <Badge
+                        variant="secondary"
+                        className="bg-green-100 text-green-800 hover:bg-green-100"
+                      >
                         <CheckCircle2 className="h-3.5 w-3.5" /> Passed
                       </Badge>
                     ) : active.quiz_id ? (
                       <Button asChild>
                         <Link href={`/dashboard/training/quiz/${active.quiz_id}?item=${active.id}`}>
-                          <HelpCircle className="h-4 w-4" /> Start quiz
+                          <HelpCircle className="h-4 w-4" />
+                          {active.progress?.status === 'in_progress' ? 'Retake quiz' : 'Start quiz'}
                         </Link>
                       </Button>
                     ) : (
@@ -288,6 +424,9 @@ export function ModulePlayer({ module, onProgress }: ModulePlayerProps) {
                   >
                     <ChevronLeft className="h-4 w-4" /> Previous
                   </Button>
+                  <span className="text-xs text-muted-foreground">
+                    {activeIndex + 1} of {totalCount}
+                  </span>
                   <Button
                     variant="ghost"
                     size="sm"
