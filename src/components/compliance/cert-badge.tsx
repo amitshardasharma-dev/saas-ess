@@ -1,13 +1,32 @@
 // Per-profile certification status badge (valid / expiring / expired).
-// Traffic-light colors; reusable on profiles and in the compliance dashboard.
+// Traffic-light tones; reusable on profiles, the compliance dashboard, and the
+// volunteer "My certifications" view. Built on the shared Badge primitive so it
+// matches the document status chips (neutral tokens, lucide icons).
 'use client'
 
+import { Badge } from '@/components/ui/badge'
+import { CheckCircle2, Clock, AlertTriangle } from 'lucide-react'
 import type { CertStatus } from '@/lib/compliance/expiry'
 
-const STATUS_STYLES: Record<CertStatus, { bg: string; fg: string; label: string }> = {
-  valid: { bg: '#dcfce7', fg: '#166534', label: 'Valid' },
-  expiring: { bg: '#fef9c3', fg: '#854d0e', label: 'Expiring' },
-  expired: { bg: '#fee2e2', fg: '#991b1b', label: 'Expired' },
+const STATUS_STYLES: Record<
+  CertStatus,
+  { className: string; label: string; Icon: React.ComponentType<{ className?: string }> }
+> = {
+  valid: {
+    className: 'bg-green-100 text-green-800 hover:bg-green-100',
+    label: 'Valid',
+    Icon: CheckCircle2,
+  },
+  expiring: {
+    className: 'bg-amber-100 text-amber-800 hover:bg-amber-100',
+    label: 'Expiring',
+    Icon: Clock,
+  },
+  expired: {
+    className: 'bg-red-100 text-red-800 hover:bg-red-100',
+    label: 'Expired',
+    Icon: AlertTriangle,
+  },
 }
 
 export interface CertBadgeProps {
@@ -18,19 +37,11 @@ export interface CertBadgeProps {
 
 export function CertBadge({ status, text }: CertBadgeProps) {
   const style = STATUS_STYLES[status] ?? STATUS_STYLES.valid
+  const { Icon } = style
   return (
-    <span
-      style={{
-        display: 'inline-block',
-        padding: '2px 8px',
-        borderRadius: 9999,
-        fontSize: 12,
-        fontWeight: 600,
-        backgroundColor: style.bg,
-        color: style.fg,
-      }}
-    >
+    <Badge variant="secondary" className={style.className}>
+      <Icon className="h-3.5 w-3.5" />
       {text ?? style.label}
-    </span>
+    </Badge>
   )
 }
