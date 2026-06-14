@@ -82,3 +82,24 @@ export function indicatorForStatus(status: CertStatus): 'green' | 'amber' | 'red
       return 'green'
   }
 }
+
+/**
+ * Decide a certification's expiry on a PATCH/renew (spec #14). Pure (no I/O) so
+ * it lives here, not in the route module (Next route files may only export
+ * handlers/config). Mirrors the create-path auto-derive:
+ *  1. explicit expiry_date in the body always wins (incl. explicit null);
+ *  2. else if completion_date changed, re-derive via calcExpiry(newCompletion, validityMonths);
+ *  3. else keep the stored expiry.
+ */
+export function resolveRenewalExpiry(args: {
+  expiryProvided: boolean
+  providedExpiry: string | null | undefined
+  completionProvided: boolean
+  newCompletion: string | null | undefined
+  validityMonths: number | null | undefined
+  existingExpiry: string | null | undefined
+}): string | null {
+  if (args.expiryProvided) return args.providedExpiry ?? null
+  if (args.completionProvided) return calcExpiry(args.newCompletion, args.validityMonths)
+  return args.existingExpiry ?? null
+}

@@ -21,7 +21,7 @@
 jest.mock('@/lib/supabase-server', () => ({ supabaseAdmin: { from: jest.fn() } }))
 jest.mock('@/lib/supabase-admin', () => ({ supabaseAdmin: { from: jest.fn() } }))
 
-import { resolveRenewalExpiry } from '@/app/api/certifications/[id]/route'
+import { resolveRenewalExpiry } from '@/lib/compliance/expiry'
 import { calcExpiry } from '@/lib/compliance/expiry'
 
 describe('resolveRenewalExpiry — renewal expiry auto-recalc', () => {

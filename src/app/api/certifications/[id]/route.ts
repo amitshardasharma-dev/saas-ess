@@ -7,7 +7,7 @@ import { supabaseAdmin } from '@/lib/supabase-server'
 import { withAuth, type AuthContext } from '@/lib/auth-middleware'
 import { assertModuleEnabled, ModuleDisabledError } from '@/lib/modules'
 import { recordAudit } from '@/lib/audit'
-import { calcExpiry, calcStatus, daysUntil, indicatorForStatus } from '@/lib/compliance/expiry'
+import { calcStatus, daysUntil, indicatorForStatus, resolveRenewalExpiry } from '@/lib/compliance/expiry'
 import { writeCertHistory, scheduleReminders, maybeAdvanceOnboarding } from '@/services/compliance'
 import { certificationUpdateSchema } from '@/types/compliance'
 
@@ -26,28 +26,6 @@ import { certificationUpdateSchema } from '@/types/compliance'
  *
  * Pure + deterministic so the recalc decision is unit-testable without the route.
  */
-export function resolveRenewalExpiry(args: {
-  /** Was expiry_date present in the parsed PATCH body (key supplied)? */
-  expiryProvided: boolean
-  /** The explicit expiry value when provided (may be null). */
-  providedExpiry: string | null | undefined
-  /** Was completion_date present in the parsed PATCH body (key supplied)? */
-  completionProvided: boolean
-  /** The new completion value when provided (may be null). */
-  newCompletion: string | null | undefined
-  /** Cert type's validity window in months (null/undefined -> never expires). */
-  validityMonths: number | null | undefined
-  /** The cert's current expiry, used when nothing forces a recalc. */
-  existingExpiry: string | null | undefined
-}): string | null {
-  // 1. Explicit expiry always wins — preserves existing caller-override behavior.
-  if (args.expiryProvided) return args.providedExpiry ?? null
-  // 2. Completion changed without an explicit expiry -> re-derive from new dates.
-  if (args.completionProvided) return calcExpiry(args.newCompletion, args.validityMonths)
-  // 3. Nothing forces a recalc -> keep the stored expiry.
-  return args.existingExpiry ?? null
-}
-
 async function ensureModule(companyId: string): Promise<NextResponse | null> {
   try {
     await assertModuleEnabled(companyId, 'compliance')
