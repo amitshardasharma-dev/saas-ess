@@ -31,6 +31,85 @@ type Fail = { ok: false; status: number; error: string }
 type CreateOk = { ok: true; person: PersonSummary; tempPassword?: string }
 type UpdateOk = { ok: true; person: PersonSummary }
 
+export interface PersonDetail {
+  id: string
+  name: string
+  email: string | null
+  phone: string | null
+  employeeNo: string | null
+  department: string | null
+  designation: string | null
+  status: string | null
+  dateOfJoining: string | null
+  role: UserRole
+  isActive: boolean
+  onboarding: {
+    status: OnboardingStatus
+    completedAt: string | null
+    steps: { id: string; title: string; description: string | null; status: string; sortOrder: number; completedAt: string | null }[]
+  }
+  certifications: { id: string; title: string; status: string; completionDate: string | null; expiryDate: string | null }[]
+  documents: { id: string; title: string; signedAt: string }[]
+  training: { moduleId: string; title: string; percent: number; status: string; completedAt: string | null }[]
+  activity: { action: string; at: string; meta: Record<string, unknown> }[]
+}
+
+/**
+ * Aggregate a single volunteer's complete record (company-scoped). Returns null
+ * for a missing / foreign-tenant id (caller maps to 404 — no existence leak).
+ */
+export async function getPersonDetail(employeeId: string, companyId: string): Promise<PersonDetail | null> {
+  const { data: emp } = await supabaseAdmin
+    .from('ess_employees')
+    .select('id, full_name, email, phone, employee_no, department, designation, status, date_of_joining, app_user_id')
+    .eq('id', employeeId)
+    .eq('company_id', companyId)
+    .maybeSingle()
+  if (!emp) return null
+
+  const [{ data: au }, { data: state }, { data: steps }, { data: certs }, { data: signed }, { data: training }, { data: activity }] =
+    await Promise.all([
+      supabaseAdmin.from('ess_app_users').select('role, is_active').eq('id', emp.app_user_id ?? '').maybeSingle(),
+      supabaseAdmin.from('ess_onboarding_states').select('status, completed_at').eq('company_id', companyId).eq('employee_id', employeeId).maybeSingle(),
+      supabaseAdmin.from('ess_onboarding_steps').select('id, title, description, status, sort_order, completed_at').eq('company_id', companyId).eq('employee_id', employeeId).order('sort_order', { ascending: true }),
+      supabaseAdmin.from('ess_certifications').select('id, title, status, completion_date, expiry_date').eq('company_id', companyId).eq('employee_id', employeeId).order('expiry_date', { ascending: true, nullsFirst: false }),
+      supabaseAdmin.from('ess_signed_documents').select('id, signed_at, ess_documents ( title )').eq('company_id', companyId).eq('employee_id', employeeId).order('signed_at', { ascending: false }),
+      supabaseAdmin.from('ess_training_progress').select('module_id, percent_complete, status, completed_at, ess_training_modules ( title )').eq('company_id', companyId).eq('employee_id', employeeId),
+      supabaseAdmin.from('ess_audit_log').select('action, created_at, meta').eq('company_id', companyId).eq('target_id', employeeId).order('created_at', { ascending: false }).limit(20),
+    ])
+
+  return {
+    id: emp.id,
+    name: emp.full_name ?? '(unnamed)',
+    email: emp.email ?? null,
+    phone: emp.phone ?? null,
+    employeeNo: emp.employee_no ?? null,
+    department: emp.department ?? null,
+    designation: emp.designation ?? null,
+    status: emp.status ?? null,
+    dateOfJoining: emp.date_of_joining ?? null,
+    role: (au?.role as UserRole) ?? 'employee',
+    isActive: au?.is_active ?? true,
+    onboarding: {
+      status: (state?.status as OnboardingStatus) ?? 'not_started',
+      completedAt: state?.completed_at ?? null,
+      steps: (steps ?? []).map((s) => ({
+        id: s.id, title: s.title, description: s.description ?? null, status: s.status, sortOrder: s.sort_order, completedAt: s.completed_at ?? null,
+      })),
+    },
+    certifications: (certs ?? []).map((c) => ({
+      id: c.id, title: c.title, status: c.status, completionDate: c.completion_date ?? null, expiryDate: c.expiry_date ?? null,
+    })),
+    documents: (signed ?? []).map((d) => ({
+      id: d.id, title: (d.ess_documents as { title?: string } | null)?.title ?? 'Signed document', signedAt: d.signed_at,
+    })),
+    training: (training ?? []).map((t) => ({
+      moduleId: t.module_id, title: (t.ess_training_modules as { title?: string } | null)?.title ?? 'Module', percent: Number(t.percent_complete) || 0, status: t.status, completedAt: t.completed_at ?? null,
+    })),
+    activity: (activity ?? []).map((a) => ({ action: a.action, at: a.created_at, meta: (a.meta as Record<string, unknown>) ?? {} })),
+  }
+}
+
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 function genTempPassword(): string {

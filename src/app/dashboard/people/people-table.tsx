@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { roleManageLabel, USER_ROLES } from '@/types/roles';
@@ -40,6 +41,7 @@ export function PeopleTable({
   canManage?: boolean;
   onChanged?: () => void;
 }) {
+  const router = useRouter();
   const [query, setQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<UserRole | 'all'>('all');
   const [orgFilter, setOrgFilter] = useState<string>('all');
@@ -147,7 +149,15 @@ export function PeopleTable({
               const editing = editId === p.id;
               return (
                 <tr key={p.id} className="border-b last:border-0 hover:bg-muted/30">
-                  <td className={`${td} font-medium`}>{p.name}</td>
+                  <td className={`${td} font-medium`}>
+                    <button
+                      type="button"
+                      onClick={() => router.push(`/dashboard/people/${p.id}`)}
+                      className="text-primary hover:underline text-left"
+                    >
+                      {p.name}
+                    </button>
+                  </td>
                   <td className={`${td} text-muted-foreground`}>{p.email ?? '—'}</td>
                   <td className={td}>
                     {editing ? (

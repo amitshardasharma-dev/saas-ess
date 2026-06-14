@@ -1,7 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth-middleware';
-import { updatePerson } from '@/lib/people-admin';
+import { updatePerson, getPersonDetail } from '@/lib/people-admin';
 import { recordAudit } from '@/lib/audit';
+
+// GET /api/people/[id] → { person } — full volunteer record (manager+).
+// Company-scoped; a foreign-tenant id resolves to 404 (no existence leak).
+export const GET = withAuth(
+  async (_request: NextRequest, { companyId }, params) => {
+    const id = params?.id;
+    if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
+    const person = await getPersonDetail(id, companyId);
+    if (!person) return NextResponse.json({ error: 'Person not found' }, { status: 404 });
+    return NextResponse.json({ person });
+  },
+  { minRole: 'manager' }
+);
 
 // PATCH /api/people/[id] → { person } — manage a user profile (Admin).
 // [id] is the employee UUID. Edits name/department/role/active for a person in
