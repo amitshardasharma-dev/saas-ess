@@ -11,21 +11,8 @@ import { calcStatus, daysUntil, indicatorForStatus, resolveRenewalExpiry } from 
 import { writeCertHistory, scheduleReminders, maybeAdvanceOnboarding } from '@/services/compliance'
 import { certificationUpdateSchema } from '@/types/compliance'
 
-/**
- * Decide a certification's next expiry on PATCH (renew/recertify).
- *
- * Renewal recalc rule (mirrors the POST handler's auto-derive):
- *  - An explicitly-supplied expiry_date always wins (even null — caller intent).
- *  - Otherwise, when completion_date is being changed, re-derive expiry from the
- *    NEW completion + the cert type's validity_months via calcExpiry. This is the
- *    bug fix: changing only completion_date previously left the STALE old expiry.
- *  - Otherwise (no expiry, completion unchanged) keep the existing expiry.
- *
- * calcExpiry already returns null when completion or validity is null, so a cert
- * with no cert_type / no validity simply gets a null expiry (never expires).
- *
- * Pure + deterministic so the recalc decision is unit-testable without the route.
- */
+// Renewal expiry recalc lives in @/lib/compliance/expiry (resolveRenewalExpiry) —
+// route files may only export handlers, so the pure helper sits in the lib.
 async function ensureModule(companyId: string): Promise<NextResponse | null> {
   try {
     await assertModuleEnabled(companyId, 'compliance')
