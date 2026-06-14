@@ -8,6 +8,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { DocumentViewer } from '@/components/documents/document-viewer'
 import { useAuthStore } from '@/stores/auth'
 import { documentService } from '@/services/document'
 import { Document, DocumentVersion } from '@/types/document'
@@ -138,6 +139,21 @@ export default function DocumentDetailPage() {
 
           {signed && !needsAck ? <Badge className="bg-green-100 px-3 py-1.5 text-green-800 hover:bg-green-100"><CheckCircle2 className="h-4 w-4" /> Signed</Badge> : null}
           {acknowledged && !needsSign ? <Badge className="bg-green-100 px-3 py-1.5 text-green-800 hover:bg-green-100"><CheckCircle2 className="h-4 w-4" /> Acknowledged</Badge> : null}
+        </CardContent>
+      </Card>
+
+      {/* Document content */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base"><FileText className="h-4 w-4 text-muted-foreground" /> Document</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <DocumentViewer
+            documentId={document.id}
+            bodyMarkdown={document.body_markdown}
+            hasFile={Boolean(latestVersion)}
+            versionId={latestVersion?.id}
+          />
         </CardContent>
       </Card>
 
