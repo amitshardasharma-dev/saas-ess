@@ -48,6 +48,10 @@ export interface DocumentAcknowledgment {
 export interface DocumentWithVersion extends Document {
   latest_version?: DocumentVersion
   acknowledged?: boolean
+  /** Latest version has e-sign fields (this document is signed, not just acknowledged). */
+  signable?: boolean
+  /** The current employee has a signed record for this document. */
+  signed?: boolean
   acknowledgment_count?: number
   total_employees?: number
 }

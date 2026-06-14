@@ -79,6 +79,29 @@ export const GET = withAuth(async (request, { companyId, role, employee }) => {
     }
   }
 
+  // Signable = latest version has e-sign fields; signed = current employee has a
+  // signed record for the document. Batched (one query each) to avoid N+1.
+  const latestVersionIds = filtered
+    .map((doc) => (doc.ess_document_versions || []).slice().sort((a, b) => b.version_number - a.version_number)[0]?.id)
+    .filter((v): v is string => Boolean(v))
+  const signableVersions = new Set<string>()
+  if (latestVersionIds.length) {
+    const { data: fieldRows } = await supabaseAdmin
+      .from('ess_document_fields')
+      .select('version_id')
+      .in('version_id', latestVersionIds)
+    for (const f of (fieldRows || []) as Array<{ version_id: string }>) signableVersions.add(f.version_id)
+  }
+  const signedDocs = new Set<string>()
+  if (employee) {
+    const { data: sigRows } = await supabaseAdmin
+      .from('ess_signed_documents')
+      .select('document_id')
+      .eq('company_id', companyId)
+      .eq('employee_id', employee.id)
+    for (const s of (sigRows || []) as Array<{ document_id: string }>) signedDocs.add(s.document_id)
+  }
+
   const processed = filtered.map((doc) => {
     const versions = doc.ess_document_versions || []
     const latestVersion = versions.sort((a, b) => b.version_number - a.version_number)[0]
@@ -105,6 +128,8 @@ export const GET = withAuth(async (request, { companyId, role, employee }) => {
       updated_at: doc.updated_at,
       latest_version: latestVersion || null,
       acknowledged,
+      signable: latestVersion ? signableVersions.has(latestVersion.id) : false,
+      signed: signedDocs.has(doc.id),
     }
   })
 

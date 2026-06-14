@@ -41,6 +41,27 @@ export const GET = withAuth(async (_request, { companyId, employee }, params) =>
     acknowledged = !!ack
   }
 
+  // Signable = latest version has e-sign fields; signed = current employee signed it.
+  let signable = false
+  let signed = false
+  if (latestVersion) {
+    const { count } = await supabaseAdmin
+      .from('ess_document_fields')
+      .select('id', { count: 'exact', head: true })
+      .eq('version_id', latestVersion.id)
+    signable = (count ?? 0) > 0
+  }
+  if (employee) {
+    const { data: sig } = await supabaseAdmin
+      .from('ess_signed_documents')
+      .select('id, signed_at')
+      .eq('document_id', id)
+      .eq('employee_id', employee.id)
+      .order('signed_at', { ascending: false })
+      .limit(1)
+    signed = !!(sig && sig.length)
+  }
+
   // Track read
   if (employee) {
     await supabaseAdmin
@@ -59,6 +80,8 @@ export const GET = withAuth(async (_request, { companyId, employee }, params) =>
     },
     versions: versions || [],
     acknowledged,
+    signable,
+    signed,
   })
 })
 
