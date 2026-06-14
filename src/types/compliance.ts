@@ -70,6 +70,25 @@ export const certificationCreateSchema = z
 
 export type CertificationCreateInput = z.infer<typeof certificationCreateSchema>
 
+/**
+ * Self-service certification create (the volunteer-facing
+ * /api/profile/certifications POST). Deliberately differs from
+ * certificationCreateSchema:
+ *  - NO employee_id field: identity is forced to ctx.employee.id server-side and
+ *    never read from the body.
+ *  - cert_type_id is REQUIRED: a volunteer always picks a company-defined type.
+ *  - NOT `.strict()`: extra/unexpected keys (e.g. an attempted employee_id in the
+ *    body) are silently ignored rather than rejected, which is the security
+ *    contract — a body employee_id has no effect.
+ */
+export const selfCertificationCreateSchema = z.object({
+  cert_type_id: z.string().uuid(),
+  title: z.string().min(1),
+  completion_date: z.string().regex(ISO_DATE).nullable().optional(),
+})
+
+export type SelfCertificationCreateInput = z.infer<typeof selfCertificationCreateSchema>
+
 export const certificationUpdateSchema = z
   .object({
     title: z.string().min(1).optional(),
