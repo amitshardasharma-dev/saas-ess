@@ -1,193 +1,172 @@
 import { NextRequest, NextResponse } from 'next/server'
-import config from '@/config/environment'
-
-interface ApprovalHistoryItem {
-	leave_id: string
-	employee: string
-	employee_name: string
-	leave_type: string
-	from_date: string
-	till_date: string
-	total_days: number
-	reason: string
-	my_action: string
-	action_date: string
-	remarks?: string
-	final_status: string
-	creation: string
-	approved_level?: number
-}
+import { supabaseAdmin } from '@/lib/supabase-server'
 
 export async function GET(request: NextRequest) {
 	try {
-		const cookieHeader = request.headers.get('cookie')
-		
-		if (!cookieHeader) {
+		const authHeader = request.headers.get('Authorization')
+		const token = authHeader?.replace('Bearer ', '')
+
+		if (!token) {
 			return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
 		}
 
-		console.log('Fetching Approval History from Frappe...')
-		console.log('Cookie header present:', !!cookieHeader)
-
-		// Extract user info from cookies to get current user's employee ID
-		const userResponse = await fetch(`${config.frappe.url.replace(/\/$/, '')}/api/method/frappe.auth.get_logged_user`, {
-			method: 'GET',
-			headers: {
-				...(cookieHeader && { Cookie: cookieHeader }),
-			},
-		})
-
-		if (!userResponse.ok) {
-			console.log('Failed to get current user:', userResponse.status)
-			return NextResponse.json({ error: 'Authentication failed' }, { status: 401 })
+		const { data: { user: authUser }, error: authError } = await supabaseAdmin.auth.getUser(token)
+		if (authError || !authUser) {
+			return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
 		}
 
-		const userData = await userResponse.json()
-		const currentUser = userData.message
-		console.log('Current user authenticated:', currentUser)
+		const { data: appUser } = await supabaseAdmin
+			.from('ess_app_users')
+			.select('id')
+			.eq('auth_user_id', authUser.id)
+			.eq('is_active', true)
+			.single()
 
-		// Get current user's employee ID
-		const employeeResponse = await fetch(`${config.frappe.url.replace(/\/$/, '')}/api/resource/User/${currentUser}?fields=["employee_id"]`, {
-			method: 'GET',
-			headers: {
-				...(cookieHeader && { Cookie: cookieHeader }),
-			},
-		})
-
-		if (!employeeResponse.ok) {
-			console.log('Failed to get employee ID:', employeeResponse.status)
-			return NextResponse.json({ error: 'Failed to get employee information' }, { status: 500 })
+		if (!appUser) {
+			return NextResponse.json([])
 		}
 
-		const employeeData = await employeeResponse.json()
-		const currentEmployeeId = employeeData.data?.employee_id
-		console.log('Current user employee ID:', currentEmployeeId)
+		const { data: employee } = await supabaseAdmin
+			.from('ess_employees')
+			.select('id')
+			.eq('app_user_id', appUser.id)
+			.single()
 
-		if (!currentEmployeeId) {
-			console.log('No employee ID found for user')
-			return NextResponse.json({ error: 'Employee ID not found' }, { status: 404 })
+		if (!employee) {
+			return NextResponse.json([])
 		}
 
-		// Try the updated API endpoint that supports both approved and rejected applications
-		let approvalHistoryResponse = await fetch(`${config.frappe.url.replace(/\/$/, '')}/api/method/hr_portal.hr.doctype.leave_application.leave_application_api.get_approved_by_user`, {
-			method: 'GET',
-			headers: {
-				...(cookieHeader && { Cookie: cookieHeader }),
-			},
-		})
+		type EmployeeRef = { employee_no: string | null; full_name: string | null } | null
+		type LeaveApplicationRef = {
+			display_id: string | null
+			from_date: string | null
+			till_date: string | null
+			total_days: number | string | null
+			reason: string | null
+			status: string | null
+			created_at: string | null
+			employee_id: string | null
+			ess_leave_types: { name: string | null } | null
+			ess_employees: EmployeeRef
+		} | null
+		type ExpenseClaimRef = {
+			display_id: string | null
+			title: string | null
+			total_amount: number | string | null
+			currency: string | null
+			status: string | null
+			created_at: string | null
+			employee_id: string | null
+			ess_employees: EmployeeRef
+		} | null
 
-		console.log('Approval history response status:', approvalHistoryResponse.status)
+		type ApprovalHistoryItem = {
+			leave_id: string | null | undefined
+			type: 'leave' | 'expense'
+			employee: string
+			employee_name: string
+			leave_type?: string
+			title?: string
+			total_amount?: number
+			currency?: string
+			from_date?: string | null
+			till_date?: string | null
+			total_days?: number
+			reason?: string
+			my_action: string
+			action_date: string | null
+			remarks: string
+			final_status: string
+			creation: string | null | undefined
+			approved_level: number
+		}
 
-		// If the API returns 417, it might be because the endpoint doesn't exist or has issues
-		// Let's try to fetch leave approval entries directly
-		if (!approvalHistoryResponse.ok) {
-			console.log('Primary API failed, trying direct approach...')
-			
-			// Fetch all leave approval entries where current user is the approver and status is not Pending
-			const directResponse = await fetch(`${config.frappe.url.replace(/\/$/, '')}/api/resource/Leave Approval Entry?filters=[["approver","=","${currentUser}"],["status","in",["Approved","Rejected"]]]&fields=["name","parent","level_no","approver","status","action_time","remarks","sla_deadline"]&limit_page_length=1000`, {
-				method: 'GET',
-				headers: {
-					...(cookieHeader && { Cookie: cookieHeader }),
-				},
+		const approvalHistory: ApprovalHistoryItem[] = []
+
+		// Get leave approval history
+		const { data: leaveEntries } = await supabaseAdmin
+			.from('ess_leave_approval_entries')
+			.select(`
+				*,
+				ess_leave_applications (
+					display_id, from_date, till_date, total_days, reason, status, created_at,
+					employee_id,
+					ess_leave_types (name),
+					ess_employees!ess_leave_applications_employee_id_fkey (employee_no, full_name)
+				)
+			`)
+			.eq('approver_id', employee.id)
+			.in('status', ['Approved', 'Rejected'])
+			.order('action_time', { ascending: false })
+
+		for (const entry of leaveEntries || []) {
+			const app = entry.ess_leave_applications as unknown as LeaveApplicationRef
+			const emp = app?.ess_employees
+			const lt = app?.ess_leave_types
+
+			approvalHistory.push({
+				leave_id: app?.display_id,
+				type: 'leave',
+				employee: emp?.employee_no || '',
+				employee_name: emp?.full_name || '',
+				leave_type: lt?.name || '',
+				from_date: app?.from_date,
+				till_date: app?.till_date,
+				total_days: Number(app?.total_days) || 0,
+				reason: app?.reason || '',
+				my_action: entry.status,
+				action_date: entry.action_time,
+				remarks: entry.remarks || '',
+				final_status: app?.status || '',
+				creation: app?.created_at,
+				approved_level: entry.level_no,
 			})
-
-			if (!directResponse.ok) {
-				console.log('Direct API also failed:', directResponse.status)
-				return NextResponse.json({ error: 'Failed to fetch approval history' }, { status: directResponse.status })
-			}
-
-			const directData = await directResponse.json()
-			console.log('Direct approval entries:', JSON.stringify(directData, null, 2))
-
-			// Now fetch details for each leave application
-			const approvalHistory: ApprovalHistoryItem[] = []
-			
-			for (const entry of directData.data || []) {
-				try {
-					// Fetch leave application details
-					const leaveResponse = await fetch(`${config.frappe.url.replace(/\/$/, '')}/api/resource/Leave Application/${entry.parent}?fields=["name","employee","leave_type","from_date","till_date","total_leave_days","leave_reason","workflow_state","creation","link_lmbb"]`, {
-						method: 'GET',
-						headers: {
-							...(cookieHeader && { Cookie: cookieHeader }),
-						},
-					})
-
-					if (leaveResponse.ok) {
-						const leaveData = await leaveResponse.json()
-						const leave = leaveData.data
-
-						// Fetch employee details
-						const empResponse = await fetch(`${config.frappe.url.replace(/\/$/, '')}/api/resource/Employee/${leave.link_lmbb}?fields=["name","full_name"]`, {
-							method: 'GET',
-							headers: {
-								...(cookieHeader && { Cookie: cookieHeader }),
-							},
-						})
-
-						let employeeName = leave.employee || 'Unknown Employee'
-						if (empResponse.ok) {
-							const empData = await empResponse.json()
-							employeeName = empData.data?.full_name || employeeName
-						}
-
-						approvalHistory.push({
-							leave_id: leave.name,
-							employee: leave.link_lmbb || leave.employee,
-							employee_name: employeeName,
-							leave_type: leave.leave_type,
-							from_date: leave.from_date,
-							till_date: leave.till_date,
-							total_days: leave.total_leave_days || 0,
-							reason: leave.leave_reason || '',
-							my_action: entry.status, // 'Approved' or 'Rejected'
-							action_date: entry.action_time || entry.sla_deadline,
-							remarks: entry.remarks || '',
-							final_status: leave.workflow_state || 'Unknown',
-							creation: leave.creation,
-							approved_level: entry.level_no
-						})
-					}
-				} catch (error) {
-					console.error(`Error processing leave application ${entry.parent}:`, error)
-					// Continue with other entries
-				}
-			}
-
-			// Sort by action date (most recent first)
-			approvalHistory.sort((a, b) => new Date(b.action_date).getTime() - new Date(a.action_date).getTime())
-
-			console.log(`Returning ${approvalHistory.length} approval history items from direct approach`)
-			return NextResponse.json(approvalHistory)
 		}
 
-		// If the primary API worked, process its response
-		const approvalHistoryData = await approvalHistoryResponse.json()
-		console.log('Approval history data:', JSON.stringify(approvalHistoryData, null, 2))
+		// Get expense approval history
+		const { data: expenseEntries } = await supabaseAdmin
+			.from('ess_expense_approval_entries')
+			.select(`
+				*,
+				ess_expense_claims (
+					display_id, title, total_amount, currency, status, created_at,
+					employee_id,
+					ess_employees!ess_expense_claims_employee_id_fkey (employee_no, full_name)
+				)
+			`)
+			.eq('approver_id', employee.id)
+			.in('status', ['Approved', 'Rejected'])
+			.order('action_time', { ascending: false })
 
-		// Transform the API response to match our interface
-		const approvalHistory: ApprovalHistoryItem[] = (approvalHistoryData.message || []).map((item: any) => ({
-			leave_id: item.name || item.leave_id,
-			employee: item.employee,
-			employee_name: item.employee_name,
-			leave_type: item.leave_type,
-			from_date: item.from_date,
-			till_date: item.till_date,
-			total_days: item.total_days,
-			reason: item.reason || '',
-			my_action: item.my_action || item.action_status || 'Approved', // Handle different field names
-			action_date: item.approval_time || item.action_time || item.modified || item.creation,
-			remarks: item.approval_remarks || item.remarks || '',
-			final_status: item.workflow_state || item.leave_status || item.final_status,
-			creation: item.creation,
-			approved_level: item.approved_level || item.level_no
-		}))
+		for (const entry of expenseEntries || []) {
+			const claim = entry.ess_expense_claims as unknown as ExpenseClaimRef
+			const emp = claim?.ess_employees
 
-		console.log(`Returning ${approvalHistory.length} approval history items`)
+			approvalHistory.push({
+				leave_id: claim?.display_id,
+				type: 'expense',
+				employee: emp?.employee_no || '',
+				employee_name: emp?.full_name || '',
+				title: claim?.title || '',
+				total_amount: Number(claim?.total_amount) || 0,
+				currency: claim?.currency || 'INR',
+				my_action: entry.status,
+				action_date: entry.action_time,
+				remarks: entry.remarks || '',
+				final_status: claim?.status || '',
+				creation: claim?.created_at,
+				approved_level: entry.level_no,
+			})
+		}
+
+		// Sort by action date descending
+		approvalHistory.sort((a, b) =>
+			new Date(b.action_date || 0).getTime() - new Date(a.action_date || 0).getTime()
+		)
 
 		return NextResponse.json(approvalHistory)
-
 	} catch (error) {
 		console.error('Error in approval history API:', error)
 		return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
 	}
-} 
+}

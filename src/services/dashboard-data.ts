@@ -1,14 +1,52 @@
-import { 
-	MyLeaveApplication, 
-	MyExpenseClaim, 
-	LeaveBalance, 
+import {
+	MyLeaveApplication,
+	MyExpenseClaim,
+	LeaveBalance,
 	EmployeeDashboardStats,
 	LeaveTypeData,
 	PayslipData,
 	FrappeLeaveTypeData,
-	FrappeLeaveAllocationData,
-	FrappeLeaveApplicationData
+	FrappeLeaveApplicationData,
+	DashboardTimesheet,
+	PendingAcknowledgment
 } from '@/types/dashboard'
+
+// Raw API response shapes (snake_case) returned by the internal API routes
+interface RawExpenseClaim {
+	id: string
+	display_id?: string
+	title?: string
+	total_amount?: number
+	currency?: string
+	status?: string
+	submitted_at?: string
+	created_at?: string
+}
+
+interface RawDashboardTimesheet {
+	id: string
+	display_id?: string
+	period_start?: string
+	period_end?: string
+	total_hours?: number
+	status?: string
+}
+
+interface RawDocument {
+	id: string
+	title?: string
+	category_name?: string
+	requires_acknowledgment?: boolean
+	acknowledged?: boolean
+}
+
+// Helper to get auth token for API calls
+const getToken = () => typeof window !== 'undefined' ? localStorage.getItem('ess_access_token') : null
+
+const authHeaders = (): HeadersInit => {
+	const token = getToken()
+	return token ? { Authorization: `Bearer ${token}` } : {}
+}
 
 // Color mapping for different leave types
 const leaveTypeColors: Record<string, string> = {
@@ -37,7 +75,7 @@ const getLeaveTypeColor = (leaveType: string): string => {
 const fetchLeaveTypes = async (): Promise<FrappeLeaveTypeData[]> => {
 	try {
 		const response = await fetch('/api/leave-types', {
-			credentials: 'include',
+			headers: authHeaders(),
 		})
 
 		if (!response.ok) {
@@ -73,37 +111,12 @@ const fetchLeaveTypes = async (): Promise<FrappeLeaveTypeData[]> => {
 	}
 }
 
-// Function to fetch leave allocations from Frappe
-const fetchLeaveAllocations = async (): Promise<FrappeLeaveAllocationData[]> => {
-	try {
-		const response = await fetch('/api/leave-allocations', {
-			credentials: 'include',
-		})
-
-		if (!response.ok) {
-			if (response.status === 401) {
-				console.log('Authentication required for leave allocations')
-				return []
-			}
-			if (response.status === 403) {
-				console.log('Access denied to leave allocations')
-				return []
-			}
-			throw new Error(`Failed to fetch leave allocations: ${response.status}`)
-		}
-
-		const data = await response.json()
-		return data.leave_allocations || []
-	} catch (error) {
-		console.error('Error fetching leave allocations:', error)
-		return []
-	}
-}
-
 // Function to fetch leave applications from Frappe
 const fetchLeaveApplications = async (): Promise<{ applications: FrappeLeaveApplicationData[], summary: { [leaveType: string]: number }, pendingCount: number }> => {
 	try {
-		const response = await fetch('/api/leave-applications')
+		const response = await fetch('/api/leave-applications', {
+			headers: authHeaders(),
+		})
 		
 		if (!response.ok) {
 			if (response.status === 401) {
@@ -362,56 +375,51 @@ export const myLeaveApplications: MyLeaveApplication[] = [
 	}
 ]
 
-// Employee's own expense claims
-export const myExpenseClaims: MyExpenseClaim[] = [
-	{
-		id: 'EC-2024-001',
-		description: 'Client lunch meeting at downtown restaurant',
-		amount: 145.80,
-		currency: 'USD',
-		category: 'Meals & Entertainment',
-		status: 'pending',
-		submittedDate: '2024-12-09',
-		receiptAttached: true
-	},
-	{
-		id: 'EC-2024-002',
-		description: 'Uber rides for client site visits',
-		amount: 85.40,
-		currency: 'USD',
-		category: 'Transportation',
-		status: 'approved',
-		submittedDate: '2024-11-28',
-		receiptAttached: true,
-		approvedBy: 'Sarah Manager',
-		approvedDate: '2024-11-30'
-	},
-	{
-		id: 'EC-2024-003',
-		description: 'Office supplies for project work',
-		amount: 67.25,
-		currency: 'USD',
-		category: 'Office Supplies',
-		status: 'approved',
-		submittedDate: '2024-11-15',
-		receiptAttached: true,
-		approvedBy: 'Sarah Manager',
-		approvedDate: '2024-11-16'
-	},
-	{
-		id: 'EC-2024-004',
-		description: 'Conference registration fee',
-		amount: 299.00,
-		currency: 'USD',
-		category: 'Training & Development',
-		status: 'rejected',
-		submittedDate: '2024-10-20',
-		receiptAttached: false,
-		approvedBy: 'Sarah Manager',
-		approvedDate: '2024-10-22',
-		rejectionReason: 'Please attach receipt and resubmit'
+// Fetch expense claims from API
+const fetchExpenseClaims = async (): Promise<MyExpenseClaim[]> => {
+	try {
+		const response = await fetch('/api/expense-claims', {
+			headers: authHeaders(),
+		})
+
+		if (!response.ok) {
+			if (response.status === 401 || response.status === 403) {
+				console.log('Authentication required for expense claims')
+				return []
+			}
+			throw new Error(`Failed to fetch expense claims: ${response.status}`)
+		}
+
+		const data = await response.json()
+		const claims = Array.isArray(data.claims) ? data.claims : []
+
+		return claims.map((claim: RawExpenseClaim) => {
+			let status: 'pending' | 'approved' | 'rejected' = 'pending'
+			if (claim.status === 'Approved' || claim.status === 'Paid') {
+				status = 'approved'
+			} else if (claim.status === 'Rejected') {
+				status = 'rejected'
+			} else if (claim.status === 'Pending Approval') {
+				status = 'pending'
+			}
+
+			return {
+				id: claim.id, // UUID — used for detail navigation under uuid-keyed routes
+				displayId: claim.display_id, // human label (EC-YYYY-NNN)
+				description: claim.title || 'Expense Claim',
+				amount: claim.total_amount || 0,
+				currency: claim.currency || 'INR',
+				category: 'General',
+				status,
+				submittedDate: claim.submitted_at || claim.created_at,
+				receiptAttached: false,
+			} as MyExpenseClaim
+		})
+	} catch (error) {
+		console.error('Error fetching expense claims:', error)
+		return []
 	}
-]
+}
 
 // Employee's payslips
 export const myPayslips: PayslipData[] = [
@@ -523,8 +531,9 @@ export const getEmployeeDashboardStats = async (): Promise<EmployeeDashboardStat
 			? leaveApplicationsData.pendingCount 
 			: 0
 		
-		// Keep dummy data for expense claims for now (until we implement expense claims API)
-		const myPendingExpenseClaims = myExpenseClaims.filter(claim => claim.status === 'pending').length
+		// Fetch real expense claims from API
+		const expenseClaims = await fetchExpenseClaims()
+		const myPendingExpenseClaims = expenseClaims.filter(claim => claim.status === 'pending').length
 		
 		// Calculate recent applications from real Frappe data (last 30 days)
 		const thirtyDaysAgo = new Date()
@@ -661,6 +670,44 @@ const convertFrappeToMyLeaveApplications = async (): Promise<MyLeaveApplication[
 	}
 }
 
+// Function to fetch employee's recent timesheets for dashboard
+const fetchMyTimesheets = async (): Promise<DashboardTimesheet[]> => {
+	try {
+		const response = await fetch('/api/timesheets', { headers: authHeaders() })
+		if (!response.ok) return []
+		const data = await response.json()
+		return (data.timesheets || []).slice(0, 5).map((ts: RawDashboardTimesheet) => ({
+			id: ts.id,
+			displayId: ts.display_id,
+			periodStart: ts.period_start,
+			periodEnd: ts.period_end,
+			totalHours: ts.total_hours,
+			status: ts.status,
+		}))
+	} catch {
+		return []
+	}
+}
+
+// Function to fetch pending acknowledgments from documents API
+const fetchPendingAcknowledgments = async (): Promise<PendingAcknowledgment[]> => {
+	try {
+		const response = await fetch('/api/documents', { headers: authHeaders() })
+		if (!response.ok) return []
+		const data = await response.json()
+		const documents = Array.isArray(data.documents) ? data.documents : []
+		return documents
+			.filter((doc: RawDocument) => doc.requires_acknowledgment && !doc.acknowledged)
+			.map((doc: RawDocument) => ({
+				documentId: doc.id,
+				title: doc.title,
+				categoryName: doc.category_name || '',
+			}))
+	} catch {
+		return []
+	}
+}
+
 // Service functions to simulate API calls
 export const employeeDashboardService = {
 	async getMyLeaveApplications(): Promise<MyLeaveApplication[]> {
@@ -669,9 +716,7 @@ export const employeeDashboardService = {
 	},
 
 	async getMyExpenseClaims(): Promise<MyExpenseClaim[]> {
-		// Simulate API delay
-		await new Promise(resolve => setTimeout(resolve, 500))
-		return myExpenseClaims
+		return await fetchExpenseClaims()
 	},
 
 	async getLeaveBalances(): Promise<LeaveBalance[]> {
@@ -688,5 +733,13 @@ export const employeeDashboardService = {
 		// Simulate API delay
 		await new Promise(resolve => setTimeout(resolve, 400))
 		return myPayslips
+	},
+
+	async getMyTimesheets(): Promise<DashboardTimesheet[]> {
+		return await fetchMyTimesheets()
+	},
+
+	async getPendingAcknowledgments(): Promise<PendingAcknowledgment[]> {
+		return await fetchPendingAcknowledgments()
 	}
-} 
+}

@@ -1,61 +1,73 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { useAuthStore } from '@/stores/auth'
 import { useEmployee } from '@/hooks/use-employee'
+import { useModules } from '@/hooks/use-modules'
+import { useLabels } from '@/hooks/use-labels'
+import { UserRole } from '@/types/roles'
+import { navRegistry } from '@/config/navigation'
+import { isNavSectionVisible, visibleSubItems, type NavFilterContext } from '@/config/nav/filter'
+import type { NavItem } from '@/config/nav/types'
 import toast from 'react-hot-toast'
-import { 
-	LayoutDashboard, 
-	Calendar, 
-	Receipt, 
-	FileText, 
-	User as UserIcon, 
-	ChevronLeft, 
+import {
+	ChevronLeft,
 	ChevronRight,
 	ChevronDown,
 	ChevronUp,
 	Building,
 	LogOut,
-	History,
-	Clock,
-	Settings
+	Shield,
 } from 'lucide-react'
 
 interface SidebarProps {
 	className?: string
 }
 
-interface NavigationItem {
-	title: string
-	href?: string
-	icon: any
-	description: string
-	subItems?: NavigationItem[]
-}
-
 export function Sidebar({ className }: SidebarProps) {
 	const [isCollapsed, setIsCollapsed] = useState(false)
-	const [expandedMenus, setExpandedMenus] = useState<string[]>(['leave-applications']) // Default expand Leave Applications
+	const [expandedMenus, setExpandedMenus] = useState<string[]>(['leave', 'timesheets']) // Default expand Leave & Timesheets
 	const pathname = usePathname()
 	const router = useRouter()
-	const { logout } = useAuthStore()
+	const { logout, user } = useAuthStore()
 	const { hasLeaveApprovalAccess, loading: employeeLoading } = useEmployee()
+	const { isModuleEnabled } = useModules()
+	const { t } = useLabels()
+	const userRole = (user?.role || 'employee') as UserRole
 
 	const toggleSidebar = () => {
 		setIsCollapsed(!isCollapsed)
 	}
 
 	const toggleMenu = (menuKey: string) => {
-		setExpandedMenus(prev => 
-			prev.includes(menuKey) 
+		setExpandedMenus(prev =>
+			prev.includes(menuKey)
 				? prev.filter(key => key !== menuKey)
 				: [...prev, menuKey]
 		)
 	}
+
+	// Auto-expand parent menus when a sub-item route is active
+	useEffect(() => {
+		const subItemRoutes: Record<string, string> = {
+			'/dashboard/pending-approvals': 'leave',
+			'/dashboard/approval-history': 'leave',
+			'/dashboard/team-calendar': 'leave',
+			'/dashboard/team-balances': 'leave',
+			'/dashboard/team-timesheets': 'timesheets',
+			'/dashboard/documents/manage': 'documents',
+			'/dashboard/appraisals/cycles': 'appraisals',
+			'/dashboard/contracts/manage': 'my-contract',
+		}
+		const parentKey = subItemRoutes[pathname]
+		if (parentKey && !expandedMenus.includes(parentKey)) {
+			setExpandedMenus(prev => [...prev, parentKey])
+		}
+	}, [pathname])
 
 	const handleLogout = async () => {
 		try {
@@ -68,177 +80,55 @@ export function Sidebar({ className }: SidebarProps) {
 		}
 	}
 
-	// Create navigation structure with conditional approval items
-	const getNavigationItems = (): NavigationItem[] => {
-		const approvalSubItems = !employeeLoading && hasLeaveApprovalAccess ? [
-			{
-				title: 'Pending Approvals',
-				href: '/dashboard/pending-approvals',
-				icon: Clock,
-				description: 'Review leave approvals'
-			},
-			{
-				title: 'Approval History',
-				href: '/dashboard/approval-history',
-				icon: History,
-				description: 'View approval history'
-			}
-		] : []
-
-		return [
-			{
-				title: 'Dashboard',
-				href: '/dashboard',
-				icon: LayoutDashboard,
-				description: 'Overview and statistics'
-			},
-			{
-				title: 'Leave Applications',
-				href: '/dashboard/leave-applications',
-				icon: Calendar,
-				description: 'Apply and manage leave',
-				subItems: approvalSubItems
-			},
-			{
-				title: 'Expense Claims',
-				href: '/dashboard/expense-claims',
-				icon: Receipt,
-				description: 'Submit and track expenses'
-			},
-			{
-				title: 'Payslips',
-				href: '/dashboard/payslips',
-				icon: FileText,
-				description: 'View salary statements'
-			},
-			{
-				title: 'Profile',
-				href: '/dashboard/profile',
-				icon: UserIcon,
-				description: 'Account settings'
-			},
-			{
-				title: 'System Settings',
-				href: '/dashboard/settings',
-				icon: Settings,
-				description: 'System settings'
-			}
-		]
+	// Visibility context for the registry filter. Sub-items that depend on
+	// leave-approval access are hidden until the employee record has loaded
+	// (matches the previous `!employeeLoading && hasLeaveApprovalAccess` gate).
+	const filterCtx: NavFilterContext = {
+		role: userRole,
+		hasLeaveApprovalAccess: !employeeLoading && hasLeaveApprovalAccess,
+		isSuperAdmin: Boolean(user?.is_super_admin),
+		isModuleEnabled,
 	}
 
-	const renderNavigationItem = (item: NavigationItem, level: number = 0) => {
-		const IconComponent = item.icon
-		const hasSubItems = item.subItems && item.subItems.length > 0
-		const isExpanded = expandedMenus.includes(item.title.toLowerCase().replace(' ', '-'))
-		const isActive = pathname === item.href
-		const isSubItemActive = item.subItems?.some(subItem => pathname === subItem.href)
-		const shouldHighlight = isActive || isSubItemActive
+	// Resolve an item's display title: terminology key (plural) wins over static.
+	const titleFor = (item: NavItem): string =>
+		item.titleKey ? t(item.titleKey, { plural: true }) : item.title ?? ''
 
-		return (
-			<div key={item.title}>
-				{/* Main Item */}
-				<div className={cn(
-					"group flex items-center space-x-3 px-3 py-2.5 rounded-xl transition-all duration-200 hover-lift cursor-pointer",
-					shouldHighlight 
-						? "bg-primary text-primary-foreground shadow-sm" 
-						: "hover:bg-accent hover:text-accent-foreground",
-					isCollapsed && "justify-center",
-					level > 0 && "ml-4 pl-6" // Indent sub-items
-				)}
-				onClick={() => {
-					if (hasSubItems && !isCollapsed) {
-						toggleMenu(item.title.toLowerCase().replace(' ', '-'))
-					}
-					if (item.href) {
-						router.push(item.href)
-					}
-				}}
-				>
-					<IconComponent className={cn(
-						"h-5 w-5 shrink-0",
-						shouldHighlight ? "text-primary-foreground" : "text-muted-foreground group-hover:text-accent-foreground",
-						level > 0 && "h-4 w-4" // Smaller icons for sub-items
-					)} />
-					
-					{!isCollapsed && (
-						<div className="flex-1 min-w-0">
-							<div className={cn(
-								"font-medium text-sm truncate",
-								shouldHighlight ? "text-primary-foreground" : "text-foreground",
-								level > 0 && "text-xs" // Smaller text for sub-items
-							)}>
-								{item.title}
-							</div>
-							<div className={cn(
-								"text-xs truncate",
-								shouldHighlight ? "text-primary-foreground/80" : "text-muted-foreground",
-								level > 0 && "text-xs opacity-75" // More subtle description for sub-items
-							)}>
-								{item.description}
-							</div>
-						</div>
-					)}
+	const renderSubItem = (item: NavItem) => (
+		<Link key={item.href} href={item.href}>
+			<div className={cn(
+				"group flex items-center space-x-3 px-3 py-2 ml-6 rounded-lg transition-all duration-200 hover-lift",
+				pathname === item.href
+					? "bg-primary/10 text-primary border-l-2 border-primary"
+					: "hover:bg-accent/50 hover:text-accent-foreground"
+			)}>
+				<item.icon className={cn(
+					"h-4 w-4 shrink-0",
+					pathname === item.href ? "text-primary" : "text-muted-foreground group-hover:text-accent-foreground"
+				)} />
 
-					{/* Expand/Collapse Icon for items with sub-items */}
-					{hasSubItems && !isCollapsed && (
-						<div className="shrink-0">
-							{isExpanded ? (
-								<ChevronUp className="h-4 w-4" />
-							) : (
-								<ChevronDown className="h-4 w-4" />
-							)}
-						</div>
-					)}
-
-					{/* Active indicator */}
-					{shouldHighlight && (
-						<div className="w-2 h-2 rounded-full bg-primary-foreground shrink-0" />
-					)}
+				<div className="flex-1 min-w-0">
+					<div className={cn(
+						"font-medium text-xs truncate",
+						pathname === item.href ? "text-primary" : "text-foreground"
+					)}>
+						{titleFor(item)}
+					</div>
+					<div className={cn(
+						"text-xs truncate opacity-75",
+						pathname === item.href ? "text-primary/70" : "text-muted-foreground"
+					)}>
+						{item.description}
+					</div>
 				</div>
 
-				{/* Sub Items */}
-				{hasSubItems && isExpanded && !isCollapsed && (
-					<div className="mt-1 space-y-1">
-						{item.subItems!.map(subItem => (
-							<Link key={subItem.href} href={subItem.href!}>
-								<div className={cn(
-									"group flex items-center space-x-3 px-3 py-2 ml-6 rounded-lg transition-all duration-200 hover-lift",
-									pathname === subItem.href
-										? "bg-primary/10 text-primary border-l-2 border-primary" 
-										: "hover:bg-accent/50 hover:text-accent-foreground"
-								)}>
-									<subItem.icon className={cn(
-										"h-4 w-4 shrink-0",
-										pathname === subItem.href ? "text-primary" : "text-muted-foreground group-hover:text-accent-foreground"
-									)} />
-									
-									<div className="flex-1 min-w-0">
-										<div className={cn(
-											"font-medium text-xs truncate",
-											pathname === subItem.href ? "text-primary" : "text-foreground"
-										)}>
-											{subItem.title}
-										</div>
-										<div className={cn(
-											"text-xs truncate opacity-75",
-											pathname === subItem.href ? "text-primary/70" : "text-muted-foreground"
-										)}>
-											{subItem.description}
-										</div>
-									</div>
-
-									{/* Active indicator for sub-items */}
-									{pathname === subItem.href && (
-										<div className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
-									)}
-								</div>
-							</Link>
-						))}
-					</div>
+				{/* Active indicator for sub-items */}
+				{pathname === item.href && (
+					<div className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
 				)}
 			</div>
-		)
-	}
+		</Link>
+	)
 
 	return (
 		<div className={cn(
@@ -277,11 +167,106 @@ export function Sidebar({ className }: SidebarProps) {
 
 			{/* Navigation */}
 			<nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-				{getNavigationItems().map(item => renderNavigationItem(item))}
+				{navRegistry
+					.filter(section => isNavSectionVisible(section, filterCtx))
+					.map(section => {
+						const item = section.item
+						const subItems = visibleSubItems(section, filterCtx)
+						const hasSubItems = subItems.length > 0
+						const IconComponent = item.icon
+						const menuKey = item.key
+						const isExpanded = expandedMenus.includes(menuKey)
+						const isActive = pathname === item.href
+						const isSubItemActive = subItems.some(sub => pathname === sub.href)
+						const shouldHighlight = isActive || isSubItemActive
+
+						return (
+							<div key={section.id}>
+								{/* Main Item */}
+								<div className={cn(
+									"group flex items-center space-x-3 px-3 py-2.5 rounded-xl transition-all duration-200 hover-lift cursor-pointer",
+									shouldHighlight
+										? "bg-primary text-primary-foreground shadow-sm"
+										: "hover:bg-accent hover:text-accent-foreground",
+									isCollapsed && "justify-center"
+								)}
+								onClick={() => {
+									if (hasSubItems && !isCollapsed) {
+										toggleMenu(menuKey)
+									}
+									if (item.href) {
+										router.push(item.href)
+									}
+								}}
+								>
+									<IconComponent className={cn(
+										"h-5 w-5 shrink-0",
+										shouldHighlight ? "text-primary-foreground" : "text-muted-foreground group-hover:text-accent-foreground"
+									)} />
+
+									{!isCollapsed && (
+										<div className="flex-1 min-w-0">
+											<div className={cn(
+												"font-medium text-sm truncate",
+												shouldHighlight ? "text-primary-foreground" : "text-foreground"
+											)}>
+												{titleFor(item)}
+											</div>
+											<div className={cn(
+												"text-xs truncate",
+												shouldHighlight ? "text-primary-foreground/80" : "text-muted-foreground"
+											)}>
+												{item.description}
+											</div>
+										</div>
+									)}
+
+									{/* Expand/Collapse Icon for items with sub-items */}
+									{hasSubItems && !isCollapsed && (
+										<div className="shrink-0">
+											{isExpanded ? (
+												<ChevronUp className="h-4 w-4" />
+											) : (
+												<ChevronDown className="h-4 w-4" />
+											)}
+										</div>
+									)}
+
+									{/* Active indicator */}
+									{shouldHighlight && (
+										<div className="w-2 h-2 rounded-full bg-primary-foreground shrink-0" />
+									)}
+								</div>
+
+								{/* Sub Items */}
+								{hasSubItems && isExpanded && !isCollapsed && (
+									<div className="mt-1 space-y-1">
+										{subItems.map(renderSubItem)}
+									</div>
+								)}
+							</div>
+						)
+					})}
 			</nav>
 
 			{/* Footer with Logout */}
 			<div className="p-4 border-t border-border space-y-3">
+				{user?.is_super_admin && (
+					<Link href="/platform">
+						<div className={cn(
+							"flex items-center space-x-3 px-3 py-2.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 transition-all mb-2",
+							isCollapsed && "justify-center"
+						)}>
+							<Shield className="h-5 w-5" />
+							{!isCollapsed && (
+								<div>
+									<div className="font-medium text-sm">Platform Admin</div>
+									<div className="text-xs opacity-75">Super admin panel</div>
+								</div>
+							)}
+						</div>
+					</Link>
+				)}
 				{/* Logout Button */}
 				<Button
 					variant="outline"
@@ -303,9 +288,9 @@ export function Sidebar({ className }: SidebarProps) {
 							<div className="font-semibold text-foreground mb-1">ESS System</div>
 							<div>
 								Powered by{' '}
-								<a 
-									href="https://techmeridian.in" 
-									target="_blank" 
+								<a
+									href="https://techmeridian.in"
+									target="_blank"
 									rel="noopener noreferrer"
 									className="text-primary hover:text-primary/80 font-medium transition-colors"
 								>
@@ -323,4 +308,4 @@ export function Sidebar({ className }: SidebarProps) {
 			)}
 		</div>
 	)
-} 
+}

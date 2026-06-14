@@ -1,52 +1,79 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { supabaseAdmin } from '@/lib/supabase-server'
 
 export async function POST(request: NextRequest) {
 	try {
+		const authHeader = request.headers.get('authorization')
+		const token = authHeader?.replace('Bearer ', '')
+
+		if (!token) {
+			return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+		}
+
+		const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token)
+		if (authError || !user) {
+			return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+		}
+
 		const body = await request.json()
-		const { userId, updates } = body
+		const { updates } = body
 
-		if (!userId || !updates) {
-			return NextResponse.json(
-				{ error: 'Missing userId or updates' },
-				{ status: 400 }
-			)
+		if (!updates) {
+			return NextResponse.json({ error: 'Missing updates' }, { status: 400 })
 		}
 
-		const frappeUrl = process.env.NEXT_PUBLIC_FRAPPE_URL || 'http://localhost:8000'
-		const cookieHeader = request.headers.get('cookie') || ''
-		
-		const response = await fetch(`${frappeUrl}/api/resource/User/${userId}`, {
-			method: 'PUT',
-			headers: {
-				'Content-Type': 'application/json',
-				'Cookie': cookieHeader,
-			},
-			body: JSON.stringify(updates),
-		})
+		// Find the employee record for this auth user
+		const { data: appUser } = await supabaseAdmin
+			.from('ess_app_users')
+			.select('id, company_id')
+			.eq('auth_user_id', user.id)
+			.eq('is_active', true)
+			.single()
 
-		const responseText = await response.text()
-		console.log('Frappe update response status:', response.status)
-		console.log('Frappe update response:', responseText)
-
-		if (!response.ok) {
-			throw new Error(`Frappe API error: ${response.status} - ${responseText}`)
+		if (!appUser) {
+			return NextResponse.json({ error: 'Not registered for ESS' }, { status: 403 })
 		}
 
-		// Parse JSON response
-		let data
-		try {
-			data = JSON.parse(responseText)
-		} catch (e) {
-			throw new Error('Invalid JSON response from Frappe')
+		const { data: employee } = await supabaseAdmin
+			.from('ess_employees')
+			.select('id')
+			.eq('app_user_id', appUser.id)
+			.single()
+
+		if (!employee) {
+			return NextResponse.json({ error: 'Employee not found' }, { status: 404 })
 		}
 
-		return NextResponse.json(data)
+		// Only allow updating specific fields
+		const allowedFields = ['phone', 'full_name']
+		const safeUpdates: Record<string, unknown> = {}
+		for (const key of allowedFields) {
+			if (updates[key] !== undefined) {
+				safeUpdates[key] = updates[key]
+			}
+		}
+
+		if (Object.keys(safeUpdates).length === 0) {
+			return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 })
+		}
+
+		safeUpdates.updated_at = new Date().toISOString()
+
+		const { data: updated, error: updateError } = await supabaseAdmin
+			.from('ess_employees')
+			.update(safeUpdates)
+			.eq('id', employee.id)
+			.select()
+			.single()
+
+		if (updateError) throw updateError
+
+		return NextResponse.json({ message: 'Profile updated', employee: updated })
 	} catch (error) {
 		console.error('Profile update error:', error)
-		const errorMessage = error instanceof Error ? error.message : 'Unknown error'
 		return NextResponse.json(
-			{ error: 'Failed to update profile', details: errorMessage },
+			{ error: 'Failed to update profile' },
 			{ status: 500 }
 		)
 	}
-} 
+}

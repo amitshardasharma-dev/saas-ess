@@ -10,16 +10,14 @@ import { Label } from '@/components/ui/label'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { useEmployee } from '@/hooks/use-employee'
 import { 
-	Clock, 
-	CheckCircle, 
-	XCircle, 
-	User, 
+	Clock,
+	CheckCircle,
+	User,
 	Calendar,
 	MessageSquare,
 	Loader2,
 	RefreshCw,
 	AlertCircle,
-	FileText,
 	Eye,
 	ThumbsUp,
 	ThumbsDown,
@@ -38,6 +36,15 @@ interface PendingApproval {
 	reason: string
 	level_no: number
 	workflow_state: string
+	// Optional fields present when the item is a timesheet or expense approval
+	type?: 'leave' | 'timesheet' | 'expense'
+	timesheet_id?: string
+	expense_id?: string
+	period_start?: string
+	period_end?: string
+	total_hours?: number
+	total_amount?: number
+	currency?: string
 }
 
 export default function PendingApprovalsPage() {
@@ -60,8 +67,9 @@ export default function PendingApprovalsPage() {
 		setIsLoading(true)
 		setError(null)
 		try {
+			const token = localStorage.getItem('ess_access_token')
 			const response = await fetch('/api/pending-approvals', {
-				credentials: 'include'
+				headers: token ? { Authorization: `Bearer ${token}` } : {},
 			})
 			
 			if (response.ok) {
@@ -92,16 +100,18 @@ export default function PendingApprovalsPage() {
 
 		setProcessingApproval(selectedApproval.name)
 		try {
+			const token = localStorage.getItem('ess_access_token')
 			const response = await fetch('/api/process-approval', {
 				method: 'POST',
 				headers: {
-					'Content-Type': 'application/json'
+					'Content-Type': 'application/json',
+					...(token ? { Authorization: `Bearer ${token}` } : {}),
 				},
-				credentials: 'include',
 				body: JSON.stringify({
 					leave_id: selectedApproval.name,
 					action: approvalAction,
-					remarks: remarks
+					remarks: remarks,
+					type: selectedApproval.type || 'leave'
 				})
 			})
 
@@ -136,12 +146,18 @@ export default function PendingApprovalsPage() {
 	}
 
 	const formatLeaveType = (leaveType: string) => {
-		// Simple formatting - you can enhance this based on your leave types
+		if (!leaveType) return 'N/A'
 		return leaveType.replace('LEAVETYPE', 'Leave Type ')
 	}
 
-	const viewLeaveDetails = (leaveId: string) => {
-		router.push(`/dashboard/leave-applications/${leaveId}`)
+	const viewDetails = (approval: PendingApproval) => {
+		if (approval.type === 'timesheet') {
+			router.push(`/dashboard/timesheets/${approval.timesheet_id || approval.name}`)
+		} else if (approval.type === 'expense') {
+			router.push(`/dashboard/expense-claims/${approval.expense_id || approval.name}`)
+		} else {
+			router.push(`/dashboard/leave-applications/${approval.name}`)
+		}
 	}
 
 	// Check for access permission
@@ -154,7 +170,7 @@ export default function PendingApprovalsPage() {
 							<ShieldX className="h-12 w-12 mx-auto mb-4 text-red-500" />
 							<h2 className="text-xl font-semibold mb-2">Access Restricted</h2>
 							<p className="text-sm text-muted-foreground mb-4">
-								You don't have permission to access the approval features.
+								You don&apos;t have permission to access the approval features.
 							</p>
 							<p className="text-xs text-muted-foreground">
 								Contact your administrator if you believe this is an error.
@@ -278,25 +294,60 @@ export default function PendingApprovalsPage() {
 													</div>
 												</div>
 
-												<div className="space-y-1">
-													<p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Leave Type</p>
-													<p className="font-medium text-sm">{formatLeaveType(approval.leave_type)}</p>
-												</div>
-
-												<div className="space-y-1">
-													<p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Duration</p>
-													<div className="flex items-center space-x-2">
-														<Calendar className="h-4 w-4 text-muted-foreground" />
-														<div>
+												{/* Type-specific details */}
+											{approval.type === 'timesheet' ? (
+												<>
+													<div className="space-y-1">
+														<p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Type</p>
+														<Badge variant="outline">Timesheet</Badge>
+													</div>
+													<div className="space-y-1">
+														<p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Period</p>
+														<div className="flex items-center space-x-2">
+															<Calendar className="h-4 w-4 text-muted-foreground" />
 															<p className="font-medium text-sm">
-																{formatDate(approval.from_date)} - {formatDate(approval.till_date)}
-															</p>
-															<p className="text-xs text-muted-foreground">
-																{approval.total_days} day{approval.total_days !== 1 ? 's' : ''}
+																{formatDate(approval.period_start ?? '')} - {formatDate(approval.period_end ?? '')}
 															</p>
 														</div>
 													</div>
-												</div>
+													<div className="space-y-1">
+														<p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total Hours</p>
+														<p className="font-medium text-sm">{approval.total_hours}h</p>
+													</div>
+												</>
+											) : approval.type === 'expense' ? (
+												<>
+													<div className="space-y-1">
+														<p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Type</p>
+														<Badge variant="outline">Expense Claim</Badge>
+													</div>
+													<div className="space-y-1">
+														<p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Amount</p>
+														<p className="font-medium text-sm">{approval.total_amount} {approval.currency}</p>
+													</div>
+												</>
+											) : (
+												<>
+													<div className="space-y-1">
+														<p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Leave Type</p>
+														<p className="font-medium text-sm">{formatLeaveType(approval.leave_type)}</p>
+													</div>
+													<div className="space-y-1">
+														<p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Duration</p>
+														<div className="flex items-center space-x-2">
+															<Calendar className="h-4 w-4 text-muted-foreground" />
+															<div>
+																<p className="font-medium text-sm">
+																	{formatDate(approval.from_date)} - {formatDate(approval.till_date)}
+																</p>
+																<p className="text-xs text-muted-foreground">
+																	{approval.total_days} day{approval.total_days !== 1 ? 's' : ''}
+																</p>
+															</div>
+														</div>
+													</div>
+												</>
+											)}
 
 												<div className="space-y-1">
 													<p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Status</p>
@@ -322,7 +373,7 @@ export default function PendingApprovalsPage() {
 											<Button
 												size="sm"
 												variant="outline"
-												onClick={() => viewLeaveDetails(approval.name)}
+												onClick={() => viewDetails(approval)}
 											>
 												<Eye className="h-4 w-4 mr-1" />
 												View Details
@@ -369,7 +420,8 @@ export default function PendingApprovalsPage() {
 										<ThumbsDown className="h-5 w-5 text-red-600" />
 									)}
 									<span>
-										{approvalAction === 'approve' ? 'Approve' : 'Reject'} Leave Application
+										{approvalAction === 'approve' ? 'Approve' : 'Reject'}{' '}
+										{selectedApproval.type === 'timesheet' ? 'Timesheet' : selectedApproval.type === 'expense' ? 'Expense Claim' : 'Leave Application'}
 									</span>
 								</CardTitle>
 							</CardHeader>

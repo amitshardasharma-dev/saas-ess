@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { CalendarDays, Clock, CheckCircle, XCircle, User, Sparkles, Eye, ArrowRight } from 'lucide-react'
+import { CalendarDays, Clock, CheckCircle, XCircle, Sparkles, Eye, ArrowRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { MyLeaveApplication } from '@/types/dashboard'
@@ -21,7 +21,6 @@ export function MyLeaveApplications({ applications }: MyLeaveApplicationsProps) 
 	})
 	
 	const displayApplications = sortedApplications.slice(0, 4)
-	const hasMore = applications.length > 4
 
 	const handleViewDetails = (application: MyLeaveApplication) => {
 		router.push(`/dashboard/leave-applications/${application.id}`)

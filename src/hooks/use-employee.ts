@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Employee } from '@/services/leave'
+import { UserRole } from '@/types/roles'
 
 interface UseEmployeeReturn {
 	employee: Employee | null
@@ -7,6 +8,7 @@ interface UseEmployeeReturn {
 	error: string | null
 	hasLeaveApprovalAccess: boolean
 	hasExpenseApprovalAccess: boolean
+	role: UserRole
 	refetch: () => void
 }
 
@@ -22,14 +24,15 @@ export function useEmployee(): UseEmployeeReturn {
 			
 			console.log('useEmployee: Fetching employee data...')
 			
+			const token = localStorage.getItem('ess_access_token')
 			const response = await fetch('/api/employee', {
 				method: 'GET',
-				credentials: 'include',
 				cache: 'no-store',
 				headers: {
 					'Cache-Control': 'no-cache, no-store, must-revalidate',
 					'Pragma': 'no-cache',
-					'Expires': '0'
+					'Expires': '0',
+					...(token ? { Authorization: `Bearer ${token}` } : {}),
 				}
 			})
 
@@ -71,12 +74,19 @@ export function useEmployee(): UseEmployeeReturn {
 		hasExpenseApprovalAccess
 	})
 
+	// Get role from auth store user, default to employee
+	const storedUser = typeof window !== 'undefined'
+		? JSON.parse(localStorage.getItem('auth-storage') || '{}')?.state?.user
+		: null
+	const role: UserRole = (storedUser?.role as UserRole) || 'employee'
+
 	return {
 		employee,
 		loading,
 		error,
 		hasLeaveApprovalAccess,
 		hasExpenseApprovalAccess,
+		role,
 		refetch: fetchEmployee
 	}
 } 

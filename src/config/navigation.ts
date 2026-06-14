@@ -1,0 +1,45 @@
+// src/config/navigation.ts
+//
+// Central navigation registry. The sidebar renders from `navRegistry`, filtering
+// each section/item by module-enabled state + role and resolving titles via the
+// terminology system.
+//
+// PARALLEL-SAFETY CONTRACT (see _SHARED_CONVENTIONS.md §4.2):
+//   Each later phase creates its own nav file
+//   (src/config/nav/phase-<N>-<slug>.nav.tsx) and adds:
+//     - exactly ONE import line under its own `// === PHASE-N NAV ===` marker
+//     - exactly ONE spread under its own `// PHASE-N ENTRIES` comment
+//   Because every phase writes under a DIFFERENT marker line, git auto-merges
+//   without conflict. Never edit another phase's marker block, the core import,
+//   or the core spread.
+
+import type { NavSection } from './nav/types'
+import { coreNav } from './nav/core.nav'
+// === PHASE-2 NAV (insert import above this line) ===
+import { phase2OnboardingNav } from './nav/phase-2-onboarding.nav'
+// === PHASE-3 NAV ===
+import { phase3ComplianceNav } from './nav/phase-3-compliance.nav'
+// === PHASE-4 NAV ===
+import { phase4EsignNav } from './nav/phase-4-esign.nav'
+// === PHASE-5 NAV ===
+import { trainingNav } from './nav/phase-5-training.nav'
+// === PHASE-6 NAV ===
+import { quizzesNav } from './nav/phase-6-quizzes.nav'
+// === PHASE-7 NAV ===
+import { phase7ReportingNav } from './nav/phase-7-reporting.nav'
+
+export const navRegistry: NavSection[] = [
+	...coreNav,
+	// PHASE-2 ENTRIES
+	...phase2OnboardingNav,
+	// PHASE-3 ENTRIES
+	...phase3ComplianceNav,
+	// PHASE-4 ENTRIES
+	...phase4EsignNav,
+	// PHASE-5 ENTRIES
+	...trainingNav,
+	// PHASE-6 ENTRIES
+	...quizzesNav,
+	// PHASE-7 ENTRIES
+	...phase7ReportingNav,
+].sort((a, b) => a.order - b.order)

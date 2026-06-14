@@ -4,7 +4,6 @@ import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { CompactProfileSettings } from '@/components/profile/compact-profile-settings'
 import { useAuthStore } from '@/stores/auth'
 import { Toaster } from 'react-hot-toast'
-import { User, Sparkles } from 'lucide-react'
 
 export default function ProfilePage() {
 	const { user } = useAuthStore()

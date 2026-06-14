@@ -1,24 +1,17 @@
 'use client'
 
 import { ReactNode } from 'react'
-import { Sidebar } from './sidebar'
 
-interface DashboardLayoutProps {
-	children: ReactNode
+/**
+ * DEPRECATED shell wrapper.
+ *
+ * The dashboard route layout (src/app/dashboard/layout.tsx) now provides the
+ * sidebar / announcement banner / main chrome for EVERY /dashboard page. This
+ * component is kept as a passthrough so the many existing call-sites still
+ * compile and do NOT double-render the shell (which would show two sidebars).
+ *
+ * New pages do not need to use this — the route layout wraps them automatically.
+ */
+export function DashboardLayout({ children }: { children: ReactNode }) {
+  return <>{children}</>
 }
-
-export function DashboardLayout({ children }: DashboardLayoutProps) {
-	return (
-		<div className="flex h-screen bg-background">
-			{/* Sidebar */}
-			<Sidebar />
-			
-			{/* Main Content */}
-			<div className="flex-1 flex flex-col overflow-hidden">
-				<main className="flex-1 overflow-y-auto">
-					{children}
-				</main>
-			</div>
-		</div>
-	)
-} 

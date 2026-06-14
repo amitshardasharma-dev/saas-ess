@@ -1,22 +1,25 @@
 import toast from 'react-hot-toast'
 
+type ToastOptions = Parameters<typeof toast>[1]
+
 // Helper function to safely convert any value to a string message
-const getSafeMessage = (message: any): string => {
+const getSafeMessage = (message: unknown): string => {
 	if (typeof message === 'string') {
 		return message
 	}
-	
+
 	if (typeof message === 'object' && message !== null) {
+		const obj = message as Record<string, unknown>
 		// Try to extract meaningful message from object
-		if (message.message && typeof message.message === 'string') {
-			return message.message
+		if (typeof obj.message === 'string') {
+			return obj.message
 		}
-		if (message.error && typeof message.error === 'string') {
-			return message.error
+		if (typeof obj.error === 'string') {
+			return obj.error
 		}
 		// If it's an object with message and workflow_state, extract the message
-		if (message.message && message.workflow_state) {
-			return typeof message.message === 'string' ? message.message : 'Operation completed'
+		if (obj.message && obj.workflow_state) {
+			return typeof obj.message === 'string' ? obj.message : 'Operation completed'
 		}
 		// Fallback to JSON string representation
 		try {
@@ -32,28 +35,28 @@ const getSafeMessage = (message: any): string => {
 
 // Safe toast functions that prevent objects from being rendered
 export const safeToast = {
-	success: (message: any, options?: any) => {
+	success: (message: unknown, options?: ToastOptions) => {
 		const safeMessage = getSafeMessage(message)
 		return toast.success(safeMessage, options)
 	},
-	
-	error: (message: any, options?: any) => {
+
+	error: (message: unknown, options?: ToastOptions) => {
 		const safeMessage = getSafeMessage(message)
 		return toast.error(safeMessage, options)
 	},
-	
-	info: (message: any, options?: any) => {
+
+	info: (message: unknown, options?: ToastOptions) => {
 		const safeMessage = getSafeMessage(message)
 		return toast(safeMessage, options)
 	},
-	
-	loading: (message: any, options?: any) => {
+
+	loading: (message: unknown, options?: ToastOptions) => {
 		const safeMessage = getSafeMessage(message)
 		return toast.loading(safeMessage, options)
 	},
-	
+
 	// Main toast function
-	toast: (message: any, options?: any) => {
+	toast: (message: unknown, options?: ToastOptions) => {
 		const safeMessage = getSafeMessage(message)
 		return toast(safeMessage, options)
 	}
@@ -61,7 +64,7 @@ export const safeToast = {
 
 // Create a safe toast wrapper that can be used as a drop-in replacement
 export const createSafeToast = () => {
-	const safeToastFunction = (message: any, options?: any) => {
+	const safeToastFunction = (message: unknown, options?: ToastOptions) => {
 		const safeMessage = getSafeMessage(message)
 		return toast(safeMessage, options)
 	}

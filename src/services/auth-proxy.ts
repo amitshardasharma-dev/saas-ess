@@ -1,26 +1,36 @@
 import { LoginCredentials, LoginResponse, User } from '@/types/auth'
 
-interface FrappeLoginResponse {
-	message: string
-	home_page?: string
-	full_name?: string
-}
-
-interface FrappeUserResponse {
+interface AuthUserResponse {
 	user: User | null
 	authenticated: boolean
 }
 
 export class ProxyAuthService {
 	private static instance: ProxyAuthService
-	
+
 	private constructor() {}
-	
+
 	static getInstance(): ProxyAuthService {
 		if (!ProxyAuthService.instance) {
 			ProxyAuthService.instance = new ProxyAuthService()
 		}
 		return ProxyAuthService.instance
+	}
+
+	private getToken(): string | null {
+		if (typeof window === 'undefined') return null
+		return localStorage.getItem('ess_access_token')
+	}
+
+	private setTokens(accessToken: string, refreshToken: string) {
+		localStorage.setItem('ess_access_token', accessToken)
+		localStorage.setItem('ess_refresh_token', refreshToken)
+	}
+
+	private clearTokens() {
+		localStorage.removeItem('ess_access_token')
+		localStorage.removeItem('ess_refresh_token')
+		localStorage.removeItem('remember_me')
 	}
 
 	async login(credentials: LoginCredentials): Promise<LoginResponse> {
@@ -30,33 +40,36 @@ export class ProxyAuthService {
 				headers: {
 					'Content-Type': 'application/x-www-form-urlencoded',
 				},
-				credentials: 'include',
 				body: new URLSearchParams({
 					usr: credentials.usr,
 					pwd: credentials.pwd,
 				}),
 			})
 
+			const data = await response.json()
+
 			if (!response.ok) {
-				throw new Error('Login request failed')
+				throw new Error(data.message || 'Login failed')
 			}
 
-			const data: FrappeLoginResponse = await response.json()
-			
 			if (data.message === 'Logged In') {
-				// Store remember me preference
+				// Store tokens
+				if (data.access_token) {
+					this.setTokens(data.access_token, data.refresh_token || '')
+				}
+
 				if (credentials.remember_me) {
 					localStorage.setItem('remember_me', 'true')
 				}
-				
+
 				return {
 					message: data.message,
 					home_page: data.home_page || '/dashboard',
 					full_name: data.full_name || credentials.usr,
-					user: credentials.usr,
+					user: data.user || credentials.usr,
 				}
 			}
-			
+
 			throw new Error(data.message || 'Login failed')
 		} catch (error) {
 			if (error instanceof Error) {
@@ -68,30 +81,37 @@ export class ProxyAuthService {
 
 	async logout(): Promise<void> {
 		try {
+			const token = this.getToken()
 			await fetch('/api/auth/logout', {
 				method: 'POST',
-				credentials: 'include',
+				headers: {
+					...(token && { Authorization: `Bearer ${token}` }),
+				},
 			})
-			localStorage.removeItem('remember_me')
 		} catch (error) {
 			console.error('Logout error:', error)
-			// Even if logout fails on server, clear local storage
-			localStorage.removeItem('remember_me')
+		} finally {
+			this.clearTokens()
 		}
 	}
 
 	async getCurrentUser(): Promise<User | null> {
 		try {
+			const token = this.getToken()
+			if (!token) return null
+
 			const response = await fetch('/api/auth/user', {
-				credentials: 'include',
+				headers: {
+					Authorization: `Bearer ${token}`,
+				},
 			})
-			
+
 			if (!response.ok) {
 				return null
 			}
 
-			const data: FrappeUserResponse = await response.json()
-			
+			const data: AuthUserResponse = await response.json()
+
 			return data.authenticated ? data.user : null
 		} catch (error) {
 			console.error('Get current user error:', error)
@@ -101,15 +121,20 @@ export class ProxyAuthService {
 
 	async checkSession(): Promise<boolean> {
 		try {
+			const token = this.getToken()
+			if (!token) return false
+
 			const response = await fetch('/api/auth/user', {
-				credentials: 'include',
+				headers: {
+					Authorization: `Bearer ${token}`,
+				},
 			})
-			
+
 			if (!response.ok) {
 				return false
 			}
 
-			const data: FrappeUserResponse = await response.json()
+			const data: AuthUserResponse = await response.json()
 			return data.authenticated
 		} catch {
 			return false
@@ -117,4 +142,4 @@ export class ProxyAuthService {
 	}
 }
 
-export const proxyAuthService = ProxyAuthService.getInstance() 
+export const proxyAuthService = ProxyAuthService.getInstance()

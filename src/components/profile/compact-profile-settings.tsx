@@ -1,8 +1,7 @@
 'use client'
 
-import { useState, useRef, useMemo, useEffect, useCallback } from 'react'
+import { useState, useRef, useMemo, useEffect } from 'react'
 import { Camera, Eye, EyeOff, User as UserIcon, Mail, Building, Briefcase, Shield, Phone } from 'lucide-react'
-import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -82,13 +81,12 @@ export function CompactProfileSettings({ user }: CompactProfileSettingsProps) {
 
 		try {
 			const url = `/api/employee/${user.employee}`
-			
+			const token = localStorage.getItem('ess_access_token')
 			const response = await fetch(url, {
-				credentials: 'include',
+				headers: token ? { Authorization: `Bearer ${token}` } : {},
 			})
 
 			if (!response.ok) {
-				const errorText = await response.text()
 				throw new Error(`Failed to fetch employee data: ${response.status}`)
 			}
 
@@ -100,7 +98,7 @@ export function CompactProfileSettings({ user }: CompactProfileSettingsProps) {
 				department: data.employee.department,
 				designation: data.employee.designation,
 			})
-		} catch (error) {
+		} catch {
 			setEmployeeError('Failed to load employee information')
 		} finally {
 			setIsEmployeeLoading(false)
@@ -110,19 +108,18 @@ export function CompactProfileSettings({ user }: CompactProfileSettingsProps) {
 	// Helper function to convert relative URLs to absolute
 	const getAbsoluteImageUrl = (url: string | null | undefined): string | null => {
 		if (!url) return null
-		
+
 		// If it's already an absolute URL, return as is
 		if (url.startsWith('http://') || url.startsWith('https://')) {
 			return url
 		}
-		
-		// If it's a relative URL, prepend the Frappe server URL
-		const baseUrl = config.frappe.url
+
+		// For relative URLs, use the Supabase URL as base
+		const baseUrl = config.supabase.url
 		if (url.startsWith('/')) {
 			return `${baseUrl}${url}`
 		}
-		
-		// If it's a relative path without leading slash, add it
+
 		return `${baseUrl}/${url}`
 	}
 
@@ -209,9 +206,11 @@ export function CompactProfileSettings({ user }: CompactProfileSettingsProps) {
 			formData.append('is_private', '0')
 			formData.append('folder', 'Home')
 			
-			// Upload file via our proxy API
+			// Upload file via our API
+			const token = localStorage.getItem('ess_access_token')
 			const uploadResponse = await fetch('/api/profile/upload-photo', {
 				method: 'POST',
+				headers: token ? { Authorization: `Bearer ${token}` } : {},
 				body: formData,
 			})
 
@@ -220,20 +219,11 @@ export function CompactProfileSettings({ user }: CompactProfileSettingsProps) {
 			}
 
 			const uploadData = await uploadResponse.json()
-			const fileUrl = uploadData.message?.file_url || uploadData.file_url
-			
+			const fileUrl = uploadData.photo_url
+
 			if (fileUrl) {
-				// Update user profile with new image via our proxy API
-				const updateResponse = await fetch('/api/profile/update', {
-					method: 'POST',
-					headers: {
-						'Content-Type': 'application/json',
-					},
-					body: JSON.stringify({
-						userId: user.name,
-						updates: { user_image: fileUrl }
-					}),
-				})
+				// Photo URL is already updated in DB by the upload endpoint
+				const updateResponse = { ok: true }
 
 				if (!updateResponse.ok) {
 					throw new Error('Profile update failed')
@@ -250,7 +240,7 @@ export function CompactProfileSettings({ user }: CompactProfileSettingsProps) {
 			} else {
 				throw new Error('No file URL returned from upload')
 			}
-		} catch (error) {
+		} catch {
 			toast.error('Failed to update profile photo. Please try again.', { id: 'photo-upload' })
 		} finally {
 			setIsPhotoLoading(false)
@@ -279,15 +269,16 @@ export function CompactProfileSettings({ user }: CompactProfileSettingsProps) {
 
 		setIsPasswordLoading(true)
 		try {
-			// Change password via our proxy API
+			// Change password via our API
+			const token = localStorage.getItem('ess_access_token')
 			const response = await fetch('/api/profile/change-password', {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
+					...(token ? { Authorization: `Bearer ${token}` } : {}),
 				},
 				body: JSON.stringify({
-					currentPassword: passwordData.currentPassword,
-					newPassword: passwordData.newPassword,
+					new_password: passwordData.newPassword,
 				}),
 			})
 
@@ -303,7 +294,7 @@ export function CompactProfileSettings({ user }: CompactProfileSettingsProps) {
 			})
 			
 			toast.success('Password changed successfully!')
-		} catch (error) {
+		} catch {
 			toast.error('Failed to change password. Please try again.')
 		} finally {
 			setIsPasswordLoading(false)

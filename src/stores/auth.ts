@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { AuthState, LoginCredentials } from '@/types/auth'
+import { AuthState, LoginCredentials, User } from '@/types/auth'
 import { proxyAuthService } from '@/services/auth-proxy'
 
 interface AuthStore extends AuthState {
@@ -9,7 +9,7 @@ interface AuthStore extends AuthState {
 	checkAuth: () => Promise<void>
 	clearError: () => void
 	updateUserPhoto: (photoUrl: string) => Promise<void>
-	updateUserInfo: (info: Partial<any>) => Promise<void>
+	updateUserInfo: (info: Partial<User>) => Promise<void>
 	changePassword: (currentPassword: string, newPassword: string) => Promise<void>
 }
 
@@ -121,7 +121,7 @@ export const useAuthStore = create<AuthStore>()(
 				}
 			},
 
-			updateUserInfo: async (info: Partial<any>) => {
+			updateUserInfo: async (info: Partial<User>) => {
 				set({ isLoading: true })
 				
 				try {
@@ -140,7 +140,7 @@ export const useAuthStore = create<AuthStore>()(
 				}
 			},
 
-			changePassword: async (currentPassword: string, newPassword: string) => {
+			changePassword: async () => {
 				set({ isLoading: true })
 				
 				try {

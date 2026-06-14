@@ -1,58 +1,114 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
+import { supabaseAdmin } from '@/lib/supabase-server'
+import { withAuth } from '@/lib/auth-middleware'
 
-export async function GET(request: NextRequest) {
-	try {
-		const { searchParams } = new URL(request.url)
-		const employee = searchParams.get('employee')
-		const leaveType = searchParams.get('leave_type')
-		const totalDays = searchParams.get('total_days')
-		const fromDate = searchParams.get('from_date')
-		const tillDate = searchParams.get('till_date')
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
-		if (!employee || !leaveType || !totalDays || !fromDate || !tillDate) {
-			return NextResponse.json(
-				{ error: 'Missing required parameters' },
-				{ status: 400 }
-			)
-		}
+/**
+ * GET /api/preview-approval-chain?employee=<id|employee_no>&leave_type=&total_days=
+ * Requires auth. The employee is resolved with PARAMETERIZED .eq() filters scoped
+ * to the caller's company — no string-interpolated .or() (kills the filter-injection
+ * vector) and a foreign-tenant employee resolves to 404 (no cross-tenant disclosure).
+ */
+export const GET = withAuth(async (request, { companyId }) => {
+  const { searchParams } = new URL(request.url)
+  const employee = searchParams.get('employee')
+  const leaveType = searchParams.get('leave_type')
+  const totalDays = searchParams.get('total_days')
 
-		console.log('Previewing Approval Chain from Frappe...')
-		console.log('Cookie header present:', request.headers.get('cookie') ? 'Yes' : 'No')
+  if (!employee || !leaveType || !totalDays) {
+    return NextResponse.json({ error: 'Missing required parameters' }, { status: 400 })
+  }
 
-		// Forward the request to Frappe with cookies
-		const frappeUrl = `http://hr.portal:8000/api/method/hr_portal.hr.doctype.leave_application.leave_application.preview_approval_chain?employee=${employee}&leave_type=${leaveType}&total_leave_days=${totalDays}&from_date=${fromDate}&till_date=${tillDate}`
-		
-		console.log('Making request to Frappe URL:', frappeUrl)
+  // Resolve by employee_no (safe string eq), then by uuid id — both scoped to the
+  // caller's company. No raw interpolation into a PostgREST filter string.
+  let emp: { id: string; company_id: string; reports_to: string | null } | null = null
+  {
+    const { data } = await supabaseAdmin
+      .from('ess_employees')
+      .select('id, company_id, reports_to')
+      .eq('employee_no', employee)
+      .eq('company_id', companyId)
+      .maybeSingle()
+    emp = data
+  }
+  if (!emp && UUID_RE.test(employee)) {
+    const { data } = await supabaseAdmin
+      .from('ess_employees')
+      .select('id, company_id, reports_to')
+      .eq('id', employee)
+      .eq('company_id', companyId)
+      .maybeSingle()
+    emp = data
+  }
 
-		const frappeResponse = await fetch(frappeUrl, {
-			method: 'GET',
-			headers: {
-				'Cookie': request.headers.get('cookie') || '',
-				'Content-Type': 'application/json'
-			}
-		})
+  if (!emp) {
+    return NextResponse.json({ error: 'Employee not found' }, { status: 404 })
+  }
 
-		console.log('Frappe response status:', frappeResponse.status)
-		console.log('Frappe response ok:', frappeResponse.ok)
+  const { data: rules } = await supabaseAdmin
+    .from('ess_approval_rules')
+    .select(`
+      *,
+      specific_approver:ess_employees!ess_approval_rules_specific_approver_id_fkey(id, full_name, employee_no)
+    `)
+    .eq('company_id', companyId)
+    .eq('rule_type', 'leave')
+    .eq('is_active', true)
+    .order('level_no')
 
-		if (!frappeResponse.ok) {
-			const errorText = await frappeResponse.text()
-			console.error('Frappe error response:', errorText)
-			return NextResponse.json(
-				{ error: 'Failed to preview approval chain from Frappe' },
-				{ status: frappeResponse.status }
-			)
-		}
+  if (!rules || rules.length === 0) {
+    // Default: reporting manager
+    let reportsTo: { full_name: string; employee_no: string } | null = null
+    if (emp.reports_to) {
+      const { data } = await supabaseAdmin
+        .from('ess_employees')
+        .select('full_name, employee_no')
+        .eq('id', emp.reports_to)
+        .eq('company_id', companyId)
+        .maybeSingle()
+      reportsTo = data
+    }
+    return NextResponse.json({
+      approval_chain: [{
+        level: 1,
+        approver_type: 'reporting_manager',
+        approver_name: reportsTo?.full_name || 'Reporting Manager',
+        approver_id: reportsTo?.employee_no || '',
+      }],
+    })
+  }
 
-		const data = await frappeResponse.json()
-		console.log('Raw approval chain data from Frappe:', JSON.stringify(data, null, 2))
+  const chain = await Promise.all(
+    rules.map(async (rule) => {
+      let approverName = 'Unknown'
+      let approverId = ''
 
-		return NextResponse.json(data.message || data)
-	} catch (error) {
-		console.error('Error previewing approval chain:', error)
-		return NextResponse.json(
-			{ error: 'Internal server error' },
-			{ status: 500 }
-		)
-	}
-} 
+      if (rule.approver_type === 'specific' && rule.specific_approver) {
+        const specificApprover = rule.specific_approver as unknown as { full_name: string; employee_no: string }
+        approverName = specificApprover.full_name
+        approverId = specificApprover.employee_no
+      } else if (rule.approver_type === 'reporting_manager' && emp.reports_to) {
+        const { data: mgr } = await supabaseAdmin
+          .from('ess_employees')
+          .select('full_name, employee_no')
+          .eq('id', emp.reports_to)
+          .eq('company_id', companyId)
+          .maybeSingle()
+        if (mgr) {
+          approverName = mgr.full_name
+          approverId = mgr.employee_no
+        }
+      }
+
+      return {
+        level: rule.level_no,
+        approver_type: rule.approver_type,
+        approver_name: approverName,
+        approver_id: approverId,
+      }
+    })
+  )
+
+  return NextResponse.json({ approval_chain: chain })
+})

@@ -5,7 +5,6 @@ import { Eye, EyeOff, Lock, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { useAuthStore } from '@/stores/auth'
 import toast from 'react-hot-toast'
 import { z } from 'zod'
 
@@ -21,7 +20,6 @@ const passwordChangeSchema = z.object({
 type PasswordChangeFormData = z.infer<typeof passwordChangeSchema>
 
 export function PasswordChangeForm() {
-	const { changePassword } = useAuthStore()
 	const [formData, setFormData] = useState<PasswordChangeFormData>({
 		currentPassword: '',
 		newPassword: '',
@@ -39,7 +37,7 @@ export function PasswordChangeForm() {
 		try {
 			passwordChangeSchema.parse(formData)
 			return true
-		} catch (error) {
+		} catch {
 			return false
 		}
 	}

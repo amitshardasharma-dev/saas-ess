@@ -1,6 +1,6 @@
 'use client'
 
-import { Receipt, Clock, CheckCircle, XCircle, User, Sparkles, Eye, DollarSign, FileText, ArrowRight } from 'lucide-react'
+import { Receipt, Clock, CheckCircle, XCircle, Sparkles, Eye, DollarSign, FileText, ArrowRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { MyExpenseClaim } from '@/types/dashboard'

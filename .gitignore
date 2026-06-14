@@ -1,6 +1,39 @@
-# Ignore everything
-*
+# Dependencies
+node_modules/
+.pnpm-store/
 
-# Except the src folder and its contents
-!src/
-!src/**/*
+# Next.js
+.next/
+out/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Testing
+coverage/
+
+# Misc
+*.tsbuildinfo
+.mcp.json
+.vercel
+tests/fixtures/users.json
+test-results/
+# E2E generated artifacts (screenshots + captured run results) — not source
+e2e/shots/
+e2e/results/
+artifacts/
+playwright-report/

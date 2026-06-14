@@ -1,47 +1,41 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Sparkles, User, Building, Mail, Hash, Calendar } from 'lucide-react'
+import { Sparkles, User, Building, Mail, Hash, FileText, Users } from 'lucide-react'
+import Link from 'next/link'
 import { Toaster } from 'react-hot-toast'
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useAuthStore } from '@/stores/auth'
-import config from '@/config/environment'
 
 // Employee dashboard components
 import { EmployeeStatsCards } from '@/components/dashboard/employee-stats-cards'
 import { useEmployee } from '@/hooks/use-employee'
 import { MyLeaveApplications } from '@/components/dashboard/my-leave-applications'
 import { MyExpenseClaims } from '@/components/dashboard/my-expense-claims'
-import { MyPayslips } from '@/components/dashboard/my-payslips'
 import { LeaveBalanceComponent } from '@/components/dashboard/leave-balance'
 import { PendingApprovalsSummary } from '@/components/dashboard/pending-approvals-summary'
 import { PendingExpenseApprovals } from '@/components/dashboard/pending-expense-approvals'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
+import { useModules } from '@/hooks/use-modules'
+import { UserRole, hasMinRole } from '@/types/roles'
+import { TimesheetList } from '@/components/timesheets/timesheet-list'
+
+// Team calendar service
+import { teamCalendarService } from '@/services/team-calendar'
 
 // Employee dashboard data and types
 import { employeeDashboardService } from '@/services/dashboard-data'
-import { 
-	MyLeaveApplication, 
-	MyExpenseClaim, 
-	LeaveBalance, 
+import {
+	MyLeaveApplication,
+	MyExpenseClaim,
+	LeaveBalance,
 	EmployeeDashboardStats,
-	PayslipData
+	PayslipData,
+	DashboardTimesheet,
+	PendingAcknowledgment
 } from '@/types/dashboard'
-
-interface UserInfoItemProps {
-	label: string
-	value: string
-}
-
-function UserInfoItem({ label, value }: UserInfoItemProps) {
-	return (
-		<div className="content-flow p-4 rounded-xl space-y-2">
-			<p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{label}</p>
-			<p className="text-sm text-foreground font-bold truncate" title={value}>{value}</p>
-		</div>
-	)
-}
+import type { TimesheetStatus } from '@/types/timesheet'
 
 export default function DashboardPage() {
 	const { user, isAuthenticated, checkAuth, isLoading } = useAuthStore()
@@ -50,12 +44,17 @@ export default function DashboardPage() {
 	const [dashboardStats, setDashboardStats] = useState<EmployeeDashboardStats | null>(null)
 	const [myLeaveApplications, setMyLeaveApplications] = useState<MyLeaveApplication[]>([])
 	const [myExpenseClaims, setMyExpenseClaims] = useState<MyExpenseClaim[]>([])
-	const [myPayslips, setMyPayslips] = useState<PayslipData[]>([])
+	const [, setMyPayslips] = useState<PayslipData[]>([])
 	const [leaveBalances, setLeaveBalances] = useState<LeaveBalance[]>([])
+	const [myTimesheets, setMyTimesheets] = useState<DashboardTimesheet[]>([])
+	const [pendingAcks, setPendingAcks] = useState<PendingAcknowledgment[]>([])
 	const [isDashboardLoading, setIsDashboardLoading] = useState(true)
+	const [teamAbsencesThisWeek, setTeamAbsencesThisWeek] = useState<number>(0)
 	
 	// Get employee data for enhanced welcome section
 	const { employee, loading: employeeLoading } = useEmployee()
+	const { isModuleEnabled } = useModules()
+	const userRole = (user?.role || 'employee') as UserRole
 
 	useEffect(() => {
 		// Check authentication status
@@ -75,16 +74,18 @@ export default function DashboardPage() {
 			console.log('Dashboard Page: Current user:', user)
 			
 			// Load all employee dashboard data in parallel
-			const [stats, applications, claims, payslips, balances] = await Promise.all([
+			const [stats, applications, claims, payslips, balances, timesheets, acks] = await Promise.all([
 				employeeDashboardService.getEmployeeDashboardStats(),
 				employeeDashboardService.getMyLeaveApplications(),
 				employeeDashboardService.getMyExpenseClaims(),
 				employeeDashboardService.getMyPayslips(),
-				employeeDashboardService.getLeaveBalances()
+				employeeDashboardService.getLeaveBalances(),
+				employeeDashboardService.getMyTimesheets(),
+				employeeDashboardService.getPendingAcknowledgments()
 			])
 
 			// Validate that stats is a proper object with numeric values
-			if (stats && typeof stats === 'object' && !(stats as any).message && !(stats as any).workflow_state) {
+			if (stats && typeof stats === 'object' && !(stats as unknown as Record<string, unknown>).message && !(stats as unknown as Record<string, unknown>).workflow_state) {
 				setDashboardStats(stats)
 			} else {
 				console.error('Invalid stats data received:', stats)
@@ -123,6 +124,45 @@ export default function DashboardPage() {
 				console.error('Invalid balances data received:', balances)
 				setLeaveBalances([])
 			}
+
+			// Set timesheets state
+			setMyTimesheets(Array.isArray(timesheets) ? timesheets : [])
+
+			// Set pending acknowledgments state
+			setPendingAcks(Array.isArray(acks) ? acks : [])
+
+			// Load team absences for managers with leave module enabled
+			if (hasMinRole(userRole, 'manager') && isModuleEnabled('leave')) {
+				try {
+					const now = new Date()
+					const year = now.getFullYear()
+					const month = now.getMonth() + 1
+					const teamData = await teamCalendarService.getTeamLeaves(year, month)
+
+					// Determine current week boundaries (Mon–Sun)
+					const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+					const dayOfWeek = today.getDay() // 0=Sun, 1=Mon, ...
+					const diffToMon = (dayOfWeek === 0 ? -6 : 1 - dayOfWeek)
+					const weekStart = new Date(today)
+					weekStart.setDate(today.getDate() + diffToMon)
+					const weekEnd = new Date(weekStart)
+					weekEnd.setDate(weekStart.getDate() + 6)
+
+					const weekStartStr = weekStart.toISOString().slice(0, 10)
+					const weekEndStr = weekEnd.toISOString().slice(0, 10)
+
+					// Count unique employees with leave overlapping the current week
+					const uniqueEmployees = new Set<string>()
+					for (const leave of teamData.leaves) {
+						if (leave.fromDate <= weekEndStr && leave.toDate >= weekStartStr) {
+							uniqueEmployees.add(leave.employeeId)
+						}
+					}
+					setTeamAbsencesThisWeek(uniqueEmployees.size)
+				} catch {
+					// Non-critical: silently ignore team calendar errors
+				}
+			}
 		} catch (error) {
 			console.error('Failed to load dashboard data:', error)
 			// Set safe default values
@@ -131,6 +171,8 @@ export default function DashboardPage() {
 			setMyExpenseClaims([])
 			setMyPayslips([])
 			setLeaveBalances([])
+			setMyTimesheets([])
+			setPendingAcks([])
 		} finally {
 			setIsDashboardLoading(false)
 		}
@@ -382,12 +424,12 @@ export default function DashboardPage() {
 								Your Personal Dashboard
 							</h2>
 							<p className="text-muted-foreground">
-								Manage your leave applications, expense claims, and view your balances
+								Your tasks and activity at a glance
 							</p>
 						</div>
 
-						{/* Statistics Cards with Enhanced Styling */}
-						{dashboardStats && (
+						{/* Statistics Cards — leave/expense oriented; only when those modules are on */}
+						{dashboardStats && (isModuleEnabled('leave') || isModuleEnabled('expense')) && (
 							<div className="relative">
 								<EmployeeStatsCards stats={dashboardStats} />
 								<div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-accent/5 rounded-2xl -z-10 blur-3xl"></div>
@@ -395,29 +437,110 @@ export default function DashboardPage() {
 						)}
 
 						{/* Leave Balance Overview with Glass Effect */}
-						<div className="relative">
-							<LeaveBalanceComponent balances={leaveBalances} />
-						</div>
-
-						{/* My Applications, Claims, and Payslips Row with Modern Cards */}
-						<div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-							<div className="space-y-2">
-								<MyLeaveApplications applications={myLeaveApplications} />
+						{isModuleEnabled('leave') && (
+							<div className="relative">
+								<LeaveBalanceComponent balances={leaveBalances} />
 							</div>
-							<div className="space-y-2">
-								<MyExpenseClaims claims={myExpenseClaims} />
-							</div>
-							<div className="space-y-2">
-								<MyPayslips payslips={myPayslips} />
-							</div>
-						</div>
+						)}
 
-						{/* Approval Sections Row - Only visible to users with approval access */}
-						<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-							<PendingApprovalsSummary />
-							<PendingExpenseApprovals />
-						</div>
+						{/* My Applications & Claims — each gated by its module (Payslips removed:
+						    no payslips module/API exists, was mock data) */}
+						{(isModuleEnabled('leave') || isModuleEnabled('expense')) && (
+							<div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+								{isModuleEnabled('leave') && (
+									<div className="space-y-2">
+										<MyLeaveApplications applications={myLeaveApplications} />
+									</div>
+								)}
+								{isModuleEnabled('expense') && (
+									<div className="space-y-2">
+										<MyExpenseClaims claims={myExpenseClaims} />
+									</div>
+								)}
+							</div>
+						)}
 
+						{/* Timesheets Section */}
+						{isModuleEnabled('timesheets') && (
+							<div className="space-y-2">
+								<TimesheetList
+									timesheets={myTimesheets.map(ts => ({
+										id: ts.id,
+										display_id: ts.displayId,
+										period_start: ts.periodStart,
+										period_end: ts.periodEnd,
+										total_hours: ts.totalHours,
+										status: ts.status as unknown as TimesheetStatus,
+										employee_id: '',
+										company_id: '',
+										submitted_at: null,
+										created_at: '',
+										updated_at: '',
+									}))}
+									maxItems={5}
+								/>
+							</div>
+						)}
+
+						{/* Pending Acknowledgments Card */}
+						{isModuleEnabled('documents') && pendingAcks.length > 0 && (
+							<div className="flowing-card p-6 border-l-4 border-amber-500">
+								<div className="flex items-center justify-between">
+									<div className="flex items-center space-x-3">
+										<div className="p-2 bg-amber-100 rounded-xl">
+											<FileText className="h-5 w-5 text-amber-600" />
+										</div>
+										<div>
+											<h3 className="font-semibold text-foreground">Pending Acknowledgments</h3>
+											<p className="text-sm text-muted-foreground">
+												{pendingAcks.length} document{pendingAcks.length !== 1 ? 's' : ''} require your acknowledgment
+											</p>
+										</div>
+									</div>
+									<Link
+										href="/dashboard/documents"
+										className="text-sm font-medium text-primary hover:underline"
+									>
+										View Documents →
+									</Link>
+								</div>
+							</div>
+						)}
+
+						{/* Approval Sections — gated by their modules (leave / expense) */}
+						{(isModuleEnabled('leave') || isModuleEnabled('expense')) && (
+							<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+								{isModuleEnabled('leave') && <PendingApprovalsSummary />}
+								{isModuleEnabled('expense') && <PendingExpenseApprovals />}
+							</div>
+						)}
+
+						{/* Team Absences This Week - Managers only */}
+						{hasMinRole(userRole, 'manager') && isModuleEnabled('leave') && (
+							<Card className="border-l-4 border-primary">
+								<CardHeader className="pb-2">
+									<CardTitle className="flex items-center gap-2 text-base">
+										<Users className="h-5 w-5 text-primary" />
+										Team Absences This Week
+									</CardTitle>
+									<CardDescription>Employees on leave during the current week</CardDescription>
+								</CardHeader>
+								<CardContent className="flex items-center justify-between">
+									<div>
+										<span className="text-4xl font-bold text-foreground">{teamAbsencesThisWeek}</span>
+										<span className="ml-2 text-muted-foreground text-sm">
+											{teamAbsencesThisWeek === 1 ? 'employee' : 'employees'} off
+										</span>
+									</div>
+									<Link
+										href="/dashboard/team-calendar"
+										className="text-sm font-medium text-primary hover:underline"
+									>
+										View Team Calendar →
+									</Link>
+								</CardContent>
+							</Card>
+						)}
 
 					</div>
 				)}
