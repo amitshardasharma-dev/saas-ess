@@ -3,7 +3,6 @@
 // side-effects every certification mutation needs.
 
 import { supabaseAdmin } from '@/lib/supabase-admin'
-import { enqueueJob } from '@/lib/jobs/dispatch'
 import { calcStatus, type CertStatus } from '@/lib/compliance/expiry'
 import type { CertHistoryAction } from '@/types/compliance'
 
@@ -27,9 +26,19 @@ export async function writeCertHistory(input: {
 }
 
 /**
- * Enqueue reminder jobs for each configured offset whose fire date is still in
- * the future. Offsets are "days before expiry". No-op when the cert never
- * expires or has no offsets. Best-effort: enqueue failures are swallowed.
+ * No-op, retained for call-site compatibility.
+ *
+ * This used to enqueue per-cert `compliance.reminder` jobs at each offset's fire
+ * date — but no handler was ever registered for that type, so those jobs only
+ * dead-lettered (markJobFailed) and never sent anything.
+ *
+ * Reminder delivery is now handled by the daily `reminders.scan` job (enqueued for
+ * every active tenant by /api/cron/daily-scans, drained by /api/cron/run-jobs).
+ * `scanReminders` sweeps all active `ess_reminder_configs` and matches every cert
+ * whose `daysUntil(expiry)` equals a configured offset, deduping via
+ * `ess_reminder_sends` — which fully supersedes this per-cert path. We keep the
+ * exported signature so existing callers still compile; the body intentionally
+ * does nothing.
  */
 export async function scheduleReminders(input: {
   companyId: string
@@ -37,25 +46,10 @@ export async function scheduleReminders(input: {
   expiryDate: string | null
   reminderOffsets: number[]
 }): Promise<void> {
-  if (!input.expiryDate || !input.reminderOffsets?.length) return
-  const expiryMs = Date.parse(input.expiryDate.slice(0, 10) + 'T00:00:00Z')
-  if (Number.isNaN(expiryMs)) return
-
-  for (const offset of input.reminderOffsets) {
-    if (offset < 0) continue
-    const fireAt = new Date(expiryMs - offset * 86400000)
-    if (fireAt.getTime() <= Date.now()) continue // already past — skip
-    try {
-      await enqueueJob(
-        'compliance.reminder',
-        { certification_id: input.certificationId, offset_days: offset },
-        fireAt,
-        input.companyId,
-      )
-    } catch (err) {
-      console.error('[compliance] failed to enqueue reminder', err)
-    }
-  }
+  // Superseded by the daily reminders.scan automation — intentionally a no-op.
+  // `input` is referenced only to satisfy the no-unused-vars lint rule while the
+  // signature is preserved for existing callers.
+  void input
 }
 
 /**
