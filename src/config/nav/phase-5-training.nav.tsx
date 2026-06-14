@@ -31,7 +31,9 @@ export const trainingNav: NavSection[] = [
       {
         key: 'training-reports',
         title: 'Training Progress',
-        href: '/dashboard/training/reports',
+        // Canonical report lives under Reports; this entry deep-links to it so the
+        // Training section still surfaces progress without a duplicate page.
+        href: '/dashboard/reports/training',
         icon: BarChart3,
         description: 'Volunteer progress overview',
         minRole: 'hr',
