@@ -14,6 +14,8 @@ export interface Document {
   category_name?: string
   title: string
   description: string | null
+  /** In-app authored content (markdown), rendered inline when present. */
+  body_markdown?: string | null
   current_version: number
   access_roles: string[] // which roles can see it
   is_published: boolean

@@ -36,11 +36,44 @@ const CERT_TYPES = [
   ['Manual Handling / WHS Induction',12,false,false,[30,7,0]],
   ['NDIS Worker Screening',60,true,false,[90,30,0]],
 ]
+// [title, description, requires_ack, body_markdown?]
+const AGREEMENT_MD = `# Volunteer Agreement
+
+Thank you for volunteering with **Birch Foundation**. By signing below you agree to:
+
+1. Act with care, respect and integrity toward the people we support.
+2. Maintain the confidentiality of all client and organisational information.
+3. Follow Birch Foundation policies, including our Child-Safe & Safeguarding Policy.
+4. Attend agreed shifts and notify your coordinator of any absence.
+5. Complete all required training and keep your certifications current.
+
+This agreement is entered into voluntarily and may be ended by either party at any time.`
+const CONDUCT_MD = `# Code of Conduct
+
+As a Birch Foundation volunteer you will:
+
+- Treat everyone with dignity, respect and without discrimination.
+- Maintain professional boundaries with clients and staff.
+- Protect confidential and personal information at all times.
+- Report any safety or safeguarding concern immediately.
+- Never attend a shift under the influence of alcohol or drugs.
+
+Breaches of this code may result in your volunteer role ending.`
+const SAFEGUARDING_MD = `# Child-Safe & Safeguarding Policy
+
+Birch Foundation is committed to the safety and wellbeing of children and vulnerable people.
+
+- We have **zero tolerance** for abuse or neglect of any kind.
+- All volunteers must hold a current Working With Children (Blue Card) and National Police Check.
+- Any concern about a child's safety must be reported to your coordinator and the relevant authority.
+- Volunteers must complete Safeguarding training before working unsupervised.
+
+By acknowledging this policy you confirm you have read and understood it.`
 const DOCS = [
-  ['Volunteer Agreement','Volunteer terms and commitment',false],
-  ['Code of Conduct','Expected standards of behaviour',false],
+  ['Volunteer Agreement','Volunteer terms and commitment',false, AGREEMENT_MD],
+  ['Code of Conduct','Expected standards of behaviour',false, CONDUCT_MD],
   ['Confidentiality & Privacy Agreement','Handling sensitive information',false],
-  ['Child-Safe & Safeguarding Policy','Our commitment to safety',true],
+  ['Child-Safe & Safeguarding Policy','Our commitment to safety',true, SAFEGUARDING_MD],
   ['Photo & Media Consent','Consent for use of images',false],
   ['WHS Policy','Work health & safety',true],
 ]
@@ -154,7 +187,7 @@ async function main() {
 
   // 3b. documents (capture ids by title)
   const { data: docRows, error: docErr } = await sb.from('ess_documents')
-    .insert(DOCS.map(([title, description, ack]) => ({ company_id: cid, title, description, is_published: true, requires_acknowledgment: ack, published_at: new Date().toISOString(), created_by: adminEmp })))
+    .insert(DOCS.map(([title, description, ack, md]) => ({ company_id: cid, title, description, body_markdown: md ?? null, is_published: true, requires_acknowledgment: ack, published_at: new Date().toISOString(), created_by: adminEmp })))
     .select('id, title')
   if (docErr) throw new Error('documents: ' + docErr.message)
   const docByName = Object.fromEntries(docRows.map((d) => [d.title, d.id]))

@@ -47,6 +47,7 @@ export interface SignedDocument {
   signed_pdf_url: string
   content_hash: string
   signed_at: string
+  signing_location: string | null
   ip_address: string | null
   user_agent: string | null
   created_at: string
@@ -100,5 +101,6 @@ export const SignSchema = z
     signatureType: z.enum(SIGNATURE_TYPES),
     fieldValues: z.record(z.string(), z.unknown()),
     signatureDataUrl: z.string().max(5_000_000).optional(),
+    signingLocation: z.string().max(200).optional(),
   })
   .strict()

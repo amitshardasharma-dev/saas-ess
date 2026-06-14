@@ -271,7 +271,7 @@ export async function renderSignedPdf(
   sourcePdfBytes: Uint8Array,
   fields: DocumentField[],
   values: FieldValues,
-  identity: { signerName: string; signedAt: string },
+  identity: { signerName: string; signedAt: string; location?: string | null },
   signatureDataUrl?: string
 ): Promise<Uint8Array> {
   const { PDFDocument, StandardFonts, rgb } = await import('pdf-lib')
@@ -325,8 +325,9 @@ export async function renderSignedPdf(
   // Identity + timestamp footer on the first page (tamper-evidence context).
   if (pages.length > 0) {
     const page = pages[0]
+    const where = identity.location ? ` at ${identity.location}` : ''
     page.drawText(
-      `Signed by ${identity.signerName} on ${identity.signedAt}`,
+      `Signed by ${identity.signerName}${where} on ${identity.signedAt}`,
       { x: 20, y: 20, size: 8, font, color: rgb(0.3, 0.3, 0.3) }
     )
   }
@@ -347,6 +348,8 @@ export interface CreateSignedDocumentInput {
   fieldValues: FieldValues
   /** PNG data URL when signatureType === 'drawn'. */
   signatureDataUrl?: string
+  /** Place of signing (free text, e.g. "Gold Coast, QLD"). */
+  signingLocation?: string | null
   ipAddress?: string | null
   userAgent?: string | null
 }
@@ -396,7 +399,7 @@ export async function createSignedDocument(
     sourceBytes,
     fields,
     input.fieldValues,
-    { signerName: input.signerName, signedAt: signedAtIso },
+    { signerName: input.signerName, signedAt: signedAtIso, location: input.signingLocation },
     input.signatureType === 'drawn' ? input.signatureDataUrl : undefined
   )
 
@@ -425,6 +428,7 @@ export async function createSignedDocument(
       signed_pdf_url: storagePath,
       content_hash: contentHash,
       signed_at: signedAtIso,
+      signing_location: input.signingLocation ?? null,
       ip_address: input.ipAddress ?? null,
       user_agent: input.userAgent ?? null,
     })

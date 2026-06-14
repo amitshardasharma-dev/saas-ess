@@ -65,6 +65,7 @@ export const esignService = {
       signatureType: SignatureType
       fieldValues: Record<string, unknown>
       signatureDataUrl?: string
+      signingLocation?: string
     }
   ): Promise<{ id: string; content_hash: string }> {
     const res = await fetch(`/api/documents/${documentId}/sign`, {

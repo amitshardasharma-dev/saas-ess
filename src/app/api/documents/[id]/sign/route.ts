@@ -56,6 +56,7 @@ export const POST = withAuth(async (request, { companyId, employee, appUser }, p
       signatureType: parsed.data.signatureType,
       fieldValues: parsed.data.fieldValues,
       signatureDataUrl: parsed.data.signatureDataUrl,
+      signingLocation: parsed.data.signingLocation,
       ipAddress: clientIp(request),
       userAgent: request.headers.get('user-agent'),
     })
