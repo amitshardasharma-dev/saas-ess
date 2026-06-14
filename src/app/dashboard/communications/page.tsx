@@ -17,7 +17,7 @@ import { Badge } from '@/components/ui/badge'
 import { useAuthStore } from '@/stores/auth'
 import { hasMinRole } from '@/types/roles'
 import { apiGet } from '@/services/phase7-client'
-import { InboxView } from './inbox/page'
+import { InboxView } from '@/components/communications/inbox-view'
 
 export default function CommunicationsPage() {
   const { user, isAuthenticated, checkAuth } = useAuthStore()
