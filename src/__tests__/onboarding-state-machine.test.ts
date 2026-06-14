@@ -1,6 +1,14 @@
 /**
  * @jest-environment node
  */
+
+// computeOnboardingStatus is a pure function, but @/lib/onboarding constructs the
+// service-role client at module load (supabase-admin). Stub that module so the
+// import graph doesn't require Supabase env vars in the unit-test environment.
+jest.mock('@/lib/supabase-admin', () => ({
+  supabaseAdmin: { from: jest.fn() },
+}));
+
 import { computeOnboardingStatus } from '@/lib/onboarding';
 
 describe('computeOnboardingStatus (state machine)', () => {

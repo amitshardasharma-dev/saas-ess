@@ -21,7 +21,7 @@ var mockResultQueue: Result[] = []
 // eslint-disable-next-line no-var
 var mockRecorded: Recorded[][] = []
 
-jest.mock('@/lib/supabase-server', () => {
+jest.mock('@/lib/supabase-admin', () => {
 	function nextResult(): Result {
 		return mockResultQueue.shift() ?? { data: null, error: null }
 	}

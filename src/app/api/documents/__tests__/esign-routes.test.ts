@@ -4,7 +4,7 @@
 import { NextRequest } from 'next/server'
 
 // --- mock the foundation + service deps ---
-jest.mock('@/lib/supabase-server', () => ({
+jest.mock('@/lib/supabase-admin', () => ({
   supabaseAdmin: { auth: { getUser: jest.fn() }, from: jest.fn() },
 }))
 jest.mock('@/lib/modules', () => {
@@ -26,7 +26,7 @@ jest.mock('@/services/esign', () => {
   }
 })
 
-import { supabaseAdmin } from '@/lib/supabase-server'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 import { assertModuleEnabled, ModuleDisabledError } from '@/lib/modules'
 import {
   getVersionForCompany,

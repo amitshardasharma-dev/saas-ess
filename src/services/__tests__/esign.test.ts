@@ -15,7 +15,7 @@ import {
 import type { DocumentField } from '@/types/esign'
 
 // --- mock the foundation deps ---
-jest.mock('@/lib/supabase-server', () => ({
+jest.mock('@/lib/supabase-admin', () => ({
   supabaseAdmin: { from: jest.fn(), storage: { from: jest.fn() } },
 }))
 jest.mock('@/lib/audit', () => ({ recordAudit: jest.fn() }))
@@ -46,7 +46,7 @@ jest.mock(
   { virtual: true }
 )
 
-import { supabaseAdmin } from '@/lib/supabase-server'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 
 type Result = { data: unknown; error: unknown }
 

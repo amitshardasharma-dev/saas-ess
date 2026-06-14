@@ -75,6 +75,13 @@ jest.mock('@/lib/supabase-server', () => {
   }
 })
 
+// Route handlers reach audit.ts, which constructs the service-role client from
+// @/lib/supabase-admin at module load. Stub it so the import graph doesn't require
+// Supabase env vars; route data access is intercepted via supabase-server above.
+jest.mock('@/lib/supabase-admin', () => ({
+  supabaseAdmin: { from: jest.fn() },
+}))
+
 import * as supa from '@/lib/supabase-server'
 
 const mockState = (supa as unknown as { __state: { builders: Builder[] } }).__state

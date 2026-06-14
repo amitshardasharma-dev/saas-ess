@@ -7,7 +7,7 @@
  */
 // Mock state lives inside the factory (jest hoists jest.mock above imports).
 // Exposed on the mocked module for the test body to configure per-case.
-jest.mock('@/lib/supabase-server', () => {
+jest.mock('@/lib/supabase-admin', () => {
   const db: Record<string, Record<string, unknown>[]> = {
     ess_training_modules: [],
     ess_training_assignments: [],
@@ -52,7 +52,7 @@ jest.mock('@/lib/supabase-server', () => {
 })
 
 import { resolveAssignees } from '@/lib/training/assignments'
-import * as supa from '@/lib/supabase-server'
+import * as supa from '@/lib/supabase-admin'
 
 const db = (supa as unknown as { __db: Record<string, Record<string, unknown>[]> }).__db
 

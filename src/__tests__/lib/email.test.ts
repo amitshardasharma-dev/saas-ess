@@ -4,7 +4,7 @@ jest.mock('@/lib/audit', () => ({
 }))
 
 const mockSingle = jest.fn()
-jest.mock('@/lib/supabase-server', () => ({
+jest.mock('@/lib/supabase-admin', () => ({
 	supabaseAdmin: {
 		from: () => ({
 			select: () => ({

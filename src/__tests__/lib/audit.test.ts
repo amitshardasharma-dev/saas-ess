@@ -5,7 +5,7 @@
 // Mock supabase-server. The factory defines its own jest.fns (names prefixed
 // with `mock` so jest's hoist guard allows them) and exposes them so tests can
 // assert on calls and swap the insert result.
-jest.mock('@/lib/supabase-server', () => {
+jest.mock('@/lib/supabase-admin', () => {
 	const mockInsert = jest.fn().mockResolvedValue({ error: null })
 	const mockFrom = jest.fn(() => ({ insert: mockInsert }))
 	return {
@@ -16,7 +16,7 @@ jest.mock('@/lib/supabase-server', () => {
 })
 
 import { recordAudit } from '@/lib/audit'
-import * as supa from '@/lib/supabase-server'
+import * as supa from '@/lib/supabase-admin'
 
 const mockInsert = (supa as unknown as { __mockInsert: jest.Mock }).__mockInsert
 const mockFrom = (supa as unknown as { __mockFrom: jest.Mock }).__mockFrom
