@@ -26,7 +26,7 @@ export const GET = withAuth(async (_req: NextRequest, { companyId, employee }) =
   const employeeId = employee.id
 
   const [training, certifications, documents, recipients] = await Promise.all([
-    safe('ess_training_tracking', (q) => q.select('*').eq('company_id', companyId).eq('employee_id', employeeId)),
+    safe('ess_training_progress', (q) => q.select('*').eq('company_id', companyId).eq('employee_id', employeeId)),
     safe('ess_certifications', (q) => q.select('*').eq('company_id', companyId).eq('employee_id', employeeId)),
     safe('ess_signed_documents', (q) => q.select('*').eq('company_id', companyId).eq('employee_id', employeeId)),
     safe('ess_message_recipients', (q) =>
