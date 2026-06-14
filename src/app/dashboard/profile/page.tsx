@@ -1,26 +1,19 @@
 'use client'
 
-import { DashboardLayout } from '@/components/layout/dashboard-layout'
-import { CompactProfileSettings } from '@/components/profile/compact-profile-settings'
-import { useAuthStore } from '@/stores/auth'
 import { Toaster } from 'react-hot-toast'
+import { ProfileSettings } from '@/components/profile/profile-settings'
 
 export default function ProfilePage() {
-	const { user } = useAuthStore()
-
-	if (!user) {
-		return null
-	}
-
-	return (
-		<DashboardLayout>
-			<Toaster position="top-center" />
-			
-			<div className="min-h-screen fluid-bg">
-				<div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-					<CompactProfileSettings user={user} />
-				</div>
-			</div>
-		</DashboardLayout>
-	)
-} 
+  return (
+    <div className="mx-auto w-full max-w-3xl space-y-6 p-6">
+      <Toaster position="top-center" />
+      <div>
+        <h1 className="text-2xl font-semibold text-foreground">My Profile</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Manage your details, emergency contact, photo, and password.
+        </p>
+      </div>
+      <ProfileSettings />
+    </div>
+  )
+}

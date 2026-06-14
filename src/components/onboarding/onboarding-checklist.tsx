@@ -42,14 +42,12 @@ type StepMeta = {
   icon: LucideIcon;
   cta: string | null;
   href: ((s: OnboardingStep) => string) | null;
-  /** Volunteer can self-mark (no artifact auto-completes it). */
-  selfMark?: boolean;
   /** Completed by staff, not the volunteer. */
   staffMarked?: boolean;
 };
 
 const STEP_META: Record<OnboardingStepType, StepMeta> = {
-  profile_field: { icon: UserRound, cta: 'Complete profile', href: () => '/dashboard/profile', selfMark: true },
+  profile_field: { icon: UserRound, cta: 'Complete profile', href: () => '/dashboard/profile' },
   doc_sign: { icon: FileSignature, cta: 'Review & sign', href: (s) => `/dashboard/documents/${s.ref_id}` },
   doc_ack: { icon: ShieldCheck, cta: 'Read & acknowledge', href: (s) => `/dashboard/documents/${s.ref_id}` },
   certification: { icon: Upload, cta: 'Add certificate', href: () => '/dashboard/compliance' },
@@ -68,7 +66,6 @@ export function OnboardingChecklist({ employeeId }: { employeeId?: string }) {
   const [data, setData] = useState<OnboardingResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [busyId, setBusyId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -88,23 +85,6 @@ export function OnboardingChecklist({ employeeId }: { employeeId?: string }) {
   useEffect(() => {
     void load();
   }, [load]);
-
-  const markDone = useCallback(
-    async (id: string) => {
-      setBusyId(id);
-      try {
-        await fetch(`/api/onboarding/steps/${id}`, {
-          method: 'PATCH',
-          headers: authHeaders({ 'Content-Type': 'application/json' }),
-          body: JSON.stringify({ status: 'done' }),
-        });
-        await load();
-      } finally {
-        setBusyId(null);
-      }
-    },
-    [load]
-  );
 
   if (loading) {
     return (
@@ -212,26 +192,14 @@ export function OnboardingChecklist({ employeeId }: { employeeId?: string }) {
                     ) : meta.staffMarked ? (
                       <Badge variant="outline">Awaiting staff</Badge>
                     ) : (
-                      <div className="flex items-center gap-2">
-                        {href && meta.cta ? (
-                          <Button asChild size="sm">
-                            <Link href={href}>
-                              {meta.cta}
-                              <ChevronRight className="h-4 w-4" />
-                            </Link>
-                          </Button>
-                        ) : null}
-                        {meta.selfMark ? (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            disabled={busyId === step.id}
-                            onClick={() => markDone(step.id)}
-                          >
-                            {busyId === step.id ? 'Saving…' : 'Mark done'}
-                          </Button>
-                        ) : null}
-                      </div>
+                      href && meta.cta ? (
+                        <Button asChild size="sm">
+                          <Link href={href}>
+                            {meta.cta}
+                            <ChevronRight className="h-4 w-4" />
+                          </Link>
+                        </Button>
+                      ) : null
                     )}
                   </div>
                 </div>
