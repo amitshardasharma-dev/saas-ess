@@ -46,13 +46,13 @@ export const GET = withAuth(async (request: NextRequest, { companyId, employee }
 	// Filter to only appraisals belonging to this company (via cycle)
 	const processed = (appraisals || [])
 		.filter((a) => {
-			const cycle = a.ess_appraisal_cycles as any
+			const cycle = a.ess_appraisal_cycles as { company_id?: string; name?: string } | null
 			return cycle?.company_id === companyId
 		})
 		.map((a) => {
-			const emp = a.employee as any
-			const mgr = a.manager as any
-			const cycle = a.ess_appraisal_cycles as any
+			const emp = a.employee as { full_name?: string; employee_no?: string } | null
+			const mgr = a.manager as { full_name?: string } | null
+			const cycle = a.ess_appraisal_cycles as { company_id?: string; name?: string } | null
 			return {
 				...a,
 				employee_name: emp?.full_name ?? null,

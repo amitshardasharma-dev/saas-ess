@@ -85,8 +85,9 @@ export const GET = withAuth(async (request, { companyId }) => {
       let approverId = ''
 
       if (rule.approver_type === 'specific' && rule.specific_approver) {
-        approverName = (rule.specific_approver as any).full_name
-        approverId = (rule.specific_approver as any).employee_no
+        const specificApprover = rule.specific_approver as unknown as { full_name: string; employee_no: string }
+        approverName = specificApprover.full_name
+        approverId = specificApprover.employee_no
       } else if (rule.approver_type === 'reporting_manager' && emp.reports_to) {
         const { data: mgr } = await supabaseAdmin
           .from('ess_employees')

@@ -1,0 +1,90 @@
+{
+  "companyId": "b8802761-3dcf-4707-b572-e0413c53ab23",
+  "password": "E2ePass123!",
+  "users": {
+    "superadmin": {
+      "email": "superadmin@birch-e2e.test",
+      "role": "admin",
+      "isSuperAdmin": true,
+      "appUserId": "491754a6-6d69-44cc-8826-b9326aa9cba7",
+      "employeeId": "61d92358-454f-4fdc-b176-d1b04a142676",
+      "department": "Management"
+    },
+    "admin": {
+      "email": "admin@birch-e2e.test",
+      "role": "admin",
+      "isSuperAdmin": false,
+      "appUserId": "037c43f1-122b-43d7-a5ef-ac66fc120369",
+      "employeeId": "bc89c41d-b777-430d-a301-02f7c4ad4df8",
+      "department": "Management"
+    },
+    "staff": {
+      "email": "staff@birch-e2e.test",
+      "role": "hr",
+      "isSuperAdmin": false,
+      "appUserId": "780c184d-1013-4ac2-9ab4-5693cfaa97a3",
+      "employeeId": "6da81770-2916-49b6-8b58-0496709bccaa",
+      "department": "Operations"
+    },
+    "volOutreach": {
+      "email": "vol.outreach@birch-e2e.test",
+      "role": "employee",
+      "isSuperAdmin": false,
+      "appUserId": "41aa0f8f-b85b-4d30-9112-a422f09834c1",
+      "employeeId": "03c11e87-2857-4214-9536-48f2df5a8e6c",
+      "department": "Street Outreach"
+    },
+    "volOpshop": {
+      "email": "vol.opshop@birch-e2e.test",
+      "role": "employee",
+      "isSuperAdmin": false,
+      "appUserId": "76d4fff4-ffc4-4d36-94ac-d0fc0263da91",
+      "employeeId": "2a73b44e-98de-43b2-b19b-c8d8e6df6e46",
+      "department": "Op Shop & Cafe"
+    },
+    "volAuto": {
+      "email": "vol.auto@birch-e2e.test",
+      "role": "employee",
+      "isSuperAdmin": false,
+      "appUserId": "ab9507ee-1d7a-4da5-b848-801e42edda03",
+      "employeeId": "8956a410-f52d-48a1-82b1-364c235f0c44",
+      "department": "Street Outreach"
+    }
+  },
+  "onboarding": {
+    "docs": {
+      "volunteerAgreement": {
+        "id": "1e02d960-4ee4-4a80-b5f2-2e0cf1945433",
+        "versionId": "cbd56388-9440-4eb5-ab32-aa2820461f12"
+      },
+      "codeOfConduct": {
+        "id": "014a1244-cd7d-41c4-87d0-9dc2ad26e5f5",
+        "versionId": "3da8d312-314a-4e84-a1a3-52a3a581c20d"
+      },
+      "safeguardingPolicy": {
+        "id": "1fa36531-fc83-4f40-a79d-22ce40f401ef",
+        "versionId": "296a0065-28cc-49b7-93fc-0a806254f703"
+      }
+    },
+    "certTypes": {
+      "policeCheck": "ff1b8657-7eb1-4617-9e15-50481296e06f",
+      "blueCard": "00fbf681-994d-4df5-b159-30fe9134a159"
+    },
+    "modules": {
+      "induction": {
+        "id": "48845541-7988-45da-a53c-3446b8a2646e",
+        "items": {
+          "video": "ebbfed32-aaec-426e-bfbc-bccbf44c4dcd",
+          "document": "2e3cf515-fa7b-4100-9d89-962b943b39f0",
+          "quiz": "401248d0-d081-45fc-a0ce-bc7dd814d487"
+        }
+      },
+      "safeguarding": {
+        "id": "84e2642d-55f1-4b20-abf3-aa92d40580a0",
+        "items": {
+          "video": "2cc69d6c-7e01-47a1-b8a0-524579553143"
+        }
+      }
+    }
+  }
+}

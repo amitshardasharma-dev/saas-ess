@@ -25,6 +25,21 @@ interface ApprovalEntry {
 	ess_employees: { full_name: string; employee_no: string } | null
 }
 
+interface ExpenseCategory {
+	id: string
+	name: string
+}
+
+interface ExpenseClaim {
+	id: string
+	display_id: string
+	title: string
+	description: string | null
+	status: string
+	currency: string
+	total_amount: number
+}
+
 const formatDate = (dateString: string) =>
 	new Date(dateString).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 
@@ -34,12 +49,12 @@ const formatAmount = (amount: number, currency: string) =>
 export default function ExpenseClaimDetailPage({ params }: { params: Promise<{ id: string }> }) {
 	const { id } = use(params)
 	const router = useRouter()
-	const [claim, setClaim] = useState<any>(null)
+	const [claim, setClaim] = useState<ExpenseClaim | null>(null)
 	const [items, setItems] = useState<ExpenseItem[]>([])
 	const [approvalChain, setApprovalChain] = useState<ApprovalEntry[]>([])
 	const [loading, setLoading] = useState(true)
 	const [showAddItem, setShowAddItem] = useState(false)
-	const [categories, setCategories] = useState<any[]>([])
+	const [categories, setCategories] = useState<ExpenseCategory[]>([])
 
 	// New item form
 	const [newItem, setNewItem] = useState({
@@ -301,7 +316,7 @@ export default function ExpenseClaimDetailPage({ params }: { params: Promise<{ i
 					<h2 className="font-semibold mb-4">Approval Chain</h2>
 					<div className="space-y-3">
 						{approvalChain.map(entry => {
-							const approver = entry.ess_employees as any
+							const approver = entry.ess_employees
 							const StatusIcon = entry.status === 'Approved' ? CheckCircle
 								: entry.status === 'Rejected' ? XCircle : Clock
 

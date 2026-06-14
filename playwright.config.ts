@@ -61,5 +61,13 @@ export default defineConfig({
       dependencies: ['setup'],
       use: { ...devices['Desktop Chrome'] },
     },
+
+    // 4. Birch E2E triage loop — disposable `birch-e2e` tenant. Self-authenticating
+    //    (no setup dependency); MUST run against localhost (E2E_BASE override).
+    {
+      name: 'birch',
+      testMatch: /\.birch\.spec\.ts$/,
+      use: { ...devices['Desktop Chrome'] },
+    },
   ],
 })

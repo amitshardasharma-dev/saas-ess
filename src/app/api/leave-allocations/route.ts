@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
 		}
 
 		const processedAllocations = (allocations || []).map(alloc => {
-			const leaveType = alloc.ess_leave_types as any
+			const leaveType = alloc.ess_leave_types as unknown as { code: string | null; name: string | null } | null
 			const totalAllocated = Number(alloc.allocated_days) + Number(alloc.carry_forward_days)
 			const taken = takenByType[alloc.leave_type_id] || 0
 

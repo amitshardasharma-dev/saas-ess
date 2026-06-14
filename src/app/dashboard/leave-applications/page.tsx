@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
@@ -18,7 +18,6 @@ import {
 	Search,
 	Filter,
 	Plus,
-	Eye,
 	Loader2,
 	RefreshCw,
 	ChevronRight,
@@ -104,7 +103,18 @@ export default function LeaveApplicationsPage() {
 				
 				if (data.leave_applications) {
 					// Convert API response to MyLeaveApplication format
-					const convertedApps: MyLeaveApplication[] = data.leave_applications.map((app: any) => ({
+					const convertedApps: MyLeaveApplication[] = data.leave_applications.map((app: {
+						name: string
+						leave_type: string
+						from_date: string
+						to_date: string
+						total_leave_days: number
+						description?: string
+						leave_status: string
+						posting_date: string
+						leave_approver?: string
+						modified?: string
+					}) => ({
 						id: app.name,
 						leaveType: app.leave_type,
 						fromDate: app.from_date,
@@ -319,7 +329,7 @@ export default function LeaveApplicationsPage() {
 								<Filter className="h-4 w-4 text-muted-foreground" />
 								<select
 									value={statusFilter}
-									onChange={(e) => setStatusFilter(e.target.value as any)}
+									onChange={(e) => setStatusFilter(e.target.value as 'all' | 'pending' | 'approved' | 'rejected')}
 									className="px-3 py-2 border border-input rounded-md bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
 								>
 									<option value="all">All Status</option>

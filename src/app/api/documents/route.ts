@@ -1,6 +1,34 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-server'
 import { withAuth } from '@/lib/auth-middleware'
+
+interface DocumentVersionRow {
+  id: string
+  version_number: number
+  file_url: string
+  file_name: string
+  file_size: number
+  uploaded_at: string
+  changelog: string | null
+}
+
+interface DocumentRow {
+  id: string
+  company_id: string
+  category_id: string | null
+  title: string
+  description: string | null
+  current_version: number
+  access_roles: string[] | null
+  is_published: boolean
+  requires_acknowledgment: boolean
+  published_at: string | null
+  created_by: string
+  created_at: string
+  updated_at: string
+  ess_document_categories: { name: string } | null
+  ess_document_versions: DocumentVersionRow[] | null
+}
 
 export const GET = withAuth(async (request, { companyId, role, employee }) => {
   const url = new URL(request.url)
@@ -25,9 +53,9 @@ export const GET = withAuth(async (request, { companyId, role, employee }) => {
   if (error) throw error
 
   // Filter by role access (unless HR/admin managing)
-  let filtered = documents || []
+  let filtered = (documents || []) as DocumentRow[]
   if (!manage) {
-    filtered = filtered.filter((doc: any) => {
+    filtered = filtered.filter((doc) => {
       const accessRoles = doc.access_roles || ['employee', 'manager', 'hr', 'admin']
       return accessRoles.includes(role)
     })
@@ -51,9 +79,9 @@ export const GET = withAuth(async (request, { companyId, role, employee }) => {
     }
   }
 
-  const processed = filtered.map((doc: any) => {
+  const processed = filtered.map((doc) => {
     const versions = doc.ess_document_versions || []
-    const latestVersion = versions.sort((a: any, b: any) => b.version_number - a.version_number)[0]
+    const latestVersion = versions.sort((a, b) => b.version_number - a.version_number)[0]
 
     // Check if acknowledged for the latest version specifically
     const acknowledged = employee && latestVersion

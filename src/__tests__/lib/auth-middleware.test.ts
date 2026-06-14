@@ -1,7 +1,7 @@
 /**
  * @jest-environment node
  */
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { withAuth } from '@/lib/auth-middleware'
 
 // Mock supabase-server
@@ -126,7 +126,6 @@ describe('withAuth', () => {
       }
     })
     ;(supabaseAdmin.from as jest.Mock) = fromMock
-    const { NextResponse } = require('next/server')
     const handler = jest.fn().mockResolvedValue(NextResponse.json({ ok: true }))
     const wrapped = withAuth(handler)
     const res = await wrapped(mockRequest('valid-token'), mockRouteContext)

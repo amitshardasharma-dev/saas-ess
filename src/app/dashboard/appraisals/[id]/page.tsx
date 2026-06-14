@@ -151,10 +151,6 @@ export default function AppraisalDetailPage() {
 	const isEmployee = !storedEmpId || storedEmpId === appraisal.employee_id
 	const isManager = storedEmpId === appraisal.manager_id
 
-	// Respondent type for the form
-	const respondentType: 'self' | 'manager' =
-		status === 'Pending Self' ? 'self' : 'manager'
-
 	return (
 		<DashboardLayout>
 			<div className="container mx-auto px-4 py-6 max-w-3xl space-y-6">
@@ -392,7 +388,7 @@ export default function AppraisalDetailPage() {
 	)
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
+ 
 function Clock(props: React.SVGProps<SVGSVGElement>) {
 	return (
 		<svg

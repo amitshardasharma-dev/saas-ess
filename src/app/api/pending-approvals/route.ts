@@ -55,8 +55,68 @@ export async function GET(request: NextRequest) {
 			.eq('approver_id', employee.id)
 			.eq('status', 'Pending')
 
+		type EmployeeRef = { employee_no: string | null; full_name: string | null } | null
+		type LeaveApplicationRef = {
+			id: string | null
+			display_id: string | null
+			from_date: string | null
+			till_date: string | null
+			total_days: number | string | null
+			reason: string | null
+			status: string | null
+			created_at: string | null
+			leave_type_id: string | null
+			employee_id: string | null
+			ess_leave_types: { name: string | null } | null
+			ess_employees: EmployeeRef
+		} | null
+		type ExpenseClaimRef = {
+			id: string | null
+			display_id: string | null
+			title: string | null
+			total_amount: number | string | null
+			currency: string | null
+			status: string | null
+			created_at: string | null
+			employee_id: string | null
+			ess_employees: EmployeeRef
+		} | null
+		type TimesheetRef = {
+			id: string | null
+			display_id: string | null
+			period_start: string | null
+			period_end: string | null
+			total_hours: number | string | null
+			status: string | null
+			created_at?: string | null
+			employee_id: string | null
+			ess_employees: EmployeeRef
+		} | null
+
+		type PendingApprovalItem = {
+			name: string | null | undefined
+			expense_id?: string | null
+			type: 'leave' | 'expense' | 'timesheet'
+			employee: string
+			employee_name: string
+			leave_type?: string
+			title?: string
+			total_amount?: number
+			currency?: string
+			from_date?: string | null
+			till_date?: string | null
+			total_leave_days?: number
+			leave_reason?: string
+			period_start?: string | null
+			period_end?: string | null
+			total_hours?: number
+			workflow_state: string
+			creation: string | null | undefined
+			level_no: number
+		}
+
 		// Filter: only show if all previous levels are approved
-		const pendingApprovals: any[] = []
+		const pendingApprovals: PendingApprovalItem[] = []
 
 		for (const entry of leaveEntries || []) {
 			if (entry.level_no > 1) {
@@ -71,9 +131,9 @@ export async function GET(request: NextRequest) {
 				if (!allPrevApproved) continue
 			}
 
-			const app = entry.ess_leave_applications as any
-			const emp = app?.ess_employees as any
-			const lt = app?.ess_leave_types as any
+			const app = entry.ess_leave_applications as unknown as LeaveApplicationRef
+			const emp = app?.ess_employees
+			const lt = app?.ess_leave_types
 
 			pendingApprovals.push({
 				name: app?.display_id,
@@ -119,8 +179,8 @@ export async function GET(request: NextRequest) {
 				if (!allPrevApproved) continue
 			}
 
-			const claim = entry.ess_expense_claims as any
-			const emp = claim?.ess_employees as any
+			const claim = entry.ess_expense_claims as unknown as ExpenseClaimRef
+			const emp = claim?.ess_employees
 
 			pendingApprovals.push({
 				name: claim?.display_id,
@@ -156,15 +216,15 @@ export async function GET(request: NextRequest) {
 				const { data: prevEntries } = await supabaseAdmin
 					.from('ess_timesheet_approval_entries')
 					.select('status')
-					.eq('timesheet_id', (entry.ess_timesheets as any)?.id)
+					.eq('timesheet_id', (entry.ess_timesheets as unknown as TimesheetRef)?.id)
 					.lt('level_no', entry.level_no)
 
 				const allPrevApproved = (prevEntries || []).every(e => e.status === 'Approved')
 				if (!allPrevApproved) continue
 			}
 
-			const ts = entry.ess_timesheets as any
-			const emp = ts?.ess_employees as any
+			const ts = entry.ess_timesheets as unknown as TimesheetRef
+			const emp = ts?.ess_employees
 
 			pendingApprovals.push({
 				name: ts?.display_id,

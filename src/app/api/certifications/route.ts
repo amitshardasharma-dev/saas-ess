@@ -13,7 +13,8 @@ import { assertModuleEnabled, ModuleDisabledError } from '@/lib/modules'
 import { recordAudit } from '@/lib/audit'
 import { hasMinRole } from '@/types/roles'
 import { calcExpiry, calcStatus, daysUntil, indicatorForStatus } from '@/lib/compliance/expiry'
-import { writeCertHistory, scheduleReminders, maybeAdvanceOnboarding } from '@/services/compliance'
+import { writeCertHistory, scheduleReminders } from '@/services/compliance'
+import { completeLinkedOnboardingStep } from '@/lib/onboarding'
 import { certificationCreateSchema } from '@/types/compliance'
 
 async function ensureModule(companyId: string): Promise<NextResponse | null> {
@@ -112,7 +113,6 @@ export const POST = withAuth(
     // Resolve the cert type (must belong to this company) for validity + flags.
     let validityMonths: number | null = null
     let reminderOffsets: number[] = []
-    let required = false
     if (parsed.data.cert_type_id) {
       const { data: certType, error: typeErr } = await supabaseAdmin
         .from('ess_cert_types')
@@ -125,7 +125,6 @@ export const POST = withAuth(
       }
       validityMonths = (certType.validity_months as number | null) ?? null
       reminderOffsets = (certType.reminder_offsets as number[] | null) ?? []
-      required = Boolean(certType.required)
     }
 
     // Auto-derive expiry from completion + validity unless explicitly supplied.
@@ -178,8 +177,19 @@ export const POST = withAuth(
       reminderOffsets,
     })
 
-    if (required) {
-      await maybeAdvanceOnboarding(parsed.data.employee_id)
+    // Auto-complete the linked onboarding step (certification -> this cert type).
+    // Fires whenever the cert is tied to a type; no-op if the volunteer has no
+    // matching auto_complete step. `required` no longer gates this — the linkage
+    // (step.ref_id == cert_type_id) is what determines relevance.
+    if (parsed.data.cert_type_id) {
+      try {
+        await completeLinkedOnboardingStep(parsed.data.employee_id, {
+          stepType: 'certification',
+          refId: parsed.data.cert_type_id,
+        })
+      } catch (hookErr) {
+        console.error('[certifications] onboarding hook failed (non-fatal):', (hookErr as Error)?.message)
+      }
     }
 
     return NextResponse.json(

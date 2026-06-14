@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
 
 		// Only allow updating specific fields
 		const allowedFields = ['phone', 'full_name']
-		const safeUpdates: Record<string, any> = {}
+		const safeUpdates: Record<string, unknown> = {}
 		for (const key of allowedFields) {
 			if (updates[key] !== undefined) {
 				safeUpdates[key] = updates[key]

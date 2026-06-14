@@ -37,7 +37,7 @@ export const GET = withAuth(async (_request: NextRequest, { companyId }, params)
 	}
 
 	const processed = (history || []).map((h) => {
-		const performer = h.ess_employees as any
+		const performer = h.ess_employees as { full_name?: string } | null
 		return {
 			...h,
 			performer_name: performer?.full_name ?? null,

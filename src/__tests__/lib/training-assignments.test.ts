@@ -5,11 +5,6 @@
  * supabaseAdmin mock returns canned data keyed by table + applied filters, and
  * records the .eq('company_id', ...) filters so we can prove scoping.
  */
-interface Filter {
-  col: string
-  val: unknown
-}
-
 // Mock state lives inside the factory (jest hoists jest.mock above imports).
 // Exposed on the mocked module for the test body to configure per-case.
 jest.mock('@/lib/supabase-server', () => {

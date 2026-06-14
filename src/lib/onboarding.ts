@@ -6,7 +6,7 @@ import type {
   OnboardingStatus,
   OnboardingStepStatus,
   OnboardingStep,
-  OnboardingState,
+  OnboardingStepType,
 } from '@/types/onboarding';
 
 // Re-export the types (now defined in @/types/onboarding, a server-free module)
@@ -16,6 +16,8 @@ export type {
   OnboardingStepStatus,
   OnboardingStep,
   OnboardingState,
+  OnboardingStepType,
+  OnboardingRefKind,
 } from '@/types/onboarding';
 
 /**
@@ -94,6 +96,50 @@ export async function advanceOnboarding(
   return status;
 }
 
+/**
+ * Auto-complete the onboarding step that an artifact event satisfies.
+ *
+ * Finds THIS employee's auto_complete step matching (step_type, ref_id) that is
+ * not already done, flips it to `done`, and recomputes the onboarding status.
+ * Tenant-safe by construction: the lookup is keyed on employee_id (an employee
+ * belongs to exactly one company), so an artifact event can only ever complete
+ * the acting employee's own step — never another volunteer's and never a
+ * cross-tenant row. No-op (returns false) when no matching pending step exists.
+ *
+ * Published contract — callers (e-sign, certification, training) depend on this.
+ */
+export async function completeLinkedOnboardingStep(
+  employeeId: string,
+  link: { stepType: OnboardingStepType; refId: string }
+): Promise<boolean> {
+  const supabase = supabaseAdmin;
+
+  const { data: steps } = await supabase
+    .from('ess_onboarding_steps')
+    .select('id, status')
+    .eq('employee_id', employeeId)
+    .eq('step_type', link.stepType)
+    .eq('ref_id', link.refId)
+    .eq('auto_complete', true);
+
+  const pending = (steps ?? []).filter((s) => s.status !== 'done');
+  if (pending.length === 0) {
+    return false;
+  }
+
+  const nowIso = new Date().toISOString();
+  await supabase
+    .from('ess_onboarding_steps')
+    .update({ status: 'done', completed_at: nowIso, updated_at: nowIso })
+    .in(
+      'id',
+      pending.map((s) => s.id)
+    );
+
+  await advanceOnboarding(employeeId);
+  return true;
+}
+
 const DEFAULT_STEPS: { title: string; description: string; sort_order: number }[] = [
   { title: 'Complete your profile', description: 'Add your personal details.', sort_order: 0 },
   { title: 'Review the volunteer handbook', description: 'Read and acknowledge the handbook.', sort_order: 1 },
@@ -141,11 +187,13 @@ export async function initOnboarding(
   if (template) {
     const { data: templateSteps } = await supabase
       .from('ess_onboarding_steps')
-      .select('title, description, sort_order')
+      .select('title, description, sort_order, step_type, ref_kind, ref_id, auto_complete')
       .eq('company_id', companyId)
       .eq('template_id', template.id)
       .order('sort_order', { ascending: true });
 
+    // Carry the typed/linked definition (step_type/ref_kind/ref_id/auto_complete)
+    // onto the employee instance so artifact events can find + auto-complete it.
     const rows = (templateSteps ?? []).map((s) => ({
       company_id: companyId,
       employee_id: employeeId,
@@ -153,6 +201,10 @@ export async function initOnboarding(
       description: s.description,
       sort_order: s.sort_order,
       status: 'pending' as const,
+      step_type: s.step_type ?? 'manual',
+      ref_kind: s.ref_kind ?? null,
+      ref_id: s.ref_id ?? null,
+      auto_complete: s.auto_complete ?? false,
     }));
     if (rows.length > 0) {
       await supabase.from('ess_onboarding_steps').insert(rows);

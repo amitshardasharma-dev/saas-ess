@@ -28,8 +28,12 @@ export const PUT = withAuth(async (request: NextRequest, { companyId }, params) 
 		return NextResponse.json({ error: 'Template ID required' }, { status: 400 })
 	}
 
-	const body = await request.json()
-	const { id: _id, company_id: _cid, created_at: _ca, ...updates } = body
+	const body = await request.json() as Record<string, unknown>
+	// Strip non-updatable fields
+	const updates = { ...body }
+	delete updates.id
+	delete updates.company_id
+	delete updates.created_at
 
 	// If setting as default, unset any existing default (other than this one)
 	if (updates.is_default) {

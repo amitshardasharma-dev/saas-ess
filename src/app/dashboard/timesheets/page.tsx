@@ -35,7 +35,7 @@ export default function TimesheetsPage() {
       ])
       setTimesheets(ts)
       setConfig(cfg)
-    } catch (error) {
+    } catch {
       toast.error('Failed to load timesheets')
     } finally {
       setLoading(false)
@@ -59,7 +59,7 @@ export default function TimesheetsPage() {
       const result = await timesheetService.createTimesheet(start, end)
       toast.success(`Timesheet ${result.display_id} created`)
       router.push(`/dashboard/timesheets/${result.timesheet.id}`)
-    } catch (error) {
+    } catch {
       toast.error('Failed to create timesheet')
     }
   }

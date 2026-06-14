@@ -47,7 +47,7 @@ export default function TeamTimesheetsPage() {
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-foreground">Team Timesheets</h1>
-                <p className="text-muted-foreground text-sm">Review your team's timesheet submissions</p>
+                <p className="text-muted-foreground text-sm">Review your team&apos;s timesheet submissions</p>
               </div>
             </div>
           </div>

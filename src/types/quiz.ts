@@ -131,7 +131,7 @@ export interface QuestionDraft {
   prompt: string
   points: number
   explanation?: string | null
-  accepted_answers?: string[]
+  accepted_answers: string[]
   sort_order: number
   options: OptionDraft[]
 }

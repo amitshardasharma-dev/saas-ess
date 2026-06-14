@@ -1,13 +1,12 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Sparkles, User, Building, Mail, Hash, Calendar, FileText, Users } from 'lucide-react'
+import { Sparkles, User, Building, Mail, Hash, FileText, Users } from 'lucide-react'
 import Link from 'next/link'
 import { Toaster } from 'react-hot-toast'
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useAuthStore } from '@/stores/auth'
-import config from '@/config/environment'
 
 // Employee dashboard components
 import { EmployeeStatsCards } from '@/components/dashboard/employee-stats-cards'
@@ -36,20 +35,7 @@ import {
 	DashboardTimesheet,
 	PendingAcknowledgment
 } from '@/types/dashboard'
-
-interface UserInfoItemProps {
-	label: string
-	value: string
-}
-
-function UserInfoItem({ label, value }: UserInfoItemProps) {
-	return (
-		<div className="content-flow p-4 rounded-xl space-y-2">
-			<p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{label}</p>
-			<p className="text-sm text-foreground font-bold truncate" title={value}>{value}</p>
-		</div>
-	)
-}
+import type { TimesheetStatus } from '@/types/timesheet'
 
 export default function DashboardPage() {
 	const { user, isAuthenticated, checkAuth, isLoading } = useAuthStore()
@@ -58,7 +44,7 @@ export default function DashboardPage() {
 	const [dashboardStats, setDashboardStats] = useState<EmployeeDashboardStats | null>(null)
 	const [myLeaveApplications, setMyLeaveApplications] = useState<MyLeaveApplication[]>([])
 	const [myExpenseClaims, setMyExpenseClaims] = useState<MyExpenseClaim[]>([])
-	const [myPayslips, setMyPayslips] = useState<PayslipData[]>([])
+	const [, setMyPayslips] = useState<PayslipData[]>([])
 	const [leaveBalances, setLeaveBalances] = useState<LeaveBalance[]>([])
 	const [myTimesheets, setMyTimesheets] = useState<DashboardTimesheet[]>([])
 	const [pendingAcks, setPendingAcks] = useState<PendingAcknowledgment[]>([])
@@ -99,7 +85,7 @@ export default function DashboardPage() {
 			])
 
 			// Validate that stats is a proper object with numeric values
-			if (stats && typeof stats === 'object' && !(stats as any).message && !(stats as any).workflow_state) {
+			if (stats && typeof stats === 'object' && !(stats as unknown as Record<string, unknown>).message && !(stats as unknown as Record<string, unknown>).workflow_state) {
 				setDashboardStats(stats)
 			} else {
 				console.error('Invalid stats data received:', stats)
@@ -484,7 +470,7 @@ export default function DashboardPage() {
 										period_start: ts.periodStart,
 										period_end: ts.periodEnd,
 										total_hours: ts.totalHours,
-										status: ts.status as any,
+										status: ts.status as unknown as TimesheetStatus,
 										employee_id: '',
 										company_id: '',
 										submitted_at: null,

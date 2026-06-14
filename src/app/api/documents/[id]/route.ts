@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-server'
 import { withAuth } from '@/lib/auth-middleware'
 
@@ -55,7 +55,7 @@ export const GET = withAuth(async (_request, { companyId, employee }, params) =>
   return NextResponse.json({
     document: {
       ...doc,
-      category_name: (doc as any).ess_document_categories?.name || 'Uncategorized',
+      category_name: (doc as { ess_document_categories?: { name?: string } | null }).ess_document_categories?.name || 'Uncategorized',
     },
     versions: versions || [],
     acknowledged,
@@ -68,7 +68,7 @@ export const PUT = withAuth(async (request, { companyId }, params) => {
 
   const body = await request.json()
 
-  const updateData: Record<string, any> = { updated_at: new Date().toISOString() }
+  const updateData: Record<string, unknown> = { updated_at: new Date().toISOString() }
   if (body.title !== undefined) updateData.title = body.title
   if (body.description !== undefined) updateData.description = body.description
   if (body.category_id !== undefined) updateData.category_id = body.category_id

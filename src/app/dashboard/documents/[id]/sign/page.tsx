@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic'
 import { Suspense, useEffect, useState, use } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { esignService } from '@/services/esign-client'
-import type { DocumentField, FieldValueInput } from '@/types/esign'
+import type { DocumentField } from '@/types/esign'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -41,17 +41,19 @@ function SignDocumentInner({ documentId }: { documentId: string }) {
       toast.error('Please enter your name to sign')
       return
     }
+    if (!versionId) {
+      toast.error('Missing document version')
+      return
+    }
     setSubmitting(true)
     try {
-      const fieldValues: FieldValueInput[] = fields.map((f) => ({
-        field_id: f.id,
-        value: values[f.field_key] ?? '',
-      }))
-      await esignService.signDocument(documentId, {
-        version_id: versionId ?? undefined,
-        signer_name: signerName,
-        signature_type: 'typed',
-        field_values: fieldValues,
+      const fieldValues: Record<string, unknown> = {}
+      for (const f of fields) fieldValues[f.field_key] = values[f.field_key] ?? ''
+      await esignService.sign(documentId, {
+        versionId,
+        signerName,
+        signatureType: 'typed',
+        fieldValues,
       })
       toast.success('Document signed')
       router.push('/dashboard/documents')

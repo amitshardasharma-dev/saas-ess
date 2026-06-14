@@ -10,16 +10,14 @@ import { Label } from '@/components/ui/label'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { useEmployee } from '@/hooks/use-employee'
 import { 
-	Clock, 
-	CheckCircle, 
-	XCircle, 
-	User, 
+	Clock,
+	CheckCircle,
+	User,
 	Calendar,
 	MessageSquare,
 	Loader2,
 	RefreshCw,
 	AlertCircle,
-	FileText,
 	Eye,
 	ThumbsUp,
 	ThumbsDown,
@@ -38,6 +36,15 @@ interface PendingApproval {
 	reason: string
 	level_no: number
 	workflow_state: string
+	// Optional fields present when the item is a timesheet or expense approval
+	type?: 'leave' | 'timesheet' | 'expense'
+	timesheet_id?: string
+	expense_id?: string
+	period_start?: string
+	period_end?: string
+	total_hours?: number
+	total_amount?: number
+	currency?: string
 }
 
 export default function PendingApprovalsPage() {
@@ -104,7 +111,7 @@ export default function PendingApprovalsPage() {
 					leave_id: selectedApproval.name,
 					action: approvalAction,
 					remarks: remarks,
-					type: (selectedApproval as any).type || 'leave'
+					type: selectedApproval.type || 'leave'
 				})
 			})
 
@@ -143,7 +150,7 @@ export default function PendingApprovalsPage() {
 		return leaveType.replace('LEAVETYPE', 'Leave Type ')
 	}
 
-	const viewDetails = (approval: any) => {
+	const viewDetails = (approval: PendingApproval) => {
 		if (approval.type === 'timesheet') {
 			router.push(`/dashboard/timesheets/${approval.timesheet_id || approval.name}`)
 		} else if (approval.type === 'expense') {
@@ -163,7 +170,7 @@ export default function PendingApprovalsPage() {
 							<ShieldX className="h-12 w-12 mx-auto mb-4 text-red-500" />
 							<h2 className="text-xl font-semibold mb-2">Access Restricted</h2>
 							<p className="text-sm text-muted-foreground mb-4">
-								You don't have permission to access the approval features.
+								You don&apos;t have permission to access the approval features.
 							</p>
 							<p className="text-xs text-muted-foreground">
 								Contact your administrator if you believe this is an error.
@@ -288,7 +295,7 @@ export default function PendingApprovalsPage() {
 												</div>
 
 												{/* Type-specific details */}
-											{(approval as any).type === 'timesheet' ? (
+											{approval.type === 'timesheet' ? (
 												<>
 													<div className="space-y-1">
 														<p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Type</p>
@@ -299,16 +306,16 @@ export default function PendingApprovalsPage() {
 														<div className="flex items-center space-x-2">
 															<Calendar className="h-4 w-4 text-muted-foreground" />
 															<p className="font-medium text-sm">
-																{formatDate((approval as any).period_start)} - {formatDate((approval as any).period_end)}
+																{formatDate(approval.period_start ?? '')} - {formatDate(approval.period_end ?? '')}
 															</p>
 														</div>
 													</div>
 													<div className="space-y-1">
 														<p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total Hours</p>
-														<p className="font-medium text-sm">{(approval as any).total_hours}h</p>
+														<p className="font-medium text-sm">{approval.total_hours}h</p>
 													</div>
 												</>
-											) : (approval as any).type === 'expense' ? (
+											) : approval.type === 'expense' ? (
 												<>
 													<div className="space-y-1">
 														<p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Type</p>
@@ -316,7 +323,7 @@ export default function PendingApprovalsPage() {
 													</div>
 													<div className="space-y-1">
 														<p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Amount</p>
-														<p className="font-medium text-sm">{(approval as any).total_amount} {(approval as any).currency}</p>
+														<p className="font-medium text-sm">{approval.total_amount} {approval.currency}</p>
 													</div>
 												</>
 											) : (
@@ -414,7 +421,7 @@ export default function PendingApprovalsPage() {
 									)}
 									<span>
 										{approvalAction === 'approve' ? 'Approve' : 'Reject'}{' '}
-										{(selectedApproval as any).type === 'timesheet' ? 'Timesheet' : (selectedApproval as any).type === 'expense' ? 'Expense Claim' : 'Leave Application'}
+										{selectedApproval.type === 'timesheet' ? 'Timesheet' : selectedApproval.type === 'expense' ? 'Expense Claim' : 'Leave Application'}
 									</span>
 								</CardTitle>
 							</CardHeader>

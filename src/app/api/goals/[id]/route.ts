@@ -24,9 +24,12 @@ export const PUT = withAuth(async (request: NextRequest, { employee }, params) =
 		return NextResponse.json({ error: 'Goal not found' }, { status: 404 })
 	}
 
-	const body = await request.json()
+	const body = await request.json() as Record<string, unknown>
 	// Strip fields that should not be updated by the user
-	const { id: _id, employee_id: _eid, created_at: _ca, ...updates } = body
+	const updates = { ...body }
+	delete updates.id
+	delete updates.employee_id
+	delete updates.created_at
 
 	const { data: goal, error } = await supabaseAdmin
 		.from('ess_goals')

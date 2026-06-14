@@ -48,7 +48,11 @@ export const GET = withAuth(async (_request: NextRequest, { companyId, employee 
 	}
 
 	// Verify appraisal belongs to this company via cycle
-	const cycle = appraisal.ess_appraisal_cycles as any
+	const cycle = appraisal.ess_appraisal_cycles as {
+		company_id?: string
+		name?: string
+		ess_appraisal_templates?: unknown
+	} | null
 	if (cycle?.company_id !== companyId) {
 		return NextResponse.json({ error: 'Appraisal not found' }, { status: 404 })
 	}
@@ -64,8 +68,8 @@ export const GET = withAuth(async (_request: NextRequest, { companyId, employee 
 		.select('*')
 		.eq('appraisal_id', id)
 
-	const emp = appraisal.emp as any
-	const mgr = appraisal.mgr as any
+	const emp = appraisal.emp as { full_name?: string; employee_no?: string } | null
+	const mgr = appraisal.mgr as { full_name?: string; employee_no?: string } | null
 	const template = cycle?.ess_appraisal_templates ?? null
 
 	return NextResponse.json({
@@ -117,7 +121,7 @@ export const PUT = withAuth(async (request: NextRequest, { companyId, employee }
 		return NextResponse.json({ error: 'Appraisal not found' }, { status: 404 })
 	}
 
-	const cycle = appraisal.ess_appraisal_cycles as any
+	const cycle = appraisal.ess_appraisal_cycles as { company_id?: string } | null
 	if (cycle?.company_id !== companyId) {
 		return NextResponse.json({ error: 'Appraisal not found' }, { status: 404 })
 	}
@@ -195,7 +199,7 @@ export const POST = withAuth(async (request: NextRequest, { companyId, employee 
 		return NextResponse.json({ error: 'Appraisal not found' }, { status: 404 })
 	}
 
-	const cycle = appraisal.ess_appraisal_cycles as any
+	const cycle = appraisal.ess_appraisal_cycles as { company_id?: string } | null
 	if (cycle?.company_id !== companyId) {
 		return NextResponse.json({ error: 'Appraisal not found' }, { status: 404 })
 	}

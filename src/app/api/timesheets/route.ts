@@ -1,6 +1,6 @@
 // src/app/api/timesheets/route.ts
 
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-server'
 import { withAuth } from '@/lib/auth-middleware'
 
@@ -42,7 +42,21 @@ export const GET = withAuth(async (request, { companyId, employee }) => {
 
   if (error) throw error
 
-  const processed = (timesheets || []).map((ts: any) => ({
+  type TimesheetRow = {
+    id: string
+    display_id: string | null
+    employee_id: string
+    period_start: string
+    period_end: string
+    status: string
+    total_hours: number | string
+    submitted_at: string | null
+    created_at: string
+    updated_at: string
+    ess_employees: { full_name: string | null; employee_no: string | null } | null
+  }
+
+  const processed = ((timesheets || []) as unknown as TimesheetRow[]).map((ts) => ({
     id: ts.id,
     display_id: ts.display_id,
     employee_id: ts.employee_id,

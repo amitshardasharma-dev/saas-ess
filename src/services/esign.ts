@@ -12,6 +12,7 @@
 import { createHash } from 'crypto'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { recordAudit } from '@/lib/audit'
+import { completeLinkedOnboardingStep } from '@/lib/onboarding'
 import type {
   DocumentField,
   FieldDefinitionInput,
@@ -452,25 +453,25 @@ export async function createSignedDocument(
     meta: { version_id: input.versionId, content_hash: contentHash },
   })
 
-  await advanceOnboardingBestEffort(input.employeeId)
+  // Auto-complete the linked onboarding step (doc_sign -> this document).
+  await advanceOnboardingBestEffort(input.employeeId, ctx.documentId)
 
   return signed
 }
 
 /**
- * Calls Phase 2's `advanceOnboarding(employeeId)` by contract if that module is
- * present. Phase 2 is built in a separate worktree and does NOT exist here, so we
- * dynamically import inside try/catch and never let a failure break signing.
+ * Best-effort onboarding hook for a signed document: auto-completes the signer's
+ * `doc_sign` step linked to `documentId`, then recomputes their onboarding
+ * status. Wrapped so a hook failure never breaks the signing operation.
  */
-export async function advanceOnboardingBestEffort(employeeId: string): Promise<void> {
+export async function advanceOnboardingBestEffort(
+  employeeId: string,
+  documentId: string
+): Promise<void> {
   try {
-    const moduleName = '@/services/onboarding'
-    const mod: unknown = await import(/* webpackIgnore: true */ moduleName).catch(() => null)
-    if (mod && typeof (mod as { advanceOnboarding?: unknown }).advanceOnboarding === 'function') {
-      await (mod as { advanceOnboarding: (id: string) => Promise<unknown> }).advanceOnboarding(employeeId)
-    }
-  } catch {
-    // Phase 2 absent or hook failed — best effort only.
+    await completeLinkedOnboardingStep(employeeId, { stepType: 'doc_sign', refId: documentId })
+  } catch (err) {
+    console.error('[esign] onboarding hook failed (non-fatal):', (err as Error)?.message)
   }
 }
 

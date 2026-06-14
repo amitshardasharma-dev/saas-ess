@@ -2,13 +2,10 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Card, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { 
-	Clock, 
-	User, 
-	Calendar,
+import {
+	Clock,
 	ArrowRight,
 	FileText,
 	Eye,
@@ -28,6 +25,7 @@ interface PendingApproval {
 	reason: string
 	level_no: number
 	workflow_state: string
+	type?: 'timesheet' | 'expense' | 'leave'
 }
 
 interface PendingApprovalsSummaryProps {
@@ -95,7 +93,7 @@ export function PendingApprovalsSummary({ className }: PendingApprovalsSummaryPr
 		router.push('/dashboard/pending-approvals')
 	}
 
-	const viewLeaveDetails = (leaveId: string) => {
+	const viewLeaveDetails = () => {
 		router.push('/dashboard/pending-approvals')
 	}
 
@@ -186,7 +184,7 @@ export function PendingApprovalsSummary({ className }: PendingApprovalsSummaryPr
 						<div 
 							key={approval.name}
 							className="relative overflow-hidden rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-800 p-3 hover-lift group transition-all duration-200 cursor-pointer"
-							onClick={() => viewLeaveDetails(approval.name)}
+							onClick={() => viewLeaveDetails()}
 						>
 							<div className="flex items-center justify-between mb-2">
 								<div className="flex items-center space-x-3">
@@ -212,7 +210,7 @@ export function PendingApprovalsSummary({ className }: PendingApprovalsSummaryPr
 										className="h-6 w-6 p-0 hover:bg-primary/10"
 										onClick={(e) => {
 											e.stopPropagation()
-											viewLeaveDetails(approval.name)
+											viewLeaveDetails()
 										}}
 										title="View details"
 									>
@@ -223,12 +221,12 @@ export function PendingApprovalsSummary({ className }: PendingApprovalsSummaryPr
 
 							<div className="grid grid-cols-3 gap-2 mb-2 text-xs">
 								<div className="bg-muted/50 p-2 rounded-lg">
-									{(approval as any).type === 'timesheet' ? (
+									{approval.type === 'timesheet' ? (
 										<>
 											<p className="text-muted-foreground mb-1">Type</p>
 											<p className="font-medium text-foreground text-xs">Timesheet</p>
 										</>
-									) : (approval as any).type === 'expense' ? (
+									) : approval.type === 'expense' ? (
 										<>
 											<p className="text-muted-foreground mb-1">Type</p>
 											<p className="font-medium text-foreground text-xs">Expense</p>

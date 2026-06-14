@@ -1,8 +1,7 @@
 'use client'
 
-import { useState, useRef, useMemo, useEffect, useCallback } from 'react'
+import { useState, useRef, useMemo, useEffect } from 'react'
 import { Camera, Eye, EyeOff, User as UserIcon, Mail, Building, Briefcase, Shield, Phone } from 'lucide-react'
-import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -88,7 +87,6 @@ export function CompactProfileSettings({ user }: CompactProfileSettingsProps) {
 			})
 
 			if (!response.ok) {
-				const errorText = await response.text()
 				throw new Error(`Failed to fetch employee data: ${response.status}`)
 			}
 
@@ -100,7 +98,7 @@ export function CompactProfileSettings({ user }: CompactProfileSettingsProps) {
 				department: data.employee.department,
 				designation: data.employee.designation,
 			})
-		} catch (error) {
+		} catch {
 			setEmployeeError('Failed to load employee information')
 		} finally {
 			setIsEmployeeLoading(false)
@@ -242,7 +240,7 @@ export function CompactProfileSettings({ user }: CompactProfileSettingsProps) {
 			} else {
 				throw new Error('No file URL returned from upload')
 			}
-		} catch (error) {
+		} catch {
 			toast.error('Failed to update profile photo. Please try again.', { id: 'photo-upload' })
 		} finally {
 			setIsPhotoLoading(false)
@@ -296,7 +294,7 @@ export function CompactProfileSettings({ user }: CompactProfileSettingsProps) {
 			})
 			
 			toast.success('Password changed successfully!')
-		} catch (error) {
+		} catch {
 			toast.error('Failed to change password. Please try again.')
 		} finally {
 			setIsPasswordLoading(false)

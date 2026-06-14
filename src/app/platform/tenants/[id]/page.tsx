@@ -98,8 +98,8 @@ export default function TenantDetailPage() {
       setUsageHistory(usageData)
       setModulesEnabled(tenantData.modules_enabled || [])
       setSelectedPlan(tenantData.plan)
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to load tenant')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to load tenant')
     } finally {
       setLoading(false)
     }
@@ -113,8 +113,8 @@ export default function TenantDetailPage() {
       // Refresh usage for this tenant
       const usageData = await platformService.getTenantUsage(id)
       setUsageHistory(usageData)
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to collect usage')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to collect usage')
     } finally {
       setCollectingUsage(false)
     }
@@ -131,8 +131,8 @@ export default function TenantDetailPage() {
       await platformService.updateTenant(id, { modules_enabled: modulesEnabled })
       toast.success('Modules updated')
       setTenant(prev => prev ? { ...prev, modules_enabled: modulesEnabled } : prev)
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to update modules')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update modules')
     } finally {
       setSaving(false)
     }
@@ -145,8 +145,8 @@ export default function TenantDetailPage() {
       await platformService.updateTenant(id, { plan: selectedPlan })
       toast.success(`Plan changed to ${selectedPlan}`)
       setTenant(prev => prev ? { ...prev, plan: selectedPlan } : prev)
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to change plan')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to change plan')
     } finally {
       setActionLoading(null)
     }
@@ -160,8 +160,8 @@ export default function TenantDetailPage() {
       await platformService.updateTenant(id, { status: newStatus })
       toast.success(`Tenant ${newStatus === 'active' ? 'activated' : 'suspended'}`)
       setTenant(prev => prev ? { ...prev, status: newStatus } : prev)
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to update status')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update status')
     } finally {
       setActionLoading(null)
     }
@@ -177,8 +177,8 @@ export default function TenantDetailPage() {
       } else {
         toast.error('No magic link returned')
       }
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to generate impersonation link')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to generate impersonation link')
     } finally {
       setActionLoading(null)
     }
@@ -190,8 +190,8 @@ export default function TenantDetailPage() {
       await platformService.deleteTenant(id)
       toast.success('Tenant cancelled')
       router.push('/platform/tenants')
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to delete tenant')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete tenant')
       setActionLoading(null)
       setShowDeleteConfirm(false)
     }

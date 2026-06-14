@@ -6,11 +6,39 @@ import {
 	LeaveTypeData,
 	PayslipData,
 	FrappeLeaveTypeData,
-	FrappeLeaveAllocationData,
 	FrappeLeaveApplicationData,
 	DashboardTimesheet,
 	PendingAcknowledgment
 } from '@/types/dashboard'
+
+// Raw API response shapes (snake_case) returned by the internal API routes
+interface RawExpenseClaim {
+	id: string
+	display_id?: string
+	title?: string
+	total_amount?: number
+	currency?: string
+	status?: string
+	submitted_at?: string
+	created_at?: string
+}
+
+interface RawDashboardTimesheet {
+	id: string
+	display_id?: string
+	period_start?: string
+	period_end?: string
+	total_hours?: number
+	status?: string
+}
+
+interface RawDocument {
+	id: string
+	title?: string
+	category_name?: string
+	requires_acknowledgment?: boolean
+	acknowledged?: boolean
+}
 
 // Helper to get auth token for API calls
 const getToken = () => typeof window !== 'undefined' ? localStorage.getItem('ess_access_token') : null
@@ -79,33 +107,6 @@ const fetchLeaveTypes = async (): Promise<FrappeLeaveTypeData[]> => {
 		return Array.isArray(data.leave_types) ? data.leave_types : []
 	} catch (error) {
 		console.error('Error fetching leave types:', error)
-		return []
-	}
-}
-
-// Function to fetch leave allocations from Frappe
-const fetchLeaveAllocations = async (): Promise<FrappeLeaveAllocationData[]> => {
-	try {
-		const response = await fetch('/api/leave-allocations', {
-			headers: authHeaders(),
-		})
-
-		if (!response.ok) {
-			if (response.status === 401) {
-				console.log('Authentication required for leave allocations')
-				return []
-			}
-			if (response.status === 403) {
-				console.log('Access denied to leave allocations')
-				return []
-			}
-			throw new Error(`Failed to fetch leave allocations: ${response.status}`)
-		}
-
-		const data = await response.json()
-		return data.leave_allocations || []
-	} catch (error) {
-		console.error('Error fetching leave allocations:', error)
 		return []
 	}
 }
@@ -392,7 +393,7 @@ const fetchExpenseClaims = async (): Promise<MyExpenseClaim[]> => {
 		const data = await response.json()
 		const claims = Array.isArray(data.claims) ? data.claims : []
 
-		return claims.map((claim: any) => {
+		return claims.map((claim: RawExpenseClaim) => {
 			let status: 'pending' | 'approved' | 'rejected' = 'pending'
 			if (claim.status === 'Approved' || claim.status === 'Paid') {
 				status = 'approved'
@@ -675,7 +676,7 @@ const fetchMyTimesheets = async (): Promise<DashboardTimesheet[]> => {
 		const response = await fetch('/api/timesheets', { headers: authHeaders() })
 		if (!response.ok) return []
 		const data = await response.json()
-		return (data.timesheets || []).slice(0, 5).map((ts: any) => ({
+		return (data.timesheets || []).slice(0, 5).map((ts: RawDashboardTimesheet) => ({
 			id: ts.id,
 			displayId: ts.display_id,
 			periodStart: ts.period_start,
@@ -696,8 +697,8 @@ const fetchPendingAcknowledgments = async (): Promise<PendingAcknowledgment[]> =
 		const data = await response.json()
 		const documents = Array.isArray(data.documents) ? data.documents : []
 		return documents
-			.filter((doc: any) => doc.requires_acknowledgment && !doc.acknowledged)
-			.map((doc: any) => ({
+			.filter((doc: RawDocument) => doc.requires_acknowledgment && !doc.acknowledged)
+			.map((doc: RawDocument) => ({
 				documentId: doc.id,
 				title: doc.title,
 				categoryName: doc.category_name || '',

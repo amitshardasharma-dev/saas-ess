@@ -21,7 +21,7 @@ export const GET = withAuth(async (_request: NextRequest, { companyId }) => {
 
 	// Fetch completion counts for each cycle
 	const cycleIds = (cycles || []).map((c) => c.id)
-	let countsBycycle: Record<string, { total: number; completed: number }> = {}
+	const countsBycycle: Record<string, { total: number; completed: number }> = {}
 
 	if (cycleIds.length > 0) {
 		const { data: appraisals } = await supabaseAdmin
@@ -41,7 +41,7 @@ export const GET = withAuth(async (_request: NextRequest, { companyId }) => {
 	}
 
 	const processed = (cycles || []).map((c) => {
-		const tmpl = c.ess_appraisal_templates as any
+		const tmpl = c.ess_appraisal_templates as { name?: string } | null
 		const counts = countsBycycle[c.id] || { total: 0, completed: 0 }
 		return {
 			...c,

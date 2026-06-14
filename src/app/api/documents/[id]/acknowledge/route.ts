@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-server'
 import { withAuth } from '@/lib/auth-middleware'
+import { completeLinkedOnboardingStep } from '@/lib/onboarding'
 
 export const POST = withAuth(async (_request, { employee, companyId }, params) => {
   const id = params?.id
@@ -44,5 +45,13 @@ export const POST = withAuth(async (_request, { employee, companyId }, params) =
     }, { onConflict: 'document_id,version_id,employee_id' })
 
   if (error) throw error
+
+  // Auto-complete the linked onboarding step (doc_ack -> this document).
+  try {
+    await completeLinkedOnboardingStep(employee.id, { stepType: 'doc_ack', refId: id })
+  } catch (hookErr) {
+    console.error('[documents] ack onboarding hook failed (non-fatal):', (hookErr as Error)?.message)
+  }
+
   return NextResponse.json({ message: 'Document acknowledged' })
 })

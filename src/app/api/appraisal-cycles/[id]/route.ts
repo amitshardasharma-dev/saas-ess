@@ -33,7 +33,7 @@ export const GET = withAuth(async (_request: NextRequest, { companyId }, params)
 	const total = (appraisals || []).length
 	const completed = (appraisals || []).filter((a) => a.status === 'Completed').length
 
-	const tmpl = cycle.ess_appraisal_templates as any
+	const tmpl = cycle.ess_appraisal_templates as { name?: string } | null
 	return NextResponse.json({
 		cycle: {
 			...cycle,
@@ -51,8 +51,12 @@ export const PUT = withAuth(async (request: NextRequest, { companyId }, params) 
 		return NextResponse.json({ error: 'Cycle ID required' }, { status: 400 })
 	}
 
-	const body = await request.json()
-	const { id: _id, company_id: _cid, created_at: _ca, ...updates } = body
+	const body = await request.json() as Record<string, unknown>
+	// Strip non-updatable fields
+	const updates = { ...body }
+	delete updates.id
+	delete updates.company_id
+	delete updates.created_at
 
 	const { data: cycle, error } = await supabaseAdmin
 		.from('ess_appraisal_cycles')

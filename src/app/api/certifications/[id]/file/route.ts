@@ -11,7 +11,7 @@ import { recordAudit } from '@/lib/audit'
 
 // Private bucket for certification evidence (conventions §9: private by default,
 // access via signed URLs). Distinct from the public 'ess-contracts' bucket.
-export const CERT_BUCKET = 'certifications'
+const CERT_BUCKET = 'certifications'
 const SIGNED_URL_TTL_SECONDS = 60
 const MAX_BYTES = 20 * 1024 * 1024
 

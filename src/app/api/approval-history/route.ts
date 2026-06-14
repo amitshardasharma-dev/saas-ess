@@ -36,7 +36,52 @@ export async function GET(request: NextRequest) {
 			return NextResponse.json([])
 		}
 
-		const approvalHistory: any[] = []
+		type EmployeeRef = { employee_no: string | null; full_name: string | null } | null
+		type LeaveApplicationRef = {
+			display_id: string | null
+			from_date: string | null
+			till_date: string | null
+			total_days: number | string | null
+			reason: string | null
+			status: string | null
+			created_at: string | null
+			employee_id: string | null
+			ess_leave_types: { name: string | null } | null
+			ess_employees: EmployeeRef
+		} | null
+		type ExpenseClaimRef = {
+			display_id: string | null
+			title: string | null
+			total_amount: number | string | null
+			currency: string | null
+			status: string | null
+			created_at: string | null
+			employee_id: string | null
+			ess_employees: EmployeeRef
+		} | null
+
+		type ApprovalHistoryItem = {
+			leave_id: string | null | undefined
+			type: 'leave' | 'expense'
+			employee: string
+			employee_name: string
+			leave_type?: string
+			title?: string
+			total_amount?: number
+			currency?: string
+			from_date?: string | null
+			till_date?: string | null
+			total_days?: number
+			reason?: string
+			my_action: string
+			action_date: string | null
+			remarks: string
+			final_status: string
+			creation: string | null | undefined
+			approved_level: number
+		}
+
+		const approvalHistory: ApprovalHistoryItem[] = []
 
 		// Get leave approval history
 		const { data: leaveEntries } = await supabaseAdmin
@@ -55,9 +100,9 @@ export async function GET(request: NextRequest) {
 			.order('action_time', { ascending: false })
 
 		for (const entry of leaveEntries || []) {
-			const app = entry.ess_leave_applications as any
-			const emp = app?.ess_employees as any
-			const lt = app?.ess_leave_types as any
+			const app = entry.ess_leave_applications as unknown as LeaveApplicationRef
+			const emp = app?.ess_employees
+			const lt = app?.ess_leave_types
 
 			approvalHistory.push({
 				leave_id: app?.display_id,
@@ -94,8 +139,8 @@ export async function GET(request: NextRequest) {
 			.order('action_time', { ascending: false })
 
 		for (const entry of expenseEntries || []) {
-			const claim = entry.ess_expense_claims as any
-			const emp = claim?.ess_employees as any
+			const claim = entry.ess_expense_claims as unknown as ExpenseClaimRef
+			const emp = claim?.ess_employees
 
 			approvalHistory.push({
 				leave_id: claim?.display_id,

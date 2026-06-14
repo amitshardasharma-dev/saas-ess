@@ -1,6 +1,6 @@
 // src/services/timesheet.ts
 
-import { TimesheetConfig, Timesheet, TimesheetEntry, Project, MyTimesheet } from '@/types/timesheet'
+import { TimesheetConfig, Timesheet, TimesheetEntry, Project, TimesheetApprovalEntry } from '@/types/timesheet'
 
 const getToken = () => typeof window !== 'undefined' ? localStorage.getItem('ess_access_token') : null
 
@@ -28,7 +28,7 @@ export const timesheetService = {
     return data.timesheets || []
   },
 
-  async getTimesheet(id: string): Promise<{ timesheet: Timesheet; entries: TimesheetEntry[]; approvals: any[] }> {
+  async getTimesheet(id: string): Promise<{ timesheet: Timesheet; entries: TimesheetEntry[]; approvals: TimesheetApprovalEntry[] }> {
     const res = await fetch(`/api/timesheets/${id}`, { headers: authHeaders() })
     if (!res.ok) throw new Error('Failed to fetch timesheet')
     return res.json()

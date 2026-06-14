@@ -1,18 +1,17 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { useEmployee } from '@/hooks/use-employee'
 import { Pagination, PaginationInfo } from '@/components/ui/pagination'
 import { 
-	Calendar, 
-	Clock, 
-	User, 
-	FileText, 
-	CheckCircle, 
+	Calendar,
+	Clock,
+	User,
+	CheckCircle,
 	XCircle, 
 	Award,
 	Search,
@@ -185,7 +184,7 @@ export default function ApprovalHistoryPage() {
 							<ShieldX className="h-12 w-12 mx-auto mb-4 text-red-500" />
 							<h2 className="text-xl font-semibold mb-2">Access Restricted</h2>
 							<p className="text-sm text-muted-foreground mb-4">
-								You don't have permission to access the approval features.
+								You don&apos;t have permission to access the approval features.
 							</p>
 							<p className="text-xs text-muted-foreground">
 								Contact your administrator if you believe this is an error.
@@ -285,7 +284,7 @@ export default function ApprovalHistoryPage() {
 								<Filter className="h-4 w-4 text-muted-foreground" />
 								<select
 									value={statusFilter}
-									onChange={(e) => setStatusFilter(e.target.value as any)}
+									onChange={(e) => setStatusFilter(e.target.value as 'all' | 'approved' | 'rejected')}
 									className="px-3 py-2 border border-input rounded-md bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
 								>
 									<option value="all">All Actions</option>
@@ -382,12 +381,12 @@ export default function ApprovalHistoryPage() {
 													
 													<div className="flex items-center space-x-2">
 														<Calendar className="h-4 w-4 text-muted-foreground" />
-														{(item as any).type === 'timesheet' ? (
+														{(item as ApprovalHistoryItem & { type?: string }).type === 'timesheet' ? (
 															<>
 																<span className="text-muted-foreground">Type:</span>
 																<span className="font-medium">Timesheet</span>
 															</>
-														) : (item as any).type === 'expense' ? (
+														) : (item as ApprovalHistoryItem & { type?: string }).type === 'expense' ? (
 															<>
 																<span className="text-muted-foreground">Type:</span>
 																<span className="font-medium">Expense</span>

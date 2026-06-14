@@ -1,10 +1,10 @@
 // src/app/api/team-calendar/route.ts
 
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-server'
 import { withAuth } from '@/lib/auth-middleware'
 
-export const GET = withAuth(async (request, { companyId, employee }) => {
+export const GET = withAuth(async (request, { employee }) => {
   if (!employee) {
     return NextResponse.json({ leaves: [] })
   }
@@ -60,12 +60,24 @@ export const GET = withAuth(async (request, { companyId, employee }) => {
 
   const employeeMap = new Map(reports.map(r => [r.id, r.full_name]))
 
-  const processed = (leaves || []).map((l: any) => ({
+  type LeaveRow = {
+    id: string
+    display_id: string | null
+    employee_id: string
+    from_date: string
+    till_date: string
+    total_days: number | string
+    half_day: boolean | null
+    status: string
+    ess_leave_types: { name: string | null; code: string | null } | null
+  }
+
+  const processed = ((leaves || []) as unknown as LeaveRow[]).map((l) => ({
     id: l.display_id || l.id,
     employeeId: l.employee_id,
     employeeName: employeeMap.get(l.employee_id) || '',
     leaveType: l.ess_leave_types?.name || '',
-    leaveTypeColor: colors[l.ess_leave_types?.name] || '#6b7280',
+    leaveTypeColor: (l.ess_leave_types?.name && colors[l.ess_leave_types.name]) || '#6b7280',
     fromDate: l.from_date,
     toDate: l.till_date,
     totalDays: Number(l.total_days),

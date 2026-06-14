@@ -38,8 +38,12 @@ export const GET = withAuth(async (_request: NextRequest, { companyId }, params)
 		return NextResponse.json({ error: 'Contract not found' }, { status: 404 })
 	}
 
-	const emp = contract.ess_employees as any
-	const ctype = contract.ess_contract_types as any
+	const emp = contract.ess_employees as { full_name?: string; employee_no?: string } | null
+	const ctype = contract.ess_contract_types as {
+		name?: string
+		requires_end_date?: boolean
+		default_duration_months?: number | null
+	} | null
 
 	return NextResponse.json({
 		contract: {
@@ -60,9 +64,13 @@ export const PUT = withAuth(async (request: NextRequest, { companyId }, params) 
 		return NextResponse.json({ error: 'Contract ID required' }, { status: 400 })
 	}
 
-	const body = await request.json()
+	const body = await request.json() as Record<string, unknown>
 	// Strip non-updatable fields
-	const { id: _id, company_id: _cid, created_by: _cb, created_at: _ca, ...updates } = body
+	const updates = { ...body }
+	delete updates.id
+	delete updates.company_id
+	delete updates.created_by
+	delete updates.created_at
 
 	const { data: contract, error } = await supabaseAdmin
 		.from('ess_contracts')

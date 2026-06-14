@@ -5,7 +5,6 @@ import { Save, User as UserIcon, Mail, Building, Briefcase } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { useAuthStore } from '@/stores/auth'
 import toast from 'react-hot-toast'
 import { z } from 'zod'
 import { User } from '@/types/auth'
@@ -24,7 +23,6 @@ interface ProfileInfoFormProps {
 }
 
 export function ProfileInfoForm({ user }: ProfileInfoFormProps) {
-	const { updateUserInfo } = useAuthStore()
 	const [formData, setFormData] = useState<ProfileInfoFormData>({
 		full_name: user.full_name || '',
 		email: user.email || '',
@@ -38,7 +36,7 @@ export function ProfileInfoForm({ user }: ProfileInfoFormProps) {
 		try {
 			profileInfoSchema.parse(formData)
 			return true
-		} catch (error) {
+		} catch {
 			return false
 		}
 	}

@@ -70,8 +70,8 @@ export function TerminologyPanel({ companyId }: TerminologyPanelProps) {
     try {
       await platformService.updateTenantLabel(companyId, { termKey: key, singular, plural })
       toast.success('Terminology updated')
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to update terminology')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update terminology')
     } finally {
       setSavingKey(null)
     }

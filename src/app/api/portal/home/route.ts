@@ -48,7 +48,7 @@ export const GET = withAuth(async (_req: NextRequest, { companyId, employee }) =
         if (!m) return null
         return { recipient_id: r.id, subject: m.subject, sent_at: m.sent_at, read_at: r.read_at }
       })
-      .filter((x): x is Record<string, unknown> => x !== null)
+      .filter((x): x is NonNullable<typeof x> => x !== null)
   }
 
   return NextResponse.json({

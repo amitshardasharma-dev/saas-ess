@@ -13,9 +13,8 @@ import {
 	ArrowLeft, 
 	Calendar, 
 	FileText, 
-	Clock, 
-	User, 
-	CheckCircle,
+	Clock,
+	User,
 	Loader2,
 	Eye,
 	Send
@@ -84,7 +83,7 @@ export default function NewLeaveApplicationPage() {
 				console.warn('No employee data found')
 				// Don't show error toast, we'll handle this in UI
 			}
-		} catch (error: any) {
+		} catch (error: unknown) {
 			console.error('Error loading employee data:', error)
 			// Don't show error toast, we'll handle this in UI
 		}
@@ -141,7 +140,7 @@ export default function NewLeaveApplicationPage() {
 				setLeaveTypes([])
 				toast.error('No leave types available. Please contact HR.')
 			}
-		} catch (error: any) {
+		} catch (error: unknown) {
 			console.error('Error loading leave types:', error)
 			setLeaveTypes([])
 			toast.error('Failed to load leave types. Please contact HR.')
@@ -156,7 +155,6 @@ export default function NewLeaveApplicationPage() {
 			
 			// Additional validation
 			const fromDate = new Date(formData.from_date)
-			const tillDate = new Date(formData.till_date)
 			const today = new Date()
 			today.setHours(0, 0, 0, 0)
 			fromDate.setHours(0, 0, 0, 0)
@@ -257,16 +255,16 @@ export default function NewLeaveApplicationPage() {
 		setIsSubmitting(true)
 		try {
 			// Create and submit the leave application in one step
-			const result = await leaveService.createLeaveApplication({
+			await leaveService.createLeaveApplication({
 				...formData,
 				link_lmbb: employeeId
 			})
-			
+
 			toast.success('Leave application submitted successfully!')
 			router.push('/dashboard/leave-applications')
-		} catch (error: any) {
+		} catch (error: unknown) {
 			console.error('Error submitting leave application:', error)
-			toast.error(error.message || 'Failed to submit leave application')
+			toast.error(error instanceof Error ? error.message : 'Failed to submit leave application')
 		} finally {
 			setIsSubmitting(false)
 		}

@@ -4,6 +4,7 @@
  * These tests call the actual Next.js API route handlers directly,
  * with mocked Supabase to avoid needing a real database.
  */
+import { NextRequest } from 'next/server'
 
 // Re-export the mock supabase
 export { createMockSupabase, mockSupabaseData } from '../mocks/supabase'
@@ -33,11 +34,10 @@ export function createRequest(
   if (token) headers.set('Authorization', `Bearer ${token}`)
   if (body) headers.set('Content-Type', 'application/json')
 
-  const init: RequestInit = { method, headers }
+  const init: { method: string; headers: Headers; body?: string } = { method, headers }
   if (body) init.body = JSON.stringify(body)
 
   // Use NextRequest constructor
-  const { NextRequest } = require('next/server')
   return new NextRequest(fullUrl, init)
 }
 

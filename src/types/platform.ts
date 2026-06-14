@@ -24,7 +24,7 @@ export interface TenantSummary {
   user_count: number
   employee_count: number
   created_at: string
-  settings: Record<string, any>
+  settings: Record<string, unknown>
 }
 
 export interface TenantDetail extends TenantSummary {

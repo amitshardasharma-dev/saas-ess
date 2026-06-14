@@ -8,7 +8,6 @@ import {
   AppWindow,
   Info,
   Timer,
-  Key,
   Server,
   ToggleLeft,
   Blocks,
@@ -70,7 +69,7 @@ export function SettingsForm() {
         if (Array.isArray(data.settings.modules_enabled)) {
           setEnabledModules(data.settings.modules_enabled);
         }
-      } catch (error) {
+      } catch {
         toast.error('Failed to load settings');
       } finally {
         setIsLoading(false);

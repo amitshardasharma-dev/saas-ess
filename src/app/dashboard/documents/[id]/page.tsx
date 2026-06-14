@@ -94,7 +94,7 @@ export default function DocumentDetailPage() {
                 <div>
                   <h1 className="text-2xl font-bold">{document.title}</h1>
                   <div className="flex items-center gap-2 mt-1">
-                    <Badge variant="outline">{(document as any).category_name || 'Uncategorized'}</Badge>
+                    <Badge variant="outline">{(document as Document & { category_name?: string }).category_name || 'Uncategorized'}</Badge>
                     <span className="text-sm text-muted-foreground">Version {document.current_version}</span>
                   </div>
                 </div>

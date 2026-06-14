@@ -1,10 +1,10 @@
 // src/app/api/timesheets/[id]/route.ts
 
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-server'
 import { withAuth } from '@/lib/auth-middleware'
 
-export const GET = withAuth(async (_request, { companyId, employee }, params) => {
+export const GET = withAuth(async (_request, { companyId }, params) => {
   const id = params?.id
   if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 })
 
@@ -50,17 +50,26 @@ export const GET = withAuth(async (_request, { companyId, employee }, params) =>
     .eq('timesheet_id', timesheet.id)
     .order('level_no')
 
+  const timesheetEmployee = (timesheet as { ess_employees?: { full_name?: string | null; employee_no?: string | null } | null }).ess_employees
+
+  type EntryRow = Record<string, unknown> & {
+    ess_projects?: { name: string | null; code: string | null } | null
+  }
+  type ApprovalRow = Record<string, unknown> & {
+    ess_employees?: { full_name: string | null; employee_no: string | null } | null
+  }
+
   return NextResponse.json({
     timesheet: {
       ...timesheet,
-      employee_name: (timesheet as any).ess_employees?.full_name,
-      employee_no: (timesheet as any).ess_employees?.employee_no,
+      employee_name: timesheetEmployee?.full_name,
+      employee_no: timesheetEmployee?.employee_no,
     },
-    entries: (entries || []).map((e: any) => ({
+    entries: ((entries || []) as EntryRow[]).map((e) => ({
       ...e,
       project_name: e.ess_projects?.name || null,
     })),
-    approvals: (approvals || []).map((a: any) => ({
+    approvals: ((approvals || []) as ApprovalRow[]).map((a) => ({
       ...a,
       approver_name: a.ess_employees?.full_name || '',
     })),

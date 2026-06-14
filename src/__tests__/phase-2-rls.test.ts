@@ -1,7 +1,8 @@
 /**
  * @jest-environment node
  */
-import { describe, it, expect } from '@jest/globals';
+import * as fs from 'fs';
+import * as path from 'path';
 
 const PHASE_2_TABLES = [
   'ess_onboarding_templates',
@@ -10,8 +11,6 @@ const PHASE_2_TABLES = [
 ];
 
 function readMigration(): string {
-  const fs = require('fs') as typeof import('fs');
-  const path = require('path') as typeof import('path');
   return fs.readFileSync(
     path.join(process.cwd(), 'supabase/migrations/020_onboarding.sql'),
     'utf8'
@@ -21,18 +20,18 @@ function readMigration(): string {
 describe('Phase 2 RLS contract', () => {
   const sql = readMigration();
 
-  it.each(PHASE_2_TABLES)('table %s has a company_id column', (table) => {
+  it.each(PHASE_2_TABLES)('table %s has a company_id column', (table: string) => {
     const createIdx = sql.indexOf(`create table if not exists ${table}`);
     expect(createIdx).toBeGreaterThanOrEqual(0);
     const block = sql.slice(createIdx, sql.indexOf(');', createIdx));
     expect(block).toMatch(/company_id uuid not null references ess_companies\(id\)/);
   });
 
-  it.each(PHASE_2_TABLES)('table %s enables RLS', (table) => {
+  it.each(PHASE_2_TABLES)('table %s enables RLS', (table: string) => {
     expect(sql).toContain(`alter table ${table} enable row level security`);
   });
 
-  it.each(PHASE_2_TABLES)('table %s has a tenant_isolation policy', (table) => {
+  it.each(PHASE_2_TABLES)('table %s has a tenant_isolation policy', (table: string) => {
     expect(sql).toContain(`create policy tenant_isolation on ${table}`);
   });
 

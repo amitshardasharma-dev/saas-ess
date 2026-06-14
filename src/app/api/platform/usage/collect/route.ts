@@ -68,8 +68,9 @@ export const POST = withSuperAdmin(async () => {
         leave_apps_this_month: leaveCount ?? 0,
         documents_count: docCount ?? 0,
       })
-    } catch (err: any) {
-      errors.push(`${company.name}: ${err.message}`)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      errors.push(`${company.name}: ${message}`)
     }
   }
 

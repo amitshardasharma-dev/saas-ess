@@ -15,8 +15,6 @@
 import { NextRequest } from 'next/server'
 
 const COMPANY_B = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
-const APP_USER_B = 'appuser-b'
-const EMPLOYEE_B = 'employee-b'
 
 interface Recorded {
 	method: string

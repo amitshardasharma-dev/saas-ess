@@ -1,4 +1,4 @@
-import { hasPermission, hasMinRole, UserRole } from '@/types/roles'
+import { hasPermission, hasMinRole } from '@/types/roles'
 
 describe('hasPermission', () => {
   it('admin has all permissions', () => {

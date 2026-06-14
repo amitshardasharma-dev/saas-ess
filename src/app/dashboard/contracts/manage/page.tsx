@@ -4,7 +4,6 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
-import { ContractCard } from '@/components/contracts/contract-card'
 import { ContractHistory } from '@/components/contracts/contract-history'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'

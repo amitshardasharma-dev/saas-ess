@@ -42,8 +42,8 @@ export default function TenantsPage() {
     try {
       const data = await platformService.getTenants(search || undefined, filterPlan || undefined, filterStatus || undefined)
       setTenants(data)
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to load tenants')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to load tenants')
     } finally {
       setLoading(false)
     }
@@ -63,8 +63,8 @@ export default function TenantsPage() {
       toast.success(`Tenant "${input.company_name}" created successfully`)
       setShowWizard(false)
       fetchTenants()
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to create tenant')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to create tenant')
       throw err
     }
   }

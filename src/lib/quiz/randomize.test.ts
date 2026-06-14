@@ -3,7 +3,7 @@
 // id. We assert the shuffle is a stable permutation seeded by the attempt id.
 
 import { gradeAnswer } from './grading'
-import { orderQuestions, seededShuffle, seedFromString } from './randomize'
+import { orderQuestions, seededShuffle } from './randomize'
 import type { AnswerInput, QuizQuestionWithOptions } from '@/types/quiz'
 
 describe('seededShuffle', () => {
@@ -65,6 +65,6 @@ describe('randomization does not affect grading', () => {
     const ordered = orderQuestions(questions, true, 'attempt-xyz')
     const score = ordered.map((q) => gradeAnswer(q, answers[q.id]).awarded_points)
     // Two correct (q1, q3), one wrong (q2) — independent of order.
-    expect(score.reduce((a, b) => a + (b ?? 0), 0)).toBe(2)
+    expect(score.reduce((a, b) => (a ?? 0) + (b ?? 0), 0)).toBe(2)
   })
 })

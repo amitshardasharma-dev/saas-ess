@@ -34,6 +34,8 @@ type Fixtures = {
   company_id: string
   password: string
   roles: Record<string, RoleUser>
+  unregistered: { email: string; password: string; authUserId: string }
+  inactive: { email: string; password: string; appUserId: string; employeeId: string }
   expenseCategories: string[]
   sampleVolunteers: { email: string; employeeId: string; doneCount: number }[]
   scaleSeeded?: number

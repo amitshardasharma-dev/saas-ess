@@ -21,9 +21,9 @@ async function testCase(name: string, fn: () => Promise<void>) {
     await fn()
     passed++
     console.log(`  ✅ ${name}`)
-  } catch (err: any) {
+  } catch (err) {
     failed++
-    const msg = err.message || String(err)
+    const msg = err instanceof Error ? err.message : String(err)
     failures.push(`${name}: ${msg}`)
     console.log(`  ❌ ${name} — ${msg}`)
   }
@@ -33,16 +33,12 @@ function assert(condition: boolean, message: string) {
   if (!condition) throw new Error(message)
 }
 
-function assertEqual(actual: any, expected: any, label: string) {
+function assertEqual(actual: unknown, expected: unknown, label: string) {
   if (actual !== expected) throw new Error(`${label}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`)
 }
 
-function assertIncludes(arr: any[], value: any, label: string) {
-  if (!arr.includes(value)) throw new Error(`${label}: ${JSON.stringify(arr)} does not include ${JSON.stringify(value)}`)
-}
-
 // --- HTTP Helpers ---
-async function api(path: string, opts: { method?: string; token?: string; body?: any } = {}) {
+async function api(path: string, opts: { method?: string; token?: string; body?: unknown } = {}) {
   const headers: Record<string, string> = {}
   if (opts.token) headers['Authorization'] = `Bearer ${opts.token}`
   if (opts.body) headers['Content-Type'] = 'application/json'
@@ -80,7 +76,7 @@ async function runTests() {
   console.log('All logins successful.\n')
 
   // Track created resources for cleanup/cross-referencing
-  const created: Record<string, any> = {}
+  const created: Record<string, string | undefined> = {}
 
   // ============================================
   // UC-1: Timesheet Lifecycle
@@ -116,7 +112,7 @@ async function runTests() {
   })
 
   await testCase('Employee submits → Submitted + approval created', async () => {
-    const { status, data } = await api(`/api/timesheets/${created.timesheetId}`, {
+    const { status } = await api(`/api/timesheets/${created.timesheetId}`, {
       method: 'POST', token: tokens.acmeEmployee,
     })
     assertEqual(status, 200, 'status')
@@ -170,7 +166,7 @@ async function runTests() {
 
   await testCase('Employee sees published document', async () => {
     const { data } = await api('/api/documents', { token: tokens.acmeEmployee })
-    const doc = data.documents.find((d: any) => d.id === created.docId)
+    const doc = data.documents.find((d: Record<string, unknown>) => d.id === created.docId)
     assert(doc, 'document visible')
     assertEqual(doc.is_published, true, 'published')
   })
@@ -215,7 +211,7 @@ async function runTests() {
 
   await testCase('Gamma admin cannot see Acme contracts', async () => {
     const { data } = await api('/api/contracts?scope=all', { token: tokens.gammaAdmin })
-    const acmeContracts = (data.contracts || []).filter((c: any) => c.company_id === 'company-acme' || c.title === 'Test Contract')
+    const acmeContracts = (data.contracts || []).filter((c: Record<string, unknown>) => c.company_id === 'company-acme' || c.title === 'Test Contract')
     assertEqual(acmeContracts.length, 0, 'no acme contracts visible')
   })
 
@@ -247,7 +243,7 @@ async function runTests() {
 
   await testCase('Employee sees appraisal with Pending Self status', async () => {
     const { data } = await api('/api/appraisals?scope=my', { token: tokens.acmeEmployee })
-    const appraisal = data.appraisals?.find((a: any) => a.status === 'Pending Self')
+    const appraisal = data.appraisals?.find((a: Record<string, unknown>) => a.status === 'Pending Self')
     if (appraisal) {
       created.appraisalId = appraisal.id
       assertEqual(appraisal.status, 'Pending Self', 'status')
@@ -293,13 +289,13 @@ async function runTests() {
   await testCase('Gamma sees 0 Acme timesheets', async () => {
     const { data } = await api('/api/timesheets', { token: tokens.gammaAdmin })
     // Gamma should only see gamma timesheets
-    const acmeTimesheets = (data.timesheets || []).filter((t: any) => t.employee_name === 'Eve Employee')
+    const acmeTimesheets = (data.timesheets || []).filter((t: Record<string, unknown>) => t.employee_name === 'Eve Employee')
     assertEqual(acmeTimesheets.length, 0, 'no acme timesheets')
   })
 
   await testCase('Gamma sees 0 Acme documents', async () => {
     const { data } = await api('/api/documents', { token: tokens.gammaAdmin })
-    const acmeDocs = (data.documents || []).filter((d: any) => d.title === 'Test Policy')
+    const acmeDocs = (data.documents || []).filter((d: Record<string, unknown>) => d.title === 'Test Policy')
     assertEqual(acmeDocs.length, 0, 'no acme docs')
   })
 
@@ -376,7 +372,7 @@ async function runTests() {
 
   await testCase('Tenant list shows new tenant', async () => {
     const { data } = await api('/api/platform/tenants', { token: tokens.acmeAdmin })
-    const found = data.tenants.find((t: any) => t.id === created.newTenantId)
+    const found = data.tenants.find((t: Record<string, unknown>) => t.id === created.newTenantId)
     assert(found, 'tenant in list')
   })
 
@@ -402,7 +398,7 @@ async function runTests() {
     created.annAllId = data.announcement.id
 
     const { data: active } = await api('/api/announcements/active', { token: tokens.acmeEmployee })
-    const found = (active.announcements || []).find((a: any) => a.id === created.annAllId)
+    const found = (active.announcements || []).find((a: Record<string, unknown>) => a.id === created.annAllId)
     assert(found, 'employee sees it')
   })
 
@@ -416,7 +412,7 @@ async function runTests() {
 
     // Gamma is on starter plan
     const { data: gammaActive } = await api('/api/announcements/active', { token: tokens.gammaAdmin })
-    const gammaFound = (gammaActive.announcements || []).find((a: any) => a.id === created.annStarterId)
+    const gammaFound = (gammaActive.announcements || []).find((a: Record<string, unknown>) => a.id === created.annStarterId)
     assert(gammaFound, 'gamma sees starter announcement')
 
     // Acme is on professional/free — should NOT see starter announcement
@@ -429,7 +425,7 @@ async function runTests() {
       method: 'POST', token: tokens.acmeEmployee,
     })
     const { data } = await api('/api/announcements/active', { token: tokens.acmeEmployee })
-    const found = (data.announcements || []).find((a: any) => a.id === created.annAllId)
+    const found = (data.announcements || []).find((a: Record<string, unknown>) => a.id === created.annAllId)
     assert(!found, 'dismissed announcement not in list')
   })
 
@@ -514,14 +510,14 @@ async function runTests() {
     created.unpubDocId = unpub.document?.id
 
     const { data: empDocs } = await api('/api/documents', { token: tokens.acmeEmployee })
-    const found = (empDocs.documents || []).find((d: any) => d.id === created.unpubDocId)
+    const found = (empDocs.documents || []).find((d: Record<string, unknown>) => d.id === created.unpubDocId)
     assert(!found, 'unpublished doc not visible to employee')
   })
 
   await testCase('HR with manage=true sees unpublished documents', async () => {
     const { data } = await api('/api/documents?manage=true', { token: tokens.acmeHr })
     if (created.unpubDocId) {
-      const found = data.documents.find((d: any) => d.id === created.unpubDocId)
+      const found = data.documents.find((d: Record<string, unknown>) => d.id === created.unpubDocId)
       assert(found, 'unpublished doc visible to HR')
     }
   })
@@ -687,7 +683,7 @@ async function runTests() {
       body: { title: uniqueTitle, message: 'Test', type: 'info', target_type: 'all', starts_at: '2026-01-01T00:00:00Z', is_active: false },
     })
     const { data: active } = await api('/api/announcements/active', { token: tokens.acmeEmployee })
-    const found = (active.announcements || []).find((a: any) => a.title === uniqueTitle)
+    const found = (active.announcements || []).find((a: Record<string, unknown>) => a.title === uniqueTitle)
     assert(!found, 'not in active list')
   })
 
@@ -697,7 +693,7 @@ async function runTests() {
       body: { title: 'Expired', message: 'Test', type: 'info', target_type: 'all', starts_at: '2025-01-01T00:00:00Z', expires_at: '2025-02-01T00:00:00Z' },
     })
     const { data: active } = await api('/api/announcements/active', { token: tokens.acmeEmployee })
-    const found = (active.announcements || []).find((a: any) => a.title === 'Expired')
+    const found = (active.announcements || []).find((a: Record<string, unknown>) => a.title === 'Expired')
     assert(!found, 'expired not shown')
   })
 
@@ -803,7 +799,7 @@ async function runTests() {
       body: { title: 'Future', message: 'Not yet', type: 'info', target_type: 'all', starts_at: '2027-01-01T00:00:00Z' },
     })
     const { data } = await api('/api/announcements/active', { token: tokens.acmeEmployee })
-    const found = (data.announcements || []).find((a: any) => a.title === 'Future')
+    const found = (data.announcements || []).find((a: Record<string, unknown>) => a.title === 'Future')
     assert(!found, 'future not shown')
   })
 

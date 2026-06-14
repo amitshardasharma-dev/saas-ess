@@ -13,7 +13,6 @@
  * — none of which import fetch, a DB client, or server-only code. No DOM lib
  * hack is used.
  */
-import { describe, it, expect } from '@jest/globals'
 import { calcExpiry, calcStatus, daysUntil, indicatorForStatus } from '@/lib/compliance/expiry'
 import type { CertStatus } from '@/lib/compliance/expiry'
 import type { Certification, CertType, CertHistoryAction } from '@/types/compliance'

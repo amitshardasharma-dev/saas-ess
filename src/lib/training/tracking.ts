@@ -337,7 +337,7 @@ export async function recomputeModuleProgress(
       meta: { employee_id: employeeId },
     })
     // Cross-phase hooks (guarded; may not exist in this worktree).
-    await tryAdvanceOnboarding(employeeId)
+    await tryAdvanceOnboarding(employeeId, moduleId)
     await tryRecertHook(employeeId, moduleId)
   }
 

@@ -229,8 +229,8 @@ export default function PlansPage() {
     try {
       const data = await platformService.getPlans()
       setPlans(data)
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to load plans')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to load plans')
     } finally {
       setLoading(false)
     }
@@ -245,8 +245,8 @@ export default function PlansPage() {
       setPlans(prev => [...prev, plan].sort((a, b) => a.sort_order - b.sort_order))
       setShowCreateForm(false)
       toast.success('Plan created')
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to create plan')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to create plan')
     } finally {
       setSaving(false)
     }
@@ -263,8 +263,8 @@ export default function PlansPage() {
       )
       setEditingPlan(null)
       toast.success('Plan updated')
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to update plan')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update plan')
     } finally {
       setSaving(false)
     }
@@ -277,8 +277,8 @@ export default function PlansPage() {
       setPlans(prev => prev.filter(p => p.id !== id))
       setDeleteConfirmId(null)
       toast.success('Plan deleted')
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to delete plan')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete plan')
     } finally {
       setDeleting(false)
     }

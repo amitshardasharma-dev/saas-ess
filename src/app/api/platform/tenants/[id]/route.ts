@@ -1,6 +1,6 @@
 // src/app/api/platform/tenants/[id]/route.ts
 
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-server'
 import { withSuperAdmin } from '@/lib/super-admin-middleware'
 import { MODULE_IDS, ModuleId } from '@/types/roles'
@@ -62,7 +62,7 @@ export const PUT = withSuperAdmin(async (request, ctx, params) => {
   if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 })
 
   const body = await request.json()
-  const updates: Record<string, any> = {}
+  const updates: Record<string, unknown> = {}
   let modulesChanged: ModuleId[] | null = null
 
   if (body.plan !== undefined) updates.plan = body.plan

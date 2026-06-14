@@ -52,13 +52,13 @@ export const GET = withAuth(async (_request, { employee }) => {
 				pendingCount++
 			}
 			if (app.status === 'Approved') {
-				const leaveType = (app.ess_leave_types as any)?.name || 'Unknown'
+				const leaveType = (app.ess_leave_types as unknown as { name?: string | null } | null)?.name || 'Unknown'
 				leaveSummary[leaveType] = (leaveSummary[leaveType] || 0) + Number(app.total_days)
 			}
 		}
 
 		const processedApplications = (applications || []).map(app => {
-			const leaveType = app.ess_leave_types as any
+			const leaveType = app.ess_leave_types as unknown as { code: string | null; name: string | null } | null
 			return {
 				name: app.display_id,
 				employee: employee.employee_no || employee.id,

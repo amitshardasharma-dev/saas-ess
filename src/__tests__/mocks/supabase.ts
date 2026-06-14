@@ -1,36 +1,60 @@
 // Chainable mock Supabase client
-type MockData = Record<string, any[]>
+type MockRow = Record<string, unknown>
+type MockData = Record<string, MockRow[]>
+
+interface MockResult {
+  data: MockRow | MockRow[] | null
+  error: { message: string } | null
+  count?: number
+}
+
+interface MockChain {
+  from(table: string): MockChain
+  select(columns?: string): MockChain
+  insert(record: MockRow): MockChain
+  update(record: MockRow): MockChain
+  delete(): MockChain
+  eq(field: string, value: unknown): MockChain
+  neq(field: string, value: unknown): MockChain
+  in(field: string, values: unknown[]): MockChain
+  gte(field: string, value: unknown): MockChain
+  lte(field: string, value: unknown): MockChain
+  order(field: string, opts?: { ascending?: boolean }): MockChain
+  limit(n: number): MockChain
+  single(): Promise<MockResult>
+  then(resolve: (value: MockResult) => void): void
+}
 
 function createChainableMock(data: MockData) {
   let currentTable = ''
-  let filters: Array<{ field: string; value: any }> = []
+  let filters: Array<{ field: string; value: unknown }> = []
 
-  const chain: any = {
+  const chain: MockChain = {
     from(table: string) {
       currentTable = table
       filters = []
       return chain
     },
-    select(_columns?: string) { return chain },
-    insert(record: any) {
+    select() { return chain },
+    insert(record: MockRow) {
       const tableData = data[currentTable] || []
       const newRecord = { id: 'mock-id-' + Date.now(), ...record }
       tableData.push(newRecord)
       data[currentTable] = tableData
       return chain
     },
-    update(_record: any) { return chain },
+    update() { return chain },
     delete() { return chain },
-    eq(field: string, value: any) {
+    eq(field: string, value: unknown) {
       filters.push({ field, value })
       return chain
     },
-    neq(_field: string, _value: any) { return chain },
-    in(_field: string, _values: any[]) { return chain },
-    gte(_field: string, _value: any) { return chain },
-    lte(_field: string, _value: any) { return chain },
-    order(_field: string, _opts?: any) { return chain },
-    limit(_n: number) { return chain },
+    neq() { return chain },
+    in() { return chain },
+    gte() { return chain },
+    lte() { return chain },
+    order() { return chain },
+    limit() { return chain },
     single() {
       const tableData = data[currentTable] || []
       const filtered = tableData.filter(row =>
@@ -41,7 +65,7 @@ function createChainableMock(data: MockData) {
         error: filtered[0] ? null : { message: 'Not found' },
       })
     },
-    then(resolve: Function) {
+    then(resolve: (value: MockResult) => void) {
       const tableData = data[currentTable] || []
       const filtered = filters.length > 0
         ? tableData.filter(row => filters.every(f => row[f.field] === f.value))

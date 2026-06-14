@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge'
 import { useAuthStore } from '@/stores/auth'
 import { timesheetService } from '@/services/timesheet'
 import { Timesheet, TimesheetEntry, TimesheetConfig, Project, TimesheetApprovalEntry } from '@/types/timesheet'
-import { ArrowLeft, Save, Send, CheckCircle, XCircle, Clock, Timer } from 'lucide-react'
+import { ArrowLeft, Save, Send, CheckCircle, XCircle, Clock } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 export default function TimesheetDetailPage() {
@@ -63,8 +63,8 @@ export default function TimesheetDetailPage() {
       await timesheetService.updateEntries(timesheet.id, pendingEntries)
       toast.success('Timesheet saved')
       await loadData()
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to save')
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Failed to save')
     } finally {
       setSaving(false)
     }
@@ -81,8 +81,8 @@ export default function TimesheetDetailPage() {
       await timesheetService.submitTimesheet(timesheet.id)
       toast.success('Timesheet submitted for approval')
       await loadData()
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to submit')
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Failed to submit')
     } finally {
       setSubmitting(false)
     }
@@ -194,7 +194,7 @@ export default function TimesheetDetailPage() {
                           <p className="text-sm font-medium">{a.approver_name || 'Approver'}</p>
                           <p className="text-xs text-muted-foreground">{a.status}</p>
                         </div>
-                        {a.remarks && <p className="text-xs text-muted-foreground italic">"{a.remarks}"</p>}
+                        {a.remarks && <p className="text-xs text-muted-foreground italic">&quot;{a.remarks}&quot;</p>}
                         {a.action_time && (
                           <p className="text-xs text-muted-foreground">
                             {new Date(a.action_time).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}

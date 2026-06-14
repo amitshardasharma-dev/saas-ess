@@ -30,7 +30,7 @@ export default function ManageTrainingPage() {
 
   useEffect(() => {
     if (isAuthenticated && user) load()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [isAuthenticated, user])
 
   const load = async () => {

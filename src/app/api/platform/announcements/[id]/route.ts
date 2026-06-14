@@ -9,7 +9,7 @@ export const PUT = withSuperAdmin(async (request: NextRequest, _ctx, params) => 
   if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 })
 
   const body = await request.json()
-  const updates: Record<string, any> = {}
+  const updates: Record<string, unknown> = {}
 
   if (body.title !== undefined) updates.title = body.title
   if (body.message !== undefined) updates.message = body.message

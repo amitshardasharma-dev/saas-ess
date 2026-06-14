@@ -6,15 +6,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
-import { 
-	CalendarDays, 
-	Clock, 
-	CheckCircle, 
-	XCircle, 
-	User, 
+import {
+	Clock,
+	CheckCircle,
+	XCircle,
 	FileText,
 	Calendar,
-	Hash,
 	MessageSquare,
 	UserCheck,
 	AlertCircle,
@@ -201,33 +198,6 @@ export default function LeaveApplicationDetailPage() {
 		}
 	}
 
-	const getStatusConfig = (status: string) => {
-		switch (status) {
-			case 'approved':
-				return {
-					variant: 'default' as const,
-					bg: 'bg-green-50 dark:bg-green-900/20',
-					border: 'border-green-200 dark:border-green-800',
-					text: 'text-green-700 dark:text-green-300'
-				}
-			case 'rejected':
-				return {
-					variant: 'destructive' as const,
-					bg: 'bg-red-50 dark:bg-red-900/20',
-					border: 'border-red-200 dark:border-red-800',
-					text: 'text-red-700 dark:text-red-300'
-				}
-			case 'pending':
-			default:
-				return {
-					variant: 'secondary' as const,
-					bg: 'bg-amber-50 dark:bg-amber-900/20',
-					border: 'border-amber-200 dark:border-amber-800',
-					text: 'text-amber-700 dark:text-amber-300'
-				}
-		}
-	}
-
 	const formatDate = (dateString: string) => {
 		return new Date(dateString).toLocaleDateString('en-US', {
 			month: 'short',
@@ -306,8 +276,6 @@ export default function LeaveApplicationDetailPage() {
 			</DashboardLayout>
 		)
 	}
-
-	const statusConfig = getStatusConfig(application.status)
 
 	return (
 		<DashboardLayout>
@@ -584,7 +552,7 @@ export default function LeaveApplicationDetailPage() {
 																{level.remarks && (
 																	<div className="mt-2 p-2 bg-muted/50 rounded text-xs">
 																		<p className="text-muted-foreground italic">
-																			"{level.remarks}"
+																			&quot;{level.remarks}&quot;
 																		</p>
 																	</div>
 																)}

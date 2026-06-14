@@ -5,7 +5,7 @@
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Timer, CheckCircle, XCircle, Clock, Send } from 'lucide-react'
+import { Timer, CheckCircle, XCircle, Clock, Send, type LucideIcon } from 'lucide-react'
 import { Timesheet } from '@/types/timesheet'
 
 interface TimesheetListProps {
@@ -15,7 +15,7 @@ interface TimesheetListProps {
   maxItems?: number
 }
 
-const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
+const statusConfig: Record<string, { label: string; color: string; icon: LucideIcon }> = {
   Draft: { label: 'Draft', color: 'bg-gray-100 text-gray-800', icon: Clock },
   Submitted: { label: 'Submitted', color: 'bg-amber-100 text-amber-800', icon: Send },
   Approved: { label: 'Approved', color: 'bg-green-100 text-green-800', icon: CheckCircle },

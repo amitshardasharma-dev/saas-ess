@@ -25,7 +25,7 @@ const navItems = [
 export function PlatformLayout({ children }: PlatformLayoutProps) {
   const pathname = usePathname()
   const router = useRouter()
-  const { user, logout, checkAuth, isAuthenticated } = useAuthStore()
+  const { user, logout, checkAuth } = useAuthStore()
   const [isSuperAdmin, setIsSuperAdmin] = useState(false)
   const [checking, setChecking] = useState(true)
 

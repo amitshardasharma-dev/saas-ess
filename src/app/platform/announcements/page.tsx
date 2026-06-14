@@ -114,8 +114,8 @@ export default function AnnouncementsPage() {
     try {
       const data = await platformService.getAnnouncements()
       setAnnouncements(data)
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to load announcements')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to load announcements')
     } finally {
       setLoading(false)
     }
@@ -181,14 +181,14 @@ export default function AnnouncementsPage() {
         await platformService.updateAnnouncement(editId, payload)
         toast.success('Announcement updated')
       } else {
-        await platformService.createAnnouncement(payload as any)
+        await platformService.createAnnouncement(payload as Omit<Announcement, 'id' | 'created_at'>)
         toast.success('Announcement created')
       }
 
       closeForm()
       fetchAnnouncements()
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to save announcement')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to save announcement')
     } finally {
       setSaving(false)
     }
@@ -200,8 +200,8 @@ export default function AnnouncementsPage() {
       toast.success('Announcement deleted')
       setDeleteConfirm(null)
       fetchAnnouncements()
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to delete announcement')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete announcement')
     }
   }
 
@@ -402,7 +402,7 @@ export default function AnnouncementsPage() {
                 <select
                   className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                   value={form.type}
-                  onChange={e => setForm(f => ({ ...f, type: e.target.value as any }))}
+                  onChange={e => setForm(f => ({ ...f, type: e.target.value as AnnouncementForm['type'] }))}
                 >
                   <option value="info">Info</option>
                   <option value="warning">Warning</option>

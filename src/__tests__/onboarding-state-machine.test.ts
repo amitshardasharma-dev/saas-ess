@@ -1,7 +1,6 @@
 /**
  * @jest-environment node
  */
-import { describe, it, expect } from '@jest/globals';
 import { computeOnboardingStatus } from '@/lib/onboarding';
 
 describe('computeOnboardingStatus (state machine)', () => {

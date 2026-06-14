@@ -10,7 +10,7 @@ function calcDaysUntilExpiry(endDate: string | null): number | null {
 	return Math.ceil(diffMs / (1000 * 60 * 60 * 24))
 }
 
-export const GET = withAuth(async (request: NextRequest, { companyId, employee, role }) => {
+export const GET = withAuth(async (request: NextRequest, { companyId, employee }) => {
 	const { searchParams } = new URL(request.url)
 	const scope = searchParams.get('scope') || 'my'
 
@@ -64,8 +64,8 @@ export const GET = withAuth(async (request: NextRequest, { companyId, employee, 
 	}
 
 	const processed = (contracts || []).map((c) => {
-		const emp = c.ess_employees as any
-		const ctype = c.ess_contract_types as any
+		const emp = c.ess_employees as { full_name?: string; employee_no?: string } | null
+		const ctype = c.ess_contract_types as { name?: string } | null
 		return {
 			...c,
 			employee_name: emp?.full_name ?? null,
