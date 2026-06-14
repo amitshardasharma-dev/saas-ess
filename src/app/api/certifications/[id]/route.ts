@@ -7,9 +7,46 @@ import { supabaseAdmin } from '@/lib/supabase-server'
 import { withAuth, type AuthContext } from '@/lib/auth-middleware'
 import { assertModuleEnabled, ModuleDisabledError } from '@/lib/modules'
 import { recordAudit } from '@/lib/audit'
-import { calcStatus, daysUntil, indicatorForStatus } from '@/lib/compliance/expiry'
+import { calcExpiry, calcStatus, daysUntil, indicatorForStatus } from '@/lib/compliance/expiry'
 import { writeCertHistory, scheduleReminders, maybeAdvanceOnboarding } from '@/services/compliance'
 import { certificationUpdateSchema } from '@/types/compliance'
+
+/**
+ * Decide a certification's next expiry on PATCH (renew/recertify).
+ *
+ * Renewal recalc rule (mirrors the POST handler's auto-derive):
+ *  - An explicitly-supplied expiry_date always wins (even null — caller intent).
+ *  - Otherwise, when completion_date is being changed, re-derive expiry from the
+ *    NEW completion + the cert type's validity_months via calcExpiry. This is the
+ *    bug fix: changing only completion_date previously left the STALE old expiry.
+ *  - Otherwise (no expiry, completion unchanged) keep the existing expiry.
+ *
+ * calcExpiry already returns null when completion or validity is null, so a cert
+ * with no cert_type / no validity simply gets a null expiry (never expires).
+ *
+ * Pure + deterministic so the recalc decision is unit-testable without the route.
+ */
+export function resolveRenewalExpiry(args: {
+  /** Was expiry_date present in the parsed PATCH body (key supplied)? */
+  expiryProvided: boolean
+  /** The explicit expiry value when provided (may be null). */
+  providedExpiry: string | null | undefined
+  /** Was completion_date present in the parsed PATCH body (key supplied)? */
+  completionProvided: boolean
+  /** The new completion value when provided (may be null). */
+  newCompletion: string | null | undefined
+  /** Cert type's validity window in months (null/undefined -> never expires). */
+  validityMonths: number | null | undefined
+  /** The cert's current expiry, used when nothing forces a recalc. */
+  existingExpiry: string | null | undefined
+}): string | null {
+  // 1. Explicit expiry always wins — preserves existing caller-override behavior.
+  if (args.expiryProvided) return args.providedExpiry ?? null
+  // 2. Completion changed without an explicit expiry -> re-derive from new dates.
+  if (args.completionProvided) return calcExpiry(args.newCompletion, args.validityMonths)
+  // 3. Nothing forces a recalc -> keep the stored expiry.
+  return args.existingExpiry ?? null
+}
 
 async function ensureModule(companyId: string): Promise<NextResponse | null> {
   try {
@@ -55,8 +92,32 @@ export const PATCH = withAuth(
       (parsed.data.expiry_date !== undefined && parsed.data.expiry_date !== existing.expiry_date)
     const isRenewal = parsed.data.renew === true || datesChanged
 
-    const nextExpiry =
-      parsed.data.expiry_date !== undefined ? parsed.data.expiry_date : existing.expiry_date
+    // Renewal recalc: if completion_date changes with no explicit expiry, re-derive
+    // expiry from the new completion + the cert type's validity (mirrors POST). Only
+    // load the cert type's validity when a recalc actually needs it.
+    const completionProvided = parsed.data.completion_date !== undefined
+    const expiryProvided = parsed.data.expiry_date !== undefined
+    const newCompletion = completionProvided ? parsed.data.completion_date : existing.completion_date
+
+    let validityMonths: number | null = null
+    if (!expiryProvided && completionProvided && existing.cert_type_id) {
+      const { data: certTypeForExpiry } = await supabaseAdmin
+        .from('ess_cert_types')
+        .select('validity_months')
+        .eq('id', existing.cert_type_id)
+        .eq('company_id', companyId)
+        .single()
+      validityMonths = (certTypeForExpiry?.validity_months as number | null) ?? null
+    }
+
+    const nextExpiry = resolveRenewalExpiry({
+      expiryProvided,
+      providedExpiry: parsed.data.expiry_date,
+      completionProvided,
+      newCompletion,
+      validityMonths,
+      existingExpiry: existing.expiry_date,
+    })
     const nextStatus = calcStatus(nextExpiry)
 
     const update: Record<string, unknown> = {
@@ -65,7 +126,10 @@ export const PATCH = withAuth(
     }
     if (parsed.data.title !== undefined) update.title = parsed.data.title
     if (parsed.data.completion_date !== undefined) update.completion_date = parsed.data.completion_date
-    if (parsed.data.expiry_date !== undefined) update.expiry_date = parsed.data.expiry_date
+    // Persist the resolved expiry whenever it was explicitly supplied OR was
+    // re-derived from a changed completion_date (the renewal recalc). Otherwise
+    // leave expiry untouched.
+    if (expiryProvided || completionProvided) update.expiry_date = nextExpiry
     if (parsed.data.notes !== undefined) update.notes = parsed.data.notes
 
     const { data, error } = await supabaseAdmin
