@@ -6,6 +6,7 @@
 // wrapped in try/catch so a hook failure never breaks training completion.
 
 import { advanceOnboarding, completeLinkedOnboardingStep } from '@/lib/onboarding'
+import { completeRecertForModule } from '@/lib/recertification'
 
 /**
  * Notify Phase 2 onboarding that the employee finished a module. Phase 2
@@ -32,17 +33,21 @@ export async function tryAdvanceOnboarding(employeeId: string, moduleId?: string
 
 /**
  * Notify Phase 3/7 recertification that a module (which may back a
- * certification) completed. Optional; guarded identically.
+ * certification) completed. When the finished module is the refresher assigned
+ * to an open recert, this closes that recert (status -> 'completed'), which in
+ * turn frees the certification to open a fresh cycle next scan.
+ *
+ * Statically imported (dynamic alias imports silently no-op under turbopack in
+ * this repo, which is why the original hook was dead). Guarded with try/catch so
+ * a recert failure never breaks training completion.
  */
-export async function tryRecertHook(employeeId: string, moduleId: string): Promise<void> {
+export async function tryRecertHook(
+  companyId: string,
+  employeeId: string,
+  moduleId: string,
+): Promise<void> {
   try {
-    const specifier = '@/lib/recertification'
-    const mod = (await import(/* webpackIgnore: true */ specifier).catch(() => null)) as
-      | { onTrainingModuleComplete?: (employeeId: string, moduleId: string) => Promise<void> | void }
-      | null
-    if (mod && typeof mod.onTrainingModuleComplete === 'function') {
-      await mod.onTrainingModuleComplete(employeeId, moduleId)
-    }
+    await completeRecertForModule(companyId, employeeId, moduleId)
   } catch (err) {
     console.warn('[training] recertification hook skipped:', (err as Error)?.message)
   }
