@@ -15,6 +15,13 @@ import { sendEmail } from '@/lib/email/send'
 import { recordAudit } from '@/lib/audit'
 import { daysUntil } from '@/lib/compliance/expiry'
 
+/**
+ * Open recert statuses — a recert in one of these blocks a new cycle for the same
+ * certification. Mirrors migration 057's status CHECK (open = not 'completed') and
+ * migration 060's partial unique index `uq_ess_recertifications_open_per_cert`.
+ */
+export const RECERT_OPEN_STATUSES = ['assigned', 'in_progress'] as const
+
 interface CertRow {
   id: string
   company_id: string
@@ -74,11 +81,15 @@ export async function scanRecertifications(companyId: string, today: Date = new 
     if (days === null || days >= 0) continue
     result.expiredFound += 1
 
-    // Skip if an open recert already exists for this cert (idempotent).
+    // Skip ONLY if an OPEN recert already exists for this cert (idempotent).
+    // Closed ('completed') cycles must NOT block a new cycle — otherwise a cert
+    // can never recertify again after its first recert completes (spec #11).
+    // Open set matches migration 057's status CHECK: 'assigned' | 'in_progress'.
     const { data: existing } = await supabaseAdmin
       .from('ess_recertifications')
       .select('id')
       .eq('certification_id', cert.id)
+      .in('status', RECERT_OPEN_STATUSES)
       .limit(1)
     if (existing && existing.length > 0) continue
 
