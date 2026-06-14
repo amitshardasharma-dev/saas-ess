@@ -57,9 +57,9 @@ export async function buildTrainingReport(
   )) as unknown as EmployeeLite[]
   const empById = new Map(employees.map((e) => [e.id, e]))
 
-  // Phase 5 training tracking rows. Column names per the published contract; we read
-  // permissively and coalesce unknowns.
-  const tracking = await safeSelect('ess_training_tracking', (q) =>
+  // Phase 5 per-(employee, module) progress rows (migration 037: ess_training_progress).
+  // Columns: employee_id, module_id, percent_complete, status, started_at, completed_at.
+  const tracking = await safeSelect('ess_training_progress', (q) =>
     q.select('*').eq('company_id', companyId),
   )
 
@@ -69,18 +69,28 @@ export async function buildTrainingReport(
   )
   const moduleTitle = new Map(modules.map((m) => [String(m.id), (m.title as string | null) ?? null]))
 
-  // Phase 6 quiz attempts — defensive (table may not exist in this worktree).
+  // Phase 5 training items (migration 035) — used to resolve a quiz attempt's
+  // module via its training_item_id. Maps item id -> module id.
+  const items = await safeSelect('ess_training_items', (q) =>
+    q.select('id, module_id, company_id').eq('company_id', companyId),
+  )
+  const itemModule = new Map(items.map((i) => [String(i.id), i.module_id != null ? String(i.module_id) : null]))
+
+  // Phase 6 quiz attempts (migration 046) — defensive (table may not exist in this
+  // worktree). ess_quiz_attempts has training_item_id (not module_id), so we resolve
+  // the module through ess_training_items, then key best-score per (employee, module).
   const attempts = await safeSelect('ess_quiz_attempts', (q) =>
     q.select('*').eq('company_id', companyId),
   )
-  // Best-effort: map best score per (employee, module) if those columns exist.
   const bestScore = new Map<string, number>()
   for (const a of attempts) {
-    const emp = a.employee_id ?? a.app_user_id
-    const mod = a.module_id ?? a.training_module_id
-    const score = a.score ?? a.percentage ?? a.percent
-    if (emp == null || mod == null || score == null) continue
-    const key = `${String(emp)}:${String(mod)}`
+    const emp = a.employee_id
+    const itemId = a.training_item_id
+    const score = a.score
+    if (emp == null || itemId == null || score == null) continue
+    const mod = itemModule.get(String(itemId))
+    if (mod == null) continue
+    const key = `${String(emp)}:${mod}`
     const num = Number(score)
     if (!Number.isNaN(num)) bestScore.set(key, Math.max(bestScore.get(key) ?? 0, num))
   }
@@ -90,7 +100,7 @@ export async function buildTrainingReport(
     const emp = empById.get(employeeId)
     const moduleId = t.module_id != null ? String(t.module_id) : null
     const status = String(t.status ?? 'not_started')
-    const progress = t.progress_pct ?? t.progress ?? null
+    const progress = t.percent_complete ?? null
     const key = moduleId ? `${employeeId}:${moduleId}` : ''
     return {
       employee_id: employeeId,
