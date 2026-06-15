@@ -38,7 +38,7 @@ export default function CommunicationsPage() {
   const isStaff = hasMinRole(user.role, 'manager')
 
   return (
-    <div className="mx-auto w-full max-w-4xl space-y-6 p-6">
+    <div className="mx-auto w-full max-w-6xl space-y-6 p-6">
       <Toaster position="top-center" />
       {isStaff ? <StaffConsole /> : <InboxView showHeader />}
     </div>

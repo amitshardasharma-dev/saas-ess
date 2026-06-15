@@ -8,6 +8,19 @@
  */
 import { test, expect, api, tokenFor, FX, sbAdmin } from './birch-fixtures'
 
+// Don't leave E2E sends polluting volunteers' inboxes.
+test.afterAll(async () => {
+  for (const prefix of ['E2E delivery check', 'E2E outreach-only']) {
+    const { data } = await sbAdmin.from('ess_messages').select('id').eq('company_id', FX.companyId).like('subject', `${prefix}%`)
+    const ids = (data ?? []).map((m) => m.id as string)
+    if (ids.length) {
+      await sbAdmin.from('ess_message_recipients').delete().in('message_id', ids)
+      await sbAdmin.from('ess_message_targets').delete().in('message_id', ids)
+      await sbAdmin.from('ess_messages').delete().in('id', ids)
+    }
+  }
+})
+
 test('admin "send to all" is delivered to volunteers (recipient rows created)', async () => {
   const adminTok = await tokenFor(FX.users.admin.email)
   const subject = `E2E delivery check ${Date.now()}`

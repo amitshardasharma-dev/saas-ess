@@ -171,6 +171,16 @@ async function main() {
   await sb.from('ess_cert_types').delete().eq('company_id', cid)
   await sb.from('ess_reminder_configs').delete().eq('company_id', cid)
   await sb.from('ess_message_templates').delete().eq('company_id', cid)
+  // Wipe any prior messages (incl. accumulated E2E test sends) + their children.
+  {
+    const { data: oldMsgs } = await sb.from('ess_messages').select('id').eq('company_id', cid)
+    const oldIds = (oldMsgs ?? []).map((m) => m.id)
+    if (oldIds.length) {
+      await sb.from('ess_message_recipients').delete().in('message_id', oldIds)
+      await sb.from('ess_message_targets').delete().in('message_id', oldIds)
+    }
+    await sb.from('ess_messages').delete().eq('company_id', cid)
+  }
   await sb.from('ess_training_assignments').delete().eq('company_id', cid)
   await sb.from('ess_training_items').delete().eq('company_id', cid)
   await sb.from('ess_training_modules').delete().eq('company_id', cid)
@@ -287,6 +297,19 @@ async function main() {
     const emp = fixtures.users[key].employeeId
     await sb.from('ess_onboarding_states').insert({ company_id: cid, employee_id: emp, status: 'not_started' })
     await sb.from('ess_onboarding_steps').insert(STEP_DEFS.map((s, i) => stepRow(s, i, { employee_id: emp })))
+  }
+
+  // 4b. a few realistic delivered announcements so the inbox demos well
+  const adminAu = fixtures.users.admin.appUserId
+  const volEmps = ['volOutreach', 'volOpshop', 'volAuto'].map((k) => fixtures.users[k].employeeId)
+  const DEMO_MSGS = [
+    { subject: 'Welcome to Birch Foundation 💚', body: '<p>Welcome aboard! We are thrilled to have you volunteering with us.</p><p>Start with <strong>My Onboarding</strong> to get set up — sign your Volunteer Agreement, complete your profile, and work through your training.</p><p>If you have any questions, reach out to your coordinator any time.</p>' },
+    { subject: "This week's outreach roster", body: '<p>Here is the roster for this week:</p><ul><li><strong>Monday</strong> — Surfers Paradise</li><li><strong>Wednesday</strong> — Southport</li><li><strong>Friday</strong> — Broadbeach</li></ul><p>Please confirm your availability with your coordinator.</p>' },
+    { subject: 'Reminder: complete your Safeguarding training', body: '<p>A quick reminder to finish your <strong>Safeguarding &amp; Child-Safe</strong> module this week. It keeps the people we support safe — thank you.</p>' },
+  ]
+  for (const dm of DEMO_MSGS) {
+    const { data: msg } = await sb.from('ess_messages').insert({ company_id: cid, subject: dm.subject, body_html: dm.body, sender_app_user_id: adminAu, status: 'sent', sent_at: new Date().toISOString() }).select('id').single()
+    if (msg) await sb.from('ess_message_recipients').insert(volEmps.map((eid) => ({ company_id: cid, message_id: msg.id, employee_id: eid })))
   }
 
   // 5. export the artifact ids the gate spec drives
