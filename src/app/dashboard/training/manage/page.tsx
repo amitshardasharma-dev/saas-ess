@@ -38,6 +38,7 @@ import {
   Ban,
   Search,
   Settings2,
+  Clock,
   X,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -320,6 +321,12 @@ function ModuleListCard({
                   ? 'Not assigned'
                   : `${module.assigneeCount} ${module.assigneeCount === 1 ? 'person' : 'people'} · ${module.assignmentCount} rule${module.assignmentCount === 1 ? '' : 's'}`}
               </span>
+              {module.validity_months ? (
+                <span className="inline-flex items-center gap-1">
+                  <Clock className="h-3.5 w-3.5" />
+                  Renews every {module.validity_months} month{module.validity_months === 1 ? '' : 's'}
+                </span>
+              ) : null}
             </div>
           </div>
         </button>

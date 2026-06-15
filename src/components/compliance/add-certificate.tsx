@@ -29,6 +29,8 @@ interface AddCertificateProps {
   onCreated: () => void
   /** Localized noun for a single certification (e.g. "certification"). */
   certNoun?: string
+  /** Pre-select a cert type (e.g. deep-linked from the Compliance Register). */
+  initialCertTypeId?: string
 }
 
 // Accept common evidence formats; mirrors the 20MB server limit.
@@ -40,8 +42,8 @@ function authHeaders(extra: HeadersInit = {}): HeadersInit {
   return { ...extra, ...(token ? { Authorization: `Bearer ${token}` } : {}) }
 }
 
-export function AddCertificate({ certTypes, onCreated, certNoun = 'certificate' }: AddCertificateProps) {
-  const [certTypeId, setCertTypeId] = useState('')
+export function AddCertificate({ certTypes, onCreated, certNoun = 'certificate', initialCertTypeId }: AddCertificateProps) {
+  const [certTypeId, setCertTypeId] = useState(initialCertTypeId ?? '')
   const [title, setTitle] = useState('')
   const [completionDate, setCompletionDate] = useState('')
   const [file, setFile] = useState<File | null>(null)

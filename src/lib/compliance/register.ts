@@ -134,7 +134,15 @@ function buildTrainingItem(
   if (expires_at && new Date(expires_at) <= now) {
     return { module_id: moduleId, title, status: 'expired', percent, expires_at, color: 'red', label: 'Expired — redo' }
   }
-  return { module_id: moduleId, title, status: 'complete', percent: 100, expires_at, color: 'green', label: 'Completed' }
+  const label = expires_at ? `Completed · expires ${fmtDate(expires_at)}` : 'Completed'
+  return { module_id: moduleId, title, status: 'complete', percent: 100, expires_at, color: 'green', label }
+}
+
+/** Short human date for expiry labels (server-side; Node has full ICU). */
+function fmtDate(iso: string): string {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
 /**

@@ -315,14 +315,21 @@ function DetailsCard({
 }) {
   const [title, setTitle] = useState(module.title)
   const [description, setDescription] = useState(module.description ?? '')
+  const [validity, setValidity] = useState(module.validity_months != null ? String(module.validity_months) : '')
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     setTitle(module.title)
     setDescription(module.description ?? '')
-  }, [module.title, module.description])
+    setValidity(module.validity_months != null ? String(module.validity_months) : '')
+  }, [module.title, module.description, module.validity_months])
 
-  const dirty = title.trim() !== module.title || description.trim() !== (module.description ?? '')
+  const parsedValidity =
+    validity.trim() === '' ? null : Number.isFinite(Number(validity)) ? Math.max(1, Math.round(Number(validity))) : null
+  const dirty =
+    title.trim() !== module.title ||
+    description.trim() !== (module.description ?? '') ||
+    parsedValidity !== (module.validity_months ?? null)
 
   const save = async () => {
     if (!title.trim()) {
@@ -334,6 +341,7 @@ function DetailsCard({
       await trainingService.updateModule(module.id, {
         title: title.trim(),
         description: description.trim() || null,
+        validity_months: parsedValidity,
       })
       toast.success('Details saved')
       await onChanged()
@@ -367,6 +375,21 @@ function DetailsCard({
             rows={3}
             placeholder="What this module covers (optional)"
           />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-sm">Validity / expiry (months)</Label>
+          <Input
+            type="number"
+            min={1}
+            value={validity}
+            onChange={(e) => setValidity(e.target.value)}
+            placeholder="Leave blank for no expiry"
+          />
+          <p className="text-xs text-muted-foreground">
+            {parsedValidity
+              ? `Each completion expires ${parsedValidity} month${parsedValidity === 1 ? '' : 's'} later, then the module is automatically re-assigned.`
+              : 'No expiry — a completion never lapses.'}
+          </p>
         </div>
         <div className="flex justify-end">
           <Button onClick={save} disabled={saving || !dirty || !title.trim()}>

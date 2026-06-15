@@ -9,6 +9,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -102,10 +103,18 @@ export default function TrainingPage() {
   const [error, setError] = useState(false)
   const [activeId, setActiveId] = useState<string | null>(null)
   const [view, setView] = useState<View>('modules')
+  const searchParams = useSearchParams()
 
   useEffect(() => {
     checkAuth()
   }, [checkAuth])
+
+  // Deep-link: ?module=<id> opens that module directly (e.g. from the Compliance
+  // Register "Start"/"Continue" action) instead of landing on the list.
+  useEffect(() => {
+    const target = searchParams.get('module')
+    if (target && modules.some((m) => m.id === target)) setActiveId(target)
+  }, [searchParams, modules])
 
   useEffect(() => {
     if (isAuthenticated && user) void load()

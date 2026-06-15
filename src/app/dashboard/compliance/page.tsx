@@ -17,6 +17,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import toast from 'react-hot-toast'
 import { useAuthStore } from '@/stores/auth'
 import { useLabels } from '@/hooks/use-labels'
@@ -111,6 +112,11 @@ type MyState =
 function MyCertifications() {
   const { t } = useLabels()
   const [state, setState] = useState<MyState>({ kind: 'loading' })
+  // Deep-link: ?type=<certTypeId> pre-selects that certificate in the add form
+  // and scrolls to it (from the Compliance Register "Upload" action).
+  const searchParams = useSearchParams()
+  const typeParam = searchParams.get('type')
+  const addRef = useRef<HTMLDivElement>(null)
 
   const load = useCallback(async () => {
     try {
@@ -155,6 +161,13 @@ function MyCertifications() {
   useEffect(() => {
     void load()
   }, [load])
+
+  // When deep-linked to a specific cert type, scroll the add form into view.
+  useEffect(() => {
+    if (typeParam && state.kind === 'ok') {
+      addRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+  }, [typeParam, state.kind])
 
   const certNoun = t('certification').toLowerCase()
   const certNounPlural = t('certification', { plural: true }).toLowerCase()
@@ -214,7 +227,9 @@ function MyCertifications() {
             </div>
           )}
 
-          <AddCertificate certTypes={state.certTypes} onCreated={load} certNoun={certNoun} />
+          <div ref={addRef}>
+            <AddCertificate certTypes={state.certTypes} onCreated={load} certNoun={certNoun} initialCertTypeId={typeParam ?? undefined} />
+          </div>
         </>
       )}
     </div>

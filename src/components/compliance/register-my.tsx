@@ -96,7 +96,7 @@ export function RegisterMy() {
               action={
                 c.color === 'green' ? null : (
                   <Button asChild size="sm" variant="outline">
-                    <Link href="/dashboard/compliance">
+                    <Link href={`/dashboard/compliance?type=${c.cert_type_id}`}>
                       {c.certification_id ? 'Manage' : 'Upload'} <ChevronRight className="h-4 w-4" />
                     </Link>
                   </Button>
@@ -122,7 +122,7 @@ export function RegisterMy() {
               action={
                 t.color === 'green' ? null : (
                   <Button asChild size="sm" variant="outline">
-                    <Link href="/dashboard/training">
+                    <Link href={`/dashboard/training?module=${t.module_id}`}>
                       {t.status === 'in_progress' ? 'Continue' : t.status === 'expired' ? 'Redo' : 'Start'} <ChevronRight className="h-4 w-4" />
                     </Link>
                   </Button>
