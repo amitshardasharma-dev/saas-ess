@@ -67,12 +67,12 @@ export default function LoginPage() {
 							<div>
 								Powered by{' '}
 								<a 
-									href="https://techmeridian.in" 
-									target="_blank" 
+									href="https://ess.mosping.com"
+									target="_blank"
 									rel="noopener noreferrer"
 									className="text-primary hover:text-primary/80 font-medium transition-colors"
 								>
-									techmeridian.in
+									ess.mosping.com
 								</a>
 							</div>
 						</div>
