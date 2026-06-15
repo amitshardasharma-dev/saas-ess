@@ -139,6 +139,8 @@ export const POST = withAuth(async (request: NextRequest, ctx: AuthContext) => {
       completion_date: completion,
       expiry_date: expiry,
       status,
+      // Volunteer/staff self-submissions enter the review queue (hr+ validates).
+      verification_status: 'submitted',
       created_by: employee.id,
     })
     .select()

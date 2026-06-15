@@ -15,6 +15,16 @@ export interface CertType {
   created_at: string
 }
 
+// Admin/HR review lifecycle for a certification (distinct from the expiry-driven
+// `status`). pending = legacy/not-yet-submitted; submitted = awaiting review;
+// validated = approved; changes_requested = back to the volunteer; rejected.
+export type VerificationStatus =
+  | 'pending'
+  | 'submitted'
+  | 'validated'
+  | 'rejected'
+  | 'changes_requested'
+
 export interface Certification {
   id: string
   company_id: string
@@ -22,6 +32,9 @@ export interface Certification {
   cert_type_id: string | null
   title: string
   status: CertStatus | 'pending'
+  verification_status: VerificationStatus
+  verified_by: string | null
+  verified_at: string | null
   completion_date: string | null
   expiry_date: string | null
   file_url: string | null
@@ -30,6 +43,17 @@ export interface Certification {
   created_by: string | null
   created_at: string
   updated_at: string
+}
+
+// A message in a certification's review thread.
+export interface CertMessage {
+  id: string
+  certification_id: string
+  author_app_user_id: string | null
+  author_kind: 'owner' | 'reviewer' | 'system'
+  author_name: string | null
+  body: string
+  created_at: string
 }
 
 /** A certification enriched with derived expiry fields for list/dashboard views. */
@@ -101,3 +125,28 @@ export const certificationUpdateSchema = z
   .strict()
 
 export type CertificationUpdateInput = z.infer<typeof certificationUpdateSchema>
+
+/**
+ * Reviewer (hr+) decision on a submitted certification. `action` drives the new
+ * verification_status; `expiry_date` optionally overrides the expiry as part of
+ * the review; `message` is an optional note recorded in the cert thread and sent
+ * to the volunteer's inbox.
+ */
+export const certReviewSchema = z
+  .object({
+    action: z.enum(['validate', 'reject', 'request_changes']),
+    expiry_date: z.string().regex(ISO_DATE).nullable().optional(),
+    message: z.string().trim().min(1).max(4000).optional(),
+  })
+  .strict()
+
+export type CertReviewInput = z.infer<typeof certReviewSchema>
+
+/** A new message in a certification's review thread (owner reply or reviewer note). */
+export const certMessageCreateSchema = z
+  .object({
+    body: z.string().trim().min(1).max(4000),
+  })
+  .strict()
+
+export type CertMessageCreateInput = z.infer<typeof certMessageCreateSchema>

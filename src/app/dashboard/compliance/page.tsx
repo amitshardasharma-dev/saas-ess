@@ -22,9 +22,14 @@ import { useAuthStore } from '@/stores/auth'
 import { useLabels } from '@/hooks/use-labels'
 import { hasMinRole } from '@/types/roles'
 import { calcStatus, daysUntil, type CertStatus } from '@/lib/compliance/expiry'
+import type { VerificationStatus } from '@/types/compliance'
 import { CertBadge } from '@/components/compliance/cert-badge'
+import { VerificationBadge } from '@/components/compliance/verification-badge'
+import { CertConversation } from '@/components/compliance/cert-conversation'
+import { CertReviewPanel, type ReviewCert } from '@/components/compliance/cert-review-panel'
 import { AddCertificate, type CertTypeOption } from '@/components/compliance/add-certificate'
 import { Card, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import {
   ShieldCheck,
   AlertCircle,
@@ -35,6 +40,8 @@ import {
   Ban,
   FileText,
   Upload,
+  MessagesSquare,
+  ClipboardCheck,
 } from 'lucide-react'
 
 function authHeaders(extra: HeadersInit = {}): HeadersInit {
@@ -92,6 +99,7 @@ interface MyCert {
   days_until_expiry: number | null
   file_url: string | null
   file_name: string | null
+  verification_status: VerificationStatus
 }
 
 type MyState =
@@ -129,6 +137,7 @@ function MyCertifications() {
           days_until_expiry: (c.days_until_expiry as number | null) ?? daysUntil(expiry),
           file_url: (c.file_url as string | null) ?? null,
           file_name: (c.file_name as string | null) ?? null,
+          verification_status: (c.verification_status as VerificationStatus) ?? 'pending',
         }
       })
       const certTypes: CertTypeOption[] = (data.cert_types || []).map((tp: Record<string, unknown>) => ({
@@ -220,7 +229,10 @@ function MyCertCard({ cert, onChanged }: { cert: MyCert; onChanged: () => void }
 
   const [viewing, setViewing] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [showThread, setShowThread] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  // Surface the conversation prominently when the volunteer needs to act.
+  const needsAttention = cert.verification_status === 'changes_requested' || cert.verification_status === 'rejected'
 
   // Fetch a short-lived signed URL for the caller's own evidence and open it.
   const viewFile = async () => {
@@ -276,7 +288,10 @@ function MyCertCard({ cert, onChanged }: { cert: MyCert; onChanged: () => void }
           <div className="min-w-0 flex-1">
             <div className="flex items-start justify-between gap-2">
               <h3 className="truncate text-sm font-semibold text-foreground">{cert.title}</h3>
-              <CertBadge status={cert.status} />
+              <div className="flex shrink-0 flex-col items-end gap-1">
+                <VerificationBadge status={cert.verification_status} />
+                <CertBadge status={cert.status} />
+              </div>
             </div>
             {cert.cert_type_name ? (
               <p className="mt-0.5 truncate text-xs text-muted-foreground">{cert.cert_type_name}</p>
@@ -316,6 +331,23 @@ function MyCertCard({ cert, onChanged }: { cert: MyCert; onChanged: () => void }
                 </label>
               )}
             </div>
+
+            {/* Conversation with the reviewer (back-and-forth on this cert). */}
+            <div className="mt-3 border-t pt-3">
+              <button
+                type="button"
+                onClick={() => setShowThread((s) => !s)}
+                className={`inline-flex items-center gap-1.5 text-xs font-medium hover:underline ${needsAttention ? 'text-amber-700' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                <MessagesSquare className="h-3.5 w-3.5" />
+                {needsAttention ? 'Action needed — open conversation' : showThread ? 'Hide conversation' : 'Messages with reviewer'}
+              </button>
+              {showThread ? (
+                <div className="mt-3">
+                  <CertConversation certId={cert.id} canReply reloadKey={0} onChanged={onChanged} />
+                </div>
+              ) : null}
+            </div>
           </div>
         </div>
       </CardContent>
@@ -333,6 +365,9 @@ interface Row {
   expiry_date: string | null
   status: CertStatus
   days_until_expiry: number | null
+  verification_status: VerificationStatus
+  file_url: string | null
+  file_name: string | null
 }
 
 type StaffState =
@@ -344,57 +379,58 @@ type StaffState =
 function StaffRegister() {
   const { t } = useLabels()
   const [state, setState] = useState<StaffState>({ kind: 'loading' })
+  const [pendingOnly, setPendingOnly] = useState(false)
+  const [selected, setSelected] = useState<Row | null>(null)
 
-  useEffect(() => {
-    let active = true
-    fetch('/api/certifications?scope=all', { headers: authHeaders() })
-      .then(async (res) => {
-        if (!active) return
-        if (res.status === 403) {
-          setState({ kind: 'forbidden' })
-          return
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch('/api/certifications?scope=all', { headers: authHeaders() })
+      if (res.status === 403) return setState({ kind: 'forbidden' })
+      if (!res.ok) return setState({ kind: 'error' })
+      const data = await res.json()
+      const rows: Row[] = (data.certifications || []).map((c: Record<string, unknown>) => {
+        const expiry = (c.expiry_date as string | null) ?? null
+        const status = (c.status as CertStatus) ?? calcStatus(expiry)
+        return {
+          id: c.id as string,
+          employee_name: (c.employee_name as string | null) ?? null,
+          cert_type_name: (c.cert_type_name as string | null) ?? null,
+          title: (c.title as string) ?? '',
+          expiry_date: expiry,
+          status,
+          days_until_expiry: (c.days_until_expiry as number | null) ?? daysUntil(expiry),
+          verification_status: (c.verification_status as VerificationStatus) ?? 'pending',
+          file_url: (c.file_url as string | null) ?? null,
+          file_name: (c.file_name as string | null) ?? null,
         }
-        if (!res.ok) {
-          setState({ kind: 'error' })
-          return
-        }
-        const data = await res.json()
-        const rows: Row[] = (data.certifications || []).map((c: Record<string, unknown>) => {
-          const expiry = (c.expiry_date as string | null) ?? null
-          const status = (c.status as CertStatus) ?? calcStatus(expiry)
-          return {
-            id: c.id as string,
-            employee_name: (c.employee_name as string | null) ?? null,
-            cert_type_name: (c.cert_type_name as string | null) ?? null,
-            title: (c.title as string) ?? '',
-            expiry_date: expiry,
-            status,
-            days_until_expiry: (c.days_until_expiry as number | null) ?? daysUntil(expiry),
-          }
-        })
-        setState({ kind: 'ok', rows })
       })
-      .catch(() => {
-        if (active) setState({ kind: 'error' })
-      })
-    return () => {
-      active = false
+      setState({ kind: 'ok', rows })
+    } catch {
+      setState({ kind: 'error' })
     }
   }, [])
 
+  useEffect(() => { void load() }, [load])
+
   const sorted = useMemo(() => {
     if (state.kind !== 'ok') return []
-    return [...state.rows].sort((a, b) => {
+    const rows = pendingOnly ? state.rows.filter((r) => r.verification_status === 'submitted') : state.rows
+    return [...rows].sort((a, b) => {
+      // Awaiting-review first, then by expiry health.
+      const ar = a.verification_status === 'submitted' ? 0 : 1
+      const br = b.verification_status === 'submitted' ? 0 : 1
+      if (ar !== br) return ar - br
       if (rank(a.status) !== rank(b.status)) return rank(a.status) - rank(b.status)
       const da = a.days_until_expiry ?? Number.POSITIVE_INFINITY
       const db = b.days_until_expiry ?? Number.POSITIVE_INFINITY
       return da - db
     })
-  }, [state])
+  }, [state, pendingOnly])
 
   const counts = useMemo(() => {
-    if (state.kind !== 'ok') return { expired: 0, expiring: 0, valid: 0 }
+    if (state.kind !== 'ok') return { pending: 0, expired: 0, expiring: 0, valid: 0 }
     return {
+      pending: state.rows.filter((r) => r.verification_status === 'submitted').length,
       expired: state.rows.filter((r) => r.status === 'expired').length,
       expiring: state.rows.filter((r) => r.status === 'expiring').length,
       valid: state.rows.filter((r) => r.status === 'valid').length,
@@ -408,7 +444,7 @@ function StaffRegister() {
       <div>
         <h1 className="text-2xl font-semibold text-foreground">Compliance</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Every {t('certification').toLowerCase()} across your organisation, with overdue and expiring surfaced first.
+          Every {t('certification').toLowerCase()} across your organisation. Review submissions and surface overdue first.
         </p>
       </div>
 
@@ -432,17 +468,32 @@ function StaffRegister() {
         </Card>
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <SummaryCard
+              label="Pending review"
+              value={counts.pending}
+              tone="blue"
+              Icon={ClipboardCheck}
+              active={pendingOnly}
+              onClick={() => setPendingOnly((v) => !v)}
+            />
             <SummaryCard label="Overdue" value={counts.expired} tone="red" Icon={AlertCircle} />
             <SummaryCard label="Expiring soon" value={counts.expiring} tone="amber" Icon={CalendarClock} />
             <SummaryCard label="Valid" value={counts.valid} tone="green" Icon={CheckCircle2} />
           </div>
 
+          {pendingOnly ? (
+            <p className="text-xs text-muted-foreground">
+              Showing {sorted.length} awaiting review. <button type="button" className="font-medium text-primary hover:underline" onClick={() => setPendingOnly(false)}>Show all</button>
+            </p>
+          ) : null}
+
           <Card>
             <CardContent className="p-0">
               {sorted.length === 0 ? (
                 <div className="flex flex-col items-center gap-2 py-16 text-center text-sm text-muted-foreground">
-                  <ShieldCheck className="h-10 w-10 opacity-30" /> No {certNounPlural} found.
+                  <ShieldCheck className="h-10 w-10 opacity-30" />
+                  {pendingOnly ? 'Nothing awaiting review.' : `No ${certNounPlural} found.`}
                 </div>
               ) : (
                 <div className="overflow-x-auto">
@@ -452,19 +503,28 @@ function StaffRegister() {
                         <th className="px-4 py-3 font-medium">{t('person')}</th>
                         <th className="px-4 py-3 font-medium">{t('certification')}</th>
                         <th className="px-4 py-3 font-medium">Expiry</th>
-                        <th className="px-4 py-3 font-medium">Status</th>
+                        <th className="px-4 py-3 font-medium">Review</th>
+                        <th className="px-4 py-3 font-medium text-right">Action</th>
                       </tr>
                     </thead>
                     <tbody>
                       {sorted.map((row) => (
                         <tr key={row.id} className="border-b last:border-0 hover:bg-muted/40">
                           <td className="px-4 py-3 text-foreground">{row.employee_name ?? '—'}</td>
-                          <td className="px-4 py-3 text-foreground">{row.cert_type_name ?? row.title}</td>
+                          <td className="px-4 py-3">
+                            <div className="text-foreground">{row.cert_type_name ?? row.title}</div>
+                            <div className="mt-0.5"><CertBadge status={row.status} /></div>
+                          </td>
                           <td className="px-4 py-3 text-muted-foreground">
                             {row.expiry_date ? formatDate(row.expiry_date) : '—'}
                           </td>
                           <td className="px-4 py-3">
-                            <CertBadge status={row.status} />
+                            <VerificationBadge status={row.verification_status} />
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <Button variant="outline" size="sm" onClick={() => setSelected(row)}>
+                              <ClipboardCheck className="h-4 w-4" /> Review
+                            </Button>
                           </td>
                         </tr>
                       ))}
@@ -476,8 +536,29 @@ function StaffRegister() {
           </Card>
         </>
       )}
+
+      {selected ? (
+        <CertReviewPanel
+          cert={rowToReviewCert(selected)}
+          onClose={() => setSelected(null)}
+          onReviewed={() => void load()}
+        />
+      ) : null}
     </div>
   )
+}
+
+function rowToReviewCert(row: Row): ReviewCert {
+  return {
+    id: row.id,
+    title: row.title || row.cert_type_name || 'Certificate',
+    employee_name: row.employee_name,
+    cert_type_name: row.cert_type_name,
+    expiry_date: row.expiry_date,
+    verification_status: row.verification_status,
+    file_url: row.file_url,
+    file_name: row.file_name,
+  }
 }
 
 function SummaryCard({
@@ -485,20 +566,30 @@ function SummaryCard({
   value,
   tone,
   Icon,
+  onClick,
+  active,
 }: {
   label: string
   value: number
-  tone: 'red' | 'amber' | 'green'
+  tone: 'red' | 'amber' | 'green' | 'blue'
   Icon: React.ComponentType<{ className?: string }>
+  onClick?: () => void
+  active?: boolean
 }) {
   const toneClass =
     tone === 'red'
       ? 'bg-red-100 text-red-600'
       : tone === 'amber'
         ? 'bg-amber-100 text-amber-600'
-        : 'bg-green-100 text-green-600'
+        : tone === 'blue'
+          ? 'bg-blue-100 text-blue-600'
+          : 'bg-green-100 text-green-600'
+  const interactive = typeof onClick === 'function'
   return (
-    <Card>
+    <Card
+      className={`${interactive ? 'cursor-pointer transition-colors hover:bg-muted/40' : ''} ${active ? 'border-blue-300 ring-1 ring-blue-200' : ''}`}
+      onClick={onClick}
+    >
       <CardContent className="flex items-center gap-3 py-4">
         <div className={`rounded-lg p-2 ${toneClass}`}>
           <Icon className="h-5 w-5" />

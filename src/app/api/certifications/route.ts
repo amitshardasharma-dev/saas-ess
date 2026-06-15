@@ -145,6 +145,8 @@ export const POST = withAuth(
         completion_date: completion,
         expiry_date: expiry,
         status,
+        // An hr+ create is authoritative — already validated, no review needed.
+        verification_status: 'validated',
         notes: parsed.data.notes ?? null,
         created_by: employee?.id ?? null,
       })

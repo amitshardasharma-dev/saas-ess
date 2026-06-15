@@ -131,9 +131,16 @@ export const POST = withAuth(async (request: NextRequest, ctx: AuthContext, para
     }
   }
 
+  // (Re)uploading evidence re-enters the review queue: a changed document must be
+  // re-validated by a reviewer.
   const { data: updated, error: updateErr } = await supabaseAdmin
     .from('ess_certifications')
-    .update({ file_url: objectPath, file_name: file.name, updated_at: new Date().toISOString() })
+    .update({
+      file_url: objectPath,
+      file_name: file.name,
+      verification_status: 'submitted',
+      updated_at: new Date().toISOString(),
+    })
     .eq('id', cert.id)
     .eq('company_id', ctx.companyId)
     .select()
