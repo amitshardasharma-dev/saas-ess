@@ -41,21 +41,39 @@ export async function resolveRecipients(
 ): Promise<string[]> {
   const ids = new Set<string>()
 
+  // An employee is "active" when their app_user is active. NOTE: ess_employees has
+  // NO is_active column — that flag lives on ess_app_users — so we MUST gate through
+  // the app_user, not filter employees by is_active (which silently matched nothing
+  // and made every targeted send resolve to zero recipients).
+  let activeUserIds: Set<string> | null = null
+  const getActiveUserIds = async (): Promise<Set<string>> => {
+    if (!activeUserIds) {
+      const { data } = await db.select('ess_app_users', { company_id: companyId, is_active: true })
+      activeUserIds = new Set((data ?? []).map((u) => String(u.id)))
+    }
+    return activeUserIds
+  }
+  const isActiveEmployee = (e: Record<string, unknown>, active: Set<string>): boolean => {
+    const auId = e.app_user_id != null ? String(e.app_user_id) : null
+    return auId != null && active.has(auId)
+  }
+
   for (const t of targets) {
     switch (t.target_type) {
       case 'all': {
-        const { data } = await db.select('ess_employees', { company_id: companyId, is_active: true })
-        for (const e of data ?? []) ids.add(String(e.id))
+        const active = await getActiveUserIds()
+        const { data } = await db.select('ess_employees', { company_id: companyId })
+        for (const e of data ?? []) if (isActiveEmployee(e, active)) ids.add(String(e.id))
         break
       }
       case 'org_unit': {
         if (!t.target_value) break
+        const active = await getActiveUserIds()
         const { data } = await db.select('ess_employees', {
           company_id: companyId,
-          is_active: true,
           department: t.target_value,
         })
-        for (const e of data ?? []) ids.add(String(e.id))
+        for (const e of data ?? []) if (isActiveEmployee(e, active)) ids.add(String(e.id))
         break
       }
       case 'user': {
@@ -64,10 +82,10 @@ export async function resolveRecipients(
       }
       case 'role': {
         if (!t.target_value) break
-        const { data: users } = await db.select('ess_app_users', { company_id: companyId, role: t.target_value })
+        const { data: users } = await db.select('ess_app_users', { company_id: companyId, role: t.target_value, is_active: true })
         const userIds = new Set((users ?? []).map((u) => String(u.id)))
         if (userIds.size === 0) break
-        const { data: emps } = await db.select('ess_employees', { company_id: companyId, is_active: true })
+        const { data: emps } = await db.select('ess_employees', { company_id: companyId })
         for (const e of emps ?? []) {
           const auId = e.app_user_id != null ? String(e.app_user_id) : null
           if (auId && userIds.has(auId)) ids.add(String(e.id))

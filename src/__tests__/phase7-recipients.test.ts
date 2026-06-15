@@ -7,16 +7,19 @@ import { resolveRecipients, type RecipientDbPort, type ResolveTarget } from '@/l
 const COMPANY = 'co-1'
 
 function makeDb(): RecipientDbPort {
+  // is_active lives on ess_app_users (NOT ess_employees) — matches the real schema.
+  // e4's app_user (u4) is inactive, so e4 must be excluded from active audiences.
   const employees = [
-    { id: 'e1', app_user_id: 'u1', department: 'Care', is_active: true, company_id: COMPANY },
-    { id: 'e2', app_user_id: 'u2', department: 'Care', is_active: true, company_id: COMPANY },
-    { id: 'e3', app_user_id: 'u3', department: 'Admin', is_active: true, company_id: COMPANY },
-    { id: 'e4', app_user_id: 'u4', department: 'Care', is_active: false, company_id: COMPANY },
+    { id: 'e1', app_user_id: 'u1', department: 'Care', company_id: COMPANY },
+    { id: 'e2', app_user_id: 'u2', department: 'Care', company_id: COMPANY },
+    { id: 'e3', app_user_id: 'u3', department: 'Admin', company_id: COMPANY },
+    { id: 'e4', app_user_id: 'u4', department: 'Care', company_id: COMPANY },
   ]
   const appUsers = [
-    { id: 'u1', role: 'employee', company_id: COMPANY },
-    { id: 'u2', role: 'employee', company_id: COMPANY },
-    { id: 'u3', role: 'admin', company_id: COMPANY },
+    { id: 'u1', role: 'employee', is_active: true, company_id: COMPANY },
+    { id: 'u2', role: 'employee', is_active: true, company_id: COMPANY },
+    { id: 'u3', role: 'admin', is_active: true, company_id: COMPANY },
+    { id: 'u4', role: 'employee', is_active: false, company_id: COMPANY },
   ]
   const groupMembers = [
     { employee_id: 'e2', group_id: 'g1', company_id: COMPANY },
