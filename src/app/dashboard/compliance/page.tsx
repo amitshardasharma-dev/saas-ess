@@ -16,7 +16,8 @@
 // icons, neutral tokens, real loading/empty/error states.
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import toast from 'react-hot-toast'
 import { useAuthStore } from '@/stores/auth'
 import { useLabels } from '@/hooks/use-labels'
 import { hasMinRole } from '@/types/roles'
@@ -32,6 +33,8 @@ import {
   Loader2,
   Award,
   Ban,
+  FileText,
+  Upload,
 } from 'lucide-react'
 
 function authHeaders(extra: HeadersInit = {}): HeadersInit {
@@ -87,6 +90,8 @@ interface MyCert {
   expiry_date: string | null
   status: CertStatus
   days_until_expiry: number | null
+  file_url: string | null
+  file_name: string | null
 }
 
 type MyState =
@@ -122,12 +127,15 @@ function MyCertifications() {
           expiry_date: expiry,
           status,
           days_until_expiry: (c.days_until_expiry as number | null) ?? daysUntil(expiry),
+          file_url: (c.file_url as string | null) ?? null,
+          file_name: (c.file_name as string | null) ?? null,
         }
       })
       const certTypes: CertTypeOption[] = (data.cert_types || []).map((tp: Record<string, unknown>) => ({
         id: tp.id as string,
         name: (tp.name as string) ?? '',
         validity_months: (tp.validity_months as number | null) ?? null,
+        requires_file: Boolean(tp.requires_file),
       }))
       setState({ kind: 'ok', certs, certTypes })
     } catch {
@@ -192,7 +200,7 @@ function MyCertifications() {
           ) : (
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               {sorted.map((c) => (
-                <MyCertCard key={c.id} cert={c} />
+                <MyCertCard key={c.id} cert={c} onChanged={load} />
               ))}
             </div>
           )}
@@ -204,11 +212,60 @@ function MyCertifications() {
   )
 }
 
-function MyCertCard({ cert }: { cert: MyCert }) {
+function MyCertCard({ cert, onChanged }: { cert: MyCert; onChanged: () => void }) {
   const amber = cert.status === 'expiring'
   const red = cert.status === 'expired'
   const iconWrap = red ? 'bg-red-100' : amber ? 'bg-amber-100' : 'bg-primary/10'
   const iconColor = red ? 'text-red-600' : amber ? 'text-amber-600' : 'text-primary'
+
+  const [viewing, setViewing] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Fetch a short-lived signed URL for the caller's own evidence and open it.
+  const viewFile = async () => {
+    setViewing(true)
+    try {
+      const res = await fetch(`/api/profile/certifications/${cert.id}/file`, { headers: authHeaders() })
+      const data = await res.json().catch(() => null)
+      if (!res.ok || !data?.url) throw new Error(data?.error ?? 'Could not open the file')
+      window.open(data.url as string, '_blank', 'noopener,noreferrer')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not open the file')
+    } finally {
+      setViewing(false)
+    }
+  }
+
+  const onAttach = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.size > 20 * 1024 * 1024) {
+      toast.error('File must be under 20MB')
+      if (fileInputRef.current) fileInputRef.current.value = ''
+      return
+    }
+    setUploading(true)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      const res = await fetch(`/api/profile/certifications/${cert.id}/file`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: fd,
+      })
+      const data = await res.json().catch(() => null)
+      if (!res.ok) throw new Error(data?.error ?? 'Upload failed')
+      toast.success('Document attached')
+      onChanged()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Upload failed')
+    } finally {
+      setUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
   return (
     <Card className={red ? 'border-red-200' : amber ? 'border-amber-200' : 'border-border/60'}>
       <CardContent className="p-4">
@@ -230,6 +287,34 @@ function MyCertCard({ cert }: { cert: MyCert }) {
                 {expiryHint(cert.status, cert.days_until_expiry)}
               </span>
               {cert.expiry_date ? <span>· {formatDate(cert.expiry_date)}</span> : null}
+            </div>
+
+            {/* Document: view it if present, otherwise offer to attach one. */}
+            <div className="mt-3 border-t pt-3">
+              {cert.file_url ? (
+                <button
+                  type="button"
+                  onClick={viewFile}
+                  disabled={viewing}
+                  className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline disabled:opacity-60"
+                >
+                  {viewing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileText className="h-3.5 w-3.5" />}
+                  <span className="max-w-[12rem] truncate">{cert.file_name || 'View document'}</span>
+                </button>
+              ) : (
+                <label className="inline-flex cursor-pointer items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground">
+                  {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                  {uploading ? 'Uploading…' : 'Attach document'}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".pdf,.png,.jpg,.jpeg,.webp,application/pdf,image/*"
+                    onChange={onAttach}
+                    disabled={uploading}
+                    className="sr-only"
+                  />
+                </label>
+              )}
             </div>
           </div>
         </div>
