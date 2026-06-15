@@ -4,10 +4,24 @@
 // role-aware — volunteers get a self-service "My certifications" view (add +
 // upload their own certificate documents), while hr+ get the org-wide register
 // (enforced server-side via scope=all).
-import { ShieldCheck } from 'lucide-react'
+import { ShieldCheck, ClipboardList } from 'lucide-react'
 import type { NavSection } from './types'
 
 export const phase3ComplianceNav: NavSection[] = [
+  {
+    id: 'compliance-register',
+    order: 64,
+    moduleId: 'compliance',
+    minRole: 'employee',
+    item: {
+      key: 'compliance-register',
+      title: 'Compliance Register',
+      href: '/dashboard/compliance-register',
+      icon: ClipboardList,
+      description: 'Required certificates & trainings',
+      minRole: 'employee',
+    },
+  },
   {
     id: 'compliance',
     order: 65,

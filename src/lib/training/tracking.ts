@@ -18,6 +18,7 @@ import type {
 } from '@/types/training'
 import { completedItemIds, computePercentComplete, statusForPercent } from './progress'
 import { tryAdvanceOnboarding, tryRecertHook } from './onboarding'
+import { calcExpiry } from '@/lib/compliance/expiry'
 
 /** Server-side cap on a single time_tick (seconds). Prevents abuse/runaway. */
 export const MAX_TICK_SECONDS = 120
@@ -265,11 +266,12 @@ export async function recomputeModuleProgress(
 ): Promise<number> {
   const { data: mod } = await supabaseAdmin
     .from('ess_training_modules')
-    .select('id, company_id')
+    .select('id, company_id, validity_months')
     .eq('id', moduleId)
     .single()
   if (!mod) return 0
   const companyId = mod.company_id as string
+  const validityMonths = (mod as { validity_months?: number | null }).validity_months ?? null
 
   const { data: itemRows } = await supabaseAdmin
     .from('ess_training_items')
@@ -303,9 +305,20 @@ export async function recomputeModuleProgress(
     .eq('employee_id', employeeId)
     .eq('module_id', moduleId)
     .maybeSingle()
-  const prev = existing as { status?: TrainingProgressStatus; started_at?: string | null } | null
+  const prev = existing as { status?: TrainingProgressStatus; started_at?: string | null; expires_at?: string | null } | null
 
   const nowIso = new Date().toISOString()
+  const wasComplete = prev?.status === 'complete'
+  // Expiry: stamp on a FRESH completion from the module's validity; preserve the
+  // existing value if it was already complete (don't keep pushing expiry out).
+  const expiresAt =
+    status === 'complete'
+      ? wasComplete
+        ? prev?.expires_at ?? null
+        : validityMonths
+          ? calcExpiry(nowIso.slice(0, 10), validityMonths)
+          : null
+      : null
   const row = {
     company_id: companyId,
     employee_id: employeeId,
@@ -314,6 +327,7 @@ export async function recomputeModuleProgress(
     status,
     started_at: prev?.started_at ?? (status !== 'not_started' ? nowIso : null),
     completed_at: status === 'complete' ? nowIso : null,
+    expires_at: expiresAt,
   }
 
   const { error } = await supabaseAdmin

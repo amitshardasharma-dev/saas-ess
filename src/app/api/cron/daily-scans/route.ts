@@ -46,7 +46,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 	for (const tenant of tenants) {
 		await enqueueJob('reminders.scan', {}, undefined, tenant.id)
 		await enqueueJob('recert.scan', {}, undefined, tenant.id)
-		enqueued += 2
+		await enqueueJob('training.recert-scan', {}, undefined, tenant.id)
+		enqueued += 3
 	}
 
 	return NextResponse.json({ tenants: tenants.length, enqueued })

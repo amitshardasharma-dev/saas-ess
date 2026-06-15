@@ -9,6 +9,7 @@ import { supabaseAdmin } from '@/lib/supabase-server'
 import { withAuth } from '@/lib/auth-middleware'
 import { assertModuleEnabled, ModuleDisabledError } from '@/lib/modules'
 import { assignedModuleIdsForEmployee } from '@/lib/training'
+import { requiredModuleIdsForEmployee } from '@/lib/compliance/register'
 import type {
   AssignedModule,
   TrainingItem,
@@ -17,7 +18,7 @@ import type {
   TrainingProgress,
 } from '@/types/training'
 
-export const GET = withAuth(async (_request: NextRequest, { companyId, employee }) => {
+export const GET = withAuth(async (_request: NextRequest, { companyId, employee, role }) => {
   try {
     await assertModuleEnabled(companyId, 'training')
   } catch (e) {
@@ -29,7 +30,13 @@ export const GET = withAuth(async (_request: NextRequest, { companyId, employee 
 
   if (!employee) return NextResponse.json({ modules: [] })
 
-  const moduleIds = await assignedModuleIdsForEmployee(companyId, employee.id)
+  // Explicitly-assigned modules PLUS compliance-required modules (matched by the
+  // person's tier/group), so required trainings are doable from the learning view.
+  const [assignedIds, requiredIds] = await Promise.all([
+    assignedModuleIdsForEmployee(companyId, employee.id),
+    requiredModuleIdsForEmployee(companyId, employee.id, role),
+  ])
+  const moduleIds = [...new Set([...assignedIds, ...requiredIds])]
   if (moduleIds.length === 0) return NextResponse.json({ modules: [] })
 
   const [{ data: modules }, { data: items }, { data: itemProgress }, { data: moduleProgress }] =

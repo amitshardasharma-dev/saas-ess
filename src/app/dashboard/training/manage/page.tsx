@@ -396,6 +396,7 @@ function CreateModuleDialog({ onCreated }: { onCreated: () => void | Promise<voi
   const [open, setOpen] = useState(false)
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
+  const [validity, setValidity] = useState('')
   const [creating, setCreating] = useState(false)
 
   const create = async () => {
@@ -405,13 +406,16 @@ function CreateModuleDialog({ onCreated }: { onCreated: () => void | Promise<voi
     }
     setCreating(true)
     try {
+      const months = validity.trim() ? Math.max(1, Math.round(Number(validity))) : null
       await trainingService.createModule({
         title: title.trim(),
         description: description.trim() || null,
+        validity_months: Number.isFinite(months as number) ? months : null,
       })
       toast.success('Module created')
       setTitle('')
       setDescription('')
+      setValidity('')
       setOpen(false)
       await onCreated()
     } catch {
@@ -459,6 +463,17 @@ function CreateModuleDialog({ onCreated }: { onCreated: () => void | Promise<voi
             onChange={(e) => setDescription(e.target.value)}
             rows={3}
           />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-sm">Validity (months)</Label>
+          <Input
+            type="number"
+            min={1}
+            placeholder="Leave blank for no expiry"
+            value={validity}
+            onChange={(e) => setValidity(e.target.value)}
+          />
+          <p className="text-xs text-muted-foreground">If set, a completion expires after this many months and the training is automatically re-assigned.</p>
         </div>
         <div className="flex items-center justify-end gap-2">
           <Button variant="outline" onClick={() => setOpen(false)} disabled={creating}>

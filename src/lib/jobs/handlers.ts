@@ -4,6 +4,7 @@ import type { Job } from '@/lib/jobs/dispatch'
 import { refreshComplianceStatus } from '@/lib/compliance/refresh-status'
 import { scanReminders } from '@/lib/reminders/scan'
 import { scanRecertifications } from '@/lib/recertification/scan'
+import { scanExpiredTrainings } from '@/lib/training/recert-scan'
 
 /**
  * A job handler receives the claimed job and performs the work. Throwing
@@ -38,6 +39,12 @@ export const jobHandlers: Record<string, JobHandler> = {
 	'recert.scan': async (job: Job) => {
 		if (!job.company_id) return
 		await scanRecertifications(job.company_id)
+	},
+	// training.recert-scan — reset completed trainings past their expiry so the
+	// same module becomes due again (Compliance Register goes RED) + notify.
+	'training.recert-scan': async (job: Job) => {
+		if (!job.company_id) return
+		await scanExpiredTrainings(job.company_id)
 	},
 }
 

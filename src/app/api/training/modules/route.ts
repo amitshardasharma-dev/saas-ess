@@ -69,6 +69,7 @@ export const POST = withAuth(
         company_id: companyId,
         title: parsed.data.title,
         description: parsed.data.description ?? null,
+        validity_months: parsed.data.validity_months ?? null,
         status: 'draft',
         created_by: employee?.id ?? null,
       })

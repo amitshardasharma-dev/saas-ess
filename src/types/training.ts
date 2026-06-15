@@ -47,6 +47,8 @@ export interface TrainingModule {
   title: string
   description: string | null
   status: TrainingModuleStatus
+  /** Optional expiry: a completion lapses this many months after it's earned. */
+  validity_months: number | null
   created_by: string | null
   created_at: string
   updated_at: string
@@ -158,12 +160,14 @@ export interface AssignedModule extends TrainingModule {
 export const createModuleSchema = z.object({
   title: z.string().min(1, 'Title is required'),
   description: z.string().optional().nullable(),
+  validity_months: z.number().int().positive().nullable().optional(),
 })
 
 export const updateModuleSchema = z.object({
   title: z.string().min(1).optional(),
   description: z.string().optional().nullable(),
   status: z.enum(TRAINING_MODULE_STATUSES).optional(),
+  validity_months: z.number().int().positive().nullable().optional(),
 })
 
 export const createItemSchema = z

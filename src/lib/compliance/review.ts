@@ -35,6 +35,20 @@ export async function loadCert(companyId: string, id: string): Promise<CertRow |
 export function isReviewer(role: UserRole): boolean {
   return hasMinRole(role, 'hr')
 }
+
+/** The role of the cert's owner (volunteer=employee, otherwise staff/admin). */
+export async function loadCertOwnerRole(companyId: string, employeeId: string): Promise<UserRole | null> {
+  const { data: emp } = await supabaseAdmin
+    .from('ess_employees')
+    .select('app_user_id')
+    .eq('id', employeeId)
+    .eq('company_id', companyId)
+    .single()
+  const appUserId = (emp as { app_user_id?: string | null } | null)?.app_user_id
+  if (!appUserId) return null
+  const { data: u } = await supabaseAdmin.from('ess_app_users').select('role').eq('id', appUserId).single()
+  return ((u as { role?: string } | null)?.role as UserRole) ?? null
+}
 export function isOwner(cert: CertRow, employeeId?: string | null): boolean {
   return Boolean(employeeId) && cert.employee_id === employeeId
 }

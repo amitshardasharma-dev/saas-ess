@@ -13,7 +13,7 @@ import { recordAudit } from '@/lib/audit'
 import { calcStatus, daysUntil, indicatorForStatus } from '@/lib/compliance/expiry'
 import { writeCertHistory } from '@/services/compliance'
 import { certReviewSchema, type VerificationStatus } from '@/types/compliance'
-import { loadCert, loadCertThread, addCertMessage, notifyOwnerOfReview } from '@/lib/compliance/review'
+import { loadCert, loadCertThread, addCertMessage, notifyOwnerOfReview, loadCertOwnerRole } from '@/lib/compliance/review'
 
 const ACTION_STATUS: Record<'validate' | 'reject' | 'request_changes', Exclude<VerificationStatus, 'pending' | 'submitted'>> = {
   validate: 'validated',
@@ -49,6 +49,20 @@ export const POST = withAuth(
 
     const cert = await loadCert(ctx.companyId, id)
     if (!cert) return NextResponse.json({ error: 'Certification not found' }, { status: 404 })
+
+    // Validation routing: nobody validates their own cert; a staff member's cert
+    // (anyone who isn't a volunteer) can only be validated by an admin.
+    if (cert.employee_id === ctx.employee?.id) {
+      return NextResponse.json({ error: 'You cannot validate your own certificate.' }, { status: 403 })
+    }
+    const ownerRole = await loadCertOwnerRole(ctx.companyId, cert.employee_id)
+    const ownerIsVolunteer = ownerRole === 'employee'
+    if (!ownerIsVolunteer && ctx.role !== 'admin') {
+      return NextResponse.json(
+        { error: "A staff member's certificate can only be validated by an admin." },
+        { status: 403 },
+      )
+    }
 
     const body = await request.json().catch(() => null)
     const parsed = certReviewSchema.safeParse(body)

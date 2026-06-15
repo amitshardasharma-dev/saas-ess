@@ -57,6 +57,7 @@ export const PATCH = withAuth(
     if (parsed.data.title !== undefined) patch.title = parsed.data.title
     if (parsed.data.description !== undefined) patch.description = parsed.data.description
     if (parsed.data.status !== undefined) patch.status = parsed.data.status
+    if (parsed.data.validity_months !== undefined) patch.validity_months = parsed.data.validity_months
 
     const { data, error } = await supabaseAdmin
       .from('ess_training_modules')

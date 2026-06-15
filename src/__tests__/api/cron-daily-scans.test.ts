@@ -102,17 +102,17 @@ describe('GET /api/cron/daily-scans', () => {
 		expect(res.status).toBe(200)
 	})
 
-	it('enqueues reminders.scan + recert.scan for each active tenant, scoped to that tenant', async () => {
+	it('enqueues reminders.scan + recert.scan + training.recert-scan for each active tenant, scoped to that tenant', async () => {
 		mockResultQueue = [{ data: [{ id: 'co-1' }, { id: 'co-2' }], error: null }]
 
 		const res = await GET(authedReq())
 		const body = await res.json()
 
 		expect(res.status).toBe(200)
-		expect(body).toEqual({ tenants: 2, enqueued: 4 })
+		expect(body).toEqual({ tenants: 2, enqueued: 6 })
 
-		// One reminders.scan + one recert.scan per tenant = 4 calls.
-		expect(mockEnqueueJob).toHaveBeenCalledTimes(4)
+		// reminders.scan + recert.scan + training.recert-scan per tenant = 6 calls.
+		expect(mockEnqueueJob).toHaveBeenCalledTimes(6)
 
 		// Assert (type, companyId) tuples — payload is arg[1], companyId is arg[3].
 		const tuples = mockEnqueueJob.mock.calls.map((c) => [c[0], c[3]])
@@ -120,8 +120,10 @@ describe('GET /api/cron/daily-scans', () => {
 			expect.arrayContaining([
 				['reminders.scan', 'co-1'],
 				['recert.scan', 'co-1'],
+				['training.recert-scan', 'co-1'],
 				['reminders.scan', 'co-2'],
 				['recert.scan', 'co-2'],
+				['training.recert-scan', 'co-2'],
 			]),
 		)
 
