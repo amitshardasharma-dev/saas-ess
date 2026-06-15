@@ -22,7 +22,8 @@ import { recordAudit } from '@/lib/audit'
 // Same private bucket + limits as the hr route (conventions §9: private by
 // default, access via short-lived signed URLs).
 const CERT_BUCKET = 'certifications'
-const SIGNED_URL_TTL_SECONDS = 60
+// 5 min: long enough to view the document inline.
+const SIGNED_URL_TTL_SECONDS = 300
 const MAX_BYTES = 20 * 1024 * 1024
 
 async function ensureModule(companyId: string): Promise<NextResponse | null> {

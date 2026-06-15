@@ -4,10 +4,10 @@
 // the reviewer sees (and can continue) the back-and-forth in one place.
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
-  X, FileText, CheckCircle2, AlertTriangle, XCircle, Loader2, CalendarClock,
+  X, FileText, CheckCircle2, AlertTriangle, XCircle, Loader2, CalendarClock, ExternalLink,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -47,6 +47,26 @@ export function CertReviewPanel({ cert, onClose, onReviewed }: Props) {
   const [status, setStatus] = useState<VerificationStatus>(cert.verification_status)
   const [viewing, setViewing] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
+
+  const ext = (cert.file_name || cert.file_url || '').toLowerCase().split('.').pop() || ''
+  const isImage = ['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(ext)
+  const isPdf = ext === 'pdf'
+
+  // Load a signed URL up-front so the reviewer can see the document inline while
+  // deciding (the hr file route is ownership/role-checked server-side).
+  useEffect(() => {
+    if (!cert.file_url) return
+    let cancelled = false
+    setPreviewLoading(true)
+    fetch(`/api/certifications/${cert.id}/file`, { headers: authHeaders() })
+      .then((r) => r.json())
+      .then((d) => { if (!cancelled && d?.url) setPreviewUrl(d.url as string) })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setPreviewLoading(false) })
+    return () => { cancelled = true }
+  }, [cert.id, cert.file_url])
 
   const viewDocument = async () => {
     setViewing(true)
@@ -96,7 +116,7 @@ export function CertReviewPanel({ cert, onClose, onReviewed }: Props) {
   const modal = (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4 sm:p-8" onClick={onClose}>
       <div
-        className="w-full max-w-2xl rounded-xl border bg-background shadow-xl"
+        className="w-full max-w-2xl rounded-xl border bg-white shadow-xl"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -117,17 +137,39 @@ export function CertReviewPanel({ cert, onClose, onReviewed }: Props) {
         </div>
 
         <div className="space-y-5 p-4">
-          {/* Document */}
-          <div className="flex items-center justify-between gap-3 rounded-lg border bg-muted/20 px-3 py-2.5">
-            <span className="flex min-w-0 items-center gap-2 text-sm">
-              <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
-              <span className="truncate text-foreground">{cert.file_name || (cert.file_url ? 'Document' : 'No document attached')}</span>
-            </span>
+          {/* Document — shown inline so the reviewer can see it while deciding. */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <span className="flex min-w-0 items-center gap-2 text-sm font-medium text-foreground">
+                <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <span className="truncate">{cert.file_name || (cert.file_url ? 'Attached document' : 'No document attached')}</span>
+              </span>
+              {cert.file_url ? (
+                <Button variant="outline" size="sm" onClick={() => void viewDocument()} disabled={viewing}>
+                  {viewing ? <Loader2 className="h-4 w-4 animate-spin" /> : <ExternalLink className="h-4 w-4" />} Open
+                </Button>
+              ) : null}
+            </div>
             {cert.file_url ? (
-              <Button variant="outline" size="sm" onClick={() => void viewDocument()} disabled={viewing}>
-                {viewing ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />} View
-              </Button>
-            ) : null}
+              <div className="overflow-hidden rounded-lg border bg-muted/20">
+                {previewLoading && !previewUrl ? (
+                  <div className="flex items-center justify-center gap-2 py-12 text-xs text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" /> Loading document…
+                  </div>
+                ) : previewUrl && isImage ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={previewUrl} alt={cert.file_name ?? 'Certificate document'} className="mx-auto max-h-80 w-auto object-contain" />
+                ) : previewUrl && isPdf ? (
+                  <iframe src={previewUrl} title="Certificate document" className="h-96 w-full bg-white" />
+                ) : (
+                  <div className="py-8 text-center text-xs text-muted-foreground">Preview unavailable — use “Open” to view the document.</div>
+                )}
+              </div>
+            ) : (
+              <p className="rounded-lg border border-dashed bg-muted/10 px-3 py-4 text-center text-xs text-muted-foreground">
+                No document attached. Decide from the conversation, or ask the volunteer to upload one.
+              </p>
+            )}
           </div>
 
           {/* Expiry override */}

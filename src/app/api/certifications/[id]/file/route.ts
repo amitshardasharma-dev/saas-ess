@@ -12,7 +12,8 @@ import { recordAudit } from '@/lib/audit'
 // Private bucket for certification evidence (conventions §9: private by default,
 // access via signed URLs). Distinct from the public 'ess-contracts' bucket.
 const CERT_BUCKET = 'certifications'
-const SIGNED_URL_TTL_SECONDS = 60
+// 5 min: long enough to view the document inline while deciding on a review.
+const SIGNED_URL_TTL_SECONDS = 300
 const MAX_BYTES = 20 * 1024 * 1024
 
 async function ensureModule(companyId: string): Promise<NextResponse | null> {
