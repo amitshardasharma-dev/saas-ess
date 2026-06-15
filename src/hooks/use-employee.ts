@@ -22,8 +22,6 @@ export function useEmployee(): UseEmployeeReturn {
 			setLoading(true)
 			setError(null)
 			
-			console.log('useEmployee: Fetching employee data...')
-			
 			const token = localStorage.getItem('ess_access_token')
 			const response = await fetch('/api/employee', {
 				method: 'GET',
@@ -41,11 +39,9 @@ export function useEmployee(): UseEmployeeReturn {
 			}
 
 			const data = await response.json()
-			console.log('useEmployee: Raw API response:', data)
-			
+
 			if (data.employee) {
 				setEmployee(data.employee)
-				console.log('useEmployee: Employee data set:', data.employee)
 			} else {
 				throw new Error('No employee data in response')
 			}
@@ -65,14 +61,6 @@ export function useEmployee(): UseEmployeeReturn {
 	// Helper functions to check approval access
 	const hasLeaveApprovalAccess = employee?.leave_approval_enabled === 1
 	const hasExpenseApprovalAccess = employee?.expense_approval_enabled === 1
-
-	console.log('useEmployee: Current state:', {
-		employee,
-		loading,
-		error,
-		hasLeaveApprovalAccess,
-		hasExpenseApprovalAccess
-	})
 
 	// Get role from auth store user, default to employee
 	const storedUser = typeof window !== 'undefined'

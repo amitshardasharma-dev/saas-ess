@@ -17,7 +17,6 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
 import toast from 'react-hot-toast'
 import { useAuthStore } from '@/stores/auth'
 import { useLabels } from '@/hooks/use-labels'
@@ -113,10 +112,14 @@ function MyCertifications() {
   const { t } = useLabels()
   const [state, setState] = useState<MyState>({ kind: 'loading' })
   // Deep-link: ?type=<certTypeId> pre-selects that certificate in the add form
-  // and scrolls to it (from the Compliance Register "Upload" action).
-  const searchParams = useSearchParams()
-  const typeParam = searchParams.get('type')
+  // and scrolls to it (from the Compliance Register "Upload" action). Read from
+  // window.location (client-only) to avoid useSearchParams' static-prerender
+  // Suspense requirement on this non-dynamic route.
+  const [typeParam, setTypeParam] = useState<string | null>(null)
   const addRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (typeof window !== 'undefined') setTypeParam(new URLSearchParams(window.location.search).get('type'))
+  }, [])
 
   const load = useCallback(async () => {
     try {
