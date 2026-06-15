@@ -2,6 +2,7 @@
 // Other phases (3/5) depend on the EXACT names/signatures exported here.
 
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import type { UserRole } from '@/types/roles';
 import type {
   OnboardingStatus,
   OnboardingStepStatus,
@@ -154,7 +155,8 @@ const DEFAULT_STEPS: { title: string; description: string; sort_order: number }[
  */
 export async function initOnboarding(
   employeeId: string,
-  companyId: string
+  companyId: string,
+  role?: UserRole
 ): Promise<void> {
   const supabase = supabaseAdmin;
 
@@ -175,14 +177,24 @@ export async function initOnboarding(
     status: 'not_started',
   });
 
-  // Seed the checklist from the default template if one exists, otherwise
-  // fall back to the built-in default steps.
-  const { data: template } = await supabase
+  // Seed the checklist from the template for this person's audience
+  // (volunteer vs staff), then fall back to the default template, then to the
+  // built-in default steps.
+  const audience = audienceForRole(role ?? 'employee');
+  let { data: template } = await supabase
     .from('ess_onboarding_templates')
     .select('id')
     .eq('company_id', companyId)
-    .eq('is_default', true)
+    .eq('audience', audience)
     .maybeSingle();
+  if (!template) {
+    ({ data: template } = await supabase
+      .from('ess_onboarding_templates')
+      .select('id')
+      .eq('company_id', companyId)
+      .eq('is_default', true)
+      .maybeSingle());
+  }
 
   if (template) {
     const { data: templateSteps } = await supabase
@@ -220,6 +232,109 @@ export async function initOnboarding(
       description: s.description,
       sort_order: s.sort_order,
       status: 'pending' as const,
+    }))
+  );
+}
+
+/* ===================== Editable onboarding templates ===================== */
+
+export type OnboardingAudience = 'volunteer' | 'staff';
+
+/** Volunteers (role 'employee') use the volunteer flow; everyone else the staff flow. */
+export function audienceForRole(role: UserRole): OnboardingAudience {
+  return role === 'employee' ? 'volunteer' : 'staff';
+}
+
+const AUDIENCE_NAME: Record<OnboardingAudience, string> = {
+  volunteer: 'Volunteer Onboarding',
+  staff: 'Staff Onboarding',
+};
+
+/** A single editable template step (the admin-facing shape). */
+export interface TemplateStepInput {
+  title: string;
+  description: string | null;
+  step_type: OnboardingStepType;
+  ref_id: string | null;
+  auto_complete: boolean;
+}
+
+/** Derive the ref_kind a step type links to (null for profile/manual). */
+export function refKindForStepType(t: OnboardingStepType): 'document' | 'cert_type' | 'training_module' | null {
+  if (t === 'doc_sign' || t === 'doc_ack') return 'document';
+  if (t === 'certification') return 'cert_type';
+  if (t === 'training') return 'training_module';
+  return null;
+}
+
+/** Get (or lazily create) the template row for a company + audience. */
+export async function ensureTemplate(
+  companyId: string,
+  audience: OnboardingAudience
+): Promise<{ id: string; name: string }> {
+  const { data: existing } = await supabaseAdmin
+    .from('ess_onboarding_templates')
+    .select('id, name')
+    .eq('company_id', companyId)
+    .eq('audience', audience)
+    .maybeSingle();
+  if (existing) return existing as { id: string; name: string };
+
+  const { data, error } = await supabaseAdmin
+    .from('ess_onboarding_templates')
+    .insert({
+      company_id: companyId,
+      name: AUDIENCE_NAME[audience],
+      description: `${AUDIENCE_NAME[audience]} flow`,
+      audience,
+      is_default: audience === 'volunteer',
+    })
+    .select('id, name')
+    .single();
+  if (error || !data) throw new Error(`ensureTemplate ${audience}: ${error?.message ?? 'no row'}`);
+  return data as { id: string; name: string };
+}
+
+/** Load a template + its ordered steps for editing. */
+export async function loadTemplate(companyId: string, audience: OnboardingAudience) {
+  const t = await ensureTemplate(companyId, audience);
+  const { data: steps } = await supabaseAdmin
+    .from('ess_onboarding_steps')
+    .select('title, description, sort_order, step_type, ref_kind, ref_id, auto_complete')
+    .eq('company_id', companyId)
+    .eq('template_id', t.id)
+    .is('employee_id', null)
+    .order('sort_order', { ascending: true });
+  return { id: t.id, name: t.name, audience, steps: steps ?? [] };
+}
+
+/** Replace a template's steps with the supplied ordered list. */
+export async function saveTemplateSteps(
+  companyId: string,
+  audience: OnboardingAudience,
+  steps: TemplateStepInput[]
+): Promise<void> {
+  const t = await ensureTemplate(companyId, audience);
+  await supabaseAdmin
+    .from('ess_onboarding_steps')
+    .delete()
+    .eq('company_id', companyId)
+    .eq('template_id', t.id)
+    .is('employee_id', null);
+  if (steps.length === 0) return;
+  await supabaseAdmin.from('ess_onboarding_steps').insert(
+    steps.map((s, i) => ({
+      company_id: companyId,
+      template_id: t.id,
+      employee_id: null,
+      title: s.title,
+      description: s.description ?? null,
+      sort_order: i,
+      status: 'pending' as const,
+      step_type: s.step_type,
+      ref_kind: refKindForStepType(s.step_type),
+      ref_id: s.ref_id ?? null,
+      auto_complete: s.auto_complete ?? false,
     }))
   );
 }

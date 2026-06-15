@@ -185,7 +185,7 @@ export async function createPerson(input: {
     return { ok: false, status: 500, error: `Failed to create employee: ${empErr?.message ?? 'unknown'}` }
   }
 
-  await initOnboarding(employee.id, companyId)
+  await initOnboarding(employee.id, companyId, role)
 
   return {
     ok: true,

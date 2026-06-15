@@ -109,6 +109,18 @@ const STEP_DEFS = [
   { title: 'Induction meeting with coordinator', description: 'Attend your induction meeting (marked by staff).', step_type: 'manual', auto_complete: false, ref_kind: null, ref: null },
 ]
 
+// Staff onboarding flow (role hr/manager/admin). Reuses the same artifacts.
+const STAFF_STEP_DEFS = [
+  { title: 'Complete your profile', description: 'Add contact details and emergency contact.', step_type: 'profile_field', auto_complete: false, ref_kind: null, ref: null },
+  { title: 'Sign the Code of Conduct', description: 'Review and sign the Birch Foundation Code of Conduct.', step_type: 'doc_sign', auto_complete: true, ref_kind: 'document', ref: ['doc', 'Code of Conduct'] },
+  { title: 'Acknowledge the Safeguarding Policy', description: 'Confirm you have read the Child-Safe & Safeguarding Policy.', step_type: 'doc_ack', auto_complete: true, ref_kind: 'document', ref: ['doc', 'Child-Safe & Safeguarding Policy'] },
+  { title: 'Acknowledge the WHS Policy', description: 'Confirm you have read the Work Health & Safety policy.', step_type: 'doc_ack', auto_complete: true, ref_kind: 'document', ref: ['doc', 'WHS Policy'] },
+  { title: 'Upload your National Police Check', description: 'Upload a current National Police Certificate.', step_type: 'certification', auto_complete: true, ref_kind: 'cert_type', ref: ['cert', 'National Police Check'] },
+  { title: 'Upload your Blue Card', description: 'Upload your QLD Working With Children (Blue Card).', step_type: 'certification', auto_complete: true, ref_kind: 'cert_type', ref: ['cert', 'Blue Card (Working With Children)'] },
+  { title: 'Complete WHS & Manual Handling training', description: 'Complete the workplace health & safety module.', step_type: 'training', auto_complete: true, ref_kind: 'training_module', ref: ['mod', 'WHS & Manual Handling'] },
+  { title: 'Staff induction with your manager', description: 'Attend your staff induction (marked by admin).', step_type: 'manual', auto_complete: false, ref_kind: null, ref: null },
+]
+
 async function ensureAuthUser(email) {
   const { data: list } = await sb.auth.admin.listUsers({ page: 1, perPage: 1000 })
   const existing = list?.users?.find((u) => u.email?.toLowerCase() === email.toLowerCase())
@@ -298,11 +310,15 @@ async function main() {
     ...extra,
   })
 
-  // 3g. template + typed template steps
+  // 3g. templates + typed template steps (Volunteer flow + Staff flow)
   const { data: tmpl } = await sb.from('ess_onboarding_templates')
-    .insert({ company_id: cid, name: 'Volunteer Onboarding', description: 'Standard Birch volunteer onboarding', is_default: true })
+    .insert({ company_id: cid, name: 'Volunteer Onboarding', description: 'Standard Birch volunteer onboarding', audience: 'volunteer', is_default: true })
     .select('id').single()
   await sb.from('ess_onboarding_steps').insert(STEP_DEFS.map((s, i) => stepRow(s, i, { template_id: tmpl.id, employee_id: null })))
+  const { data: staffTmpl } = await sb.from('ess_onboarding_templates')
+    .insert({ company_id: cid, name: 'Staff Onboarding', description: 'Standard Birch staff onboarding', audience: 'staff', is_default: false })
+    .select('id').single()
+  await sb.from('ess_onboarding_steps').insert(STAFF_STEP_DEFS.map((s, i) => stepRow(s, i, { template_id: staffTmpl.id, employee_id: null })))
 
   // 3h. ancillary master data
   const { data: reminderCfg } = await sb.from('ess_reminder_configs').insert({ company_id: cid, applies_to: 'certification', offsets: [90,30,7,0,-7], frequency: 'weekly', email_subject: 'Your {{cert_name}} is due to expire', email_body_html: '<p>Please renew your {{cert_name}}.</p>', escalate_to: 'supervisor', is_active: true }).select('id').single()
@@ -318,6 +334,12 @@ async function main() {
     const emp = fixtures.users[key].employeeId
     await sb.from('ess_onboarding_states').insert({ company_id: cid, employee_id: emp, status: 'not_started' })
     await sb.from('ess_onboarding_steps').insert(STEP_DEFS.map((s, i) => stepRow(s, i, { employee_id: emp })))
+  }
+  // Staff onboarding instances (staff flow) so the Staff flow demos too.
+  for (const key of ['staff', 'staff2']) {
+    const emp = fixtures.users[key].employeeId
+    await sb.from('ess_onboarding_states').insert({ company_id: cid, employee_id: emp, status: 'not_started' })
+    await sb.from('ess_onboarding_steps').insert(STAFF_STEP_DEFS.map((s, i) => stepRow(s, i, { employee_id: emp })))
   }
 
   // 4b. a few realistic delivered announcements so the inbox demos well
