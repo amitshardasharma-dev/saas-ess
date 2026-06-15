@@ -13,12 +13,14 @@ export const phase7ReportingNav: NavSection[] = [
     id: 'reporting',
     order: 70,
     moduleId: 'reporting',
+    minRole: 'hr',
     item: {
       key: 'reports',
       title: 'Reports',
       href: '/dashboard/reports',
       icon: BarChart3,
       description: 'Training & compliance reporting',
+      minRole: 'hr',
     },
     items: [
       {
@@ -72,12 +74,14 @@ export const phase7ReportingNav: NavSection[] = [
     id: 'expiry_reminders',
     order: 72,
     moduleId: 'expiry_reminders',
+    minRole: 'admin',
     item: {
       key: 'reminders',
       title: 'Expiry Reminders',
       href: '/dashboard/reminders',
       icon: BellRing,
       description: 'Reminder timing & escalation',
+      minRole: 'admin',
     },
     items: [
       {
@@ -94,12 +98,14 @@ export const phase7ReportingNav: NavSection[] = [
     id: 'recertification',
     order: 73,
     moduleId: 'recertification',
+    minRole: 'hr',
     item: {
       key: 'recertification',
       title: 'Recertification',
       href: '/dashboard/recertification',
       icon: RefreshCw,
       description: 'Track expired-cert recert loops',
+      minRole: 'hr',
     },
     items: [
       {

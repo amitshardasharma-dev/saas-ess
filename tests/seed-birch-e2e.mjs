@@ -17,15 +17,27 @@ const SOURCE_BUCKET = 'ess-documents'
 const SIGNED_BUCKET = 'signed-documents'
 
 const USERS = [
-  { key: 'superadmin', email: 'superadmin@birch-e2e.test', name: 'E2E Super Admin', role: 'admin', superAdmin: true,  dept: 'Management' },
-  { key: 'admin',      email: 'admin@birch-e2e.test',      name: 'E2E Admin',       role: 'admin', superAdmin: false, dept: 'Management' },
-  { key: 'staff',      email: 'staff@birch-e2e.test',      name: 'E2E Staff',       role: 'hr',    superAdmin: false, dept: 'Operations' },
-  { key: 'volOutreach',email: 'vol.outreach@birch-e2e.test',name:'E2E Outreach Vol', role: 'employee', superAdmin: false, dept: 'Street Outreach' },
-  { key: 'volOpshop',  email: 'vol.opshop@birch-e2e.test', name: 'E2E OpShop Vol',  role: 'employee', superAdmin: false, dept: 'Op Shop & Cafe' },
+  // Realistic, authentic Birch Foundation people (Gold Coast DV/homelessness
+  // charity). The stable KEYS are what the E2E specs reference — names are free.
+  { key: 'superadmin', email: 'superadmin@birch-e2e.test', name: 'Olivia Bennett',     role: 'admin', superAdmin: true,  dept: 'Management' },
+  { key: 'admin',      email: 'admin@birch-e2e.test',      name: 'Margaret Whitfield', role: 'admin', superAdmin: false, dept: 'Management' },
+  { key: 'staff',      email: 'staff@birch-e2e.test',      name: 'David Okoro',        role: 'hr',    superAdmin: false, dept: 'Volunteer Coordination' },
+  { key: 'volOutreach',email: 'vol.outreach@birch-e2e.test',name:'Aisha Rahman',       role: 'employee', superAdmin: false, dept: 'Street Outreach' },
+  { key: 'volOpshop',  email: 'vol.opshop@birch-e2e.test', name: 'Tom Bennett',        role: 'employee', superAdmin: false, dept: 'Op Shop & Cafe' },
   // Dedicated to the onboarding auto-complete gate spec (mutated heavily). Kept
   // separate so volOutreach/volOpshop stay pristine for the other specs.
-  { key: 'volAuto',    email: 'vol.auto@birch-e2e.test',   name: 'E2E Auto Vol',    role: 'employee', superAdmin: false, dept: 'Street Outreach' },
+  { key: 'volAuto',    email: 'vol.auto@birch-e2e.test',   name: 'Liam Carter',        role: 'employee', superAdmin: false, dept: 'Street Outreach' },
+  // Additional demo people (no spec dependency) — for a populated, authentic org.
+  { key: 'staff2',     email: 'hannah.lee@birch-e2e.test',     name: 'Hannah Lee',      role: 'hr',       superAdmin: false, dept: 'Family Support' },
+  { key: 'vol4',       email: 'priya.nair@birch-e2e.test',     name: 'Priya Nair',      role: 'employee', superAdmin: false, dept: 'Family Support' },
+  { key: 'vol5',       email: 'noah.williams@birch-e2e.test',  name: 'Noah Williams',   role: 'employee', superAdmin: false, dept: 'Crisis Accommodation' },
+  { key: 'vol6',       email: 'sofia.martinez@birch-e2e.test', name: 'Sofia Martinez',  role: 'employee', superAdmin: false, dept: 'Op Shop & Cafe' },
+  { key: 'vol7',       email: 'ethan.nguyen@birch-e2e.test',   name: 'Ethan Nguyen',    role: 'employee', superAdmin: false, dept: 'Fundraising & Events' },
+  { key: 'vol8',       email: 'grace.thompson@birch-e2e.test', name: 'Grace Thompson',  role: 'employee', superAdmin: false, dept: 'Street Outreach' },
+  { key: 'vol9',       email: 'daniel.cohen@birch-e2e.test',   name: 'Daniel Cohen',    role: 'employee', superAdmin: false, dept: 'Crisis Accommodation' },
 ]
+// Volunteer keys used for the demo dataset + onboarding instantiation.
+const VOL_KEYS = ['volOutreach', 'volOpshop', 'volAuto', 'vol4', 'vol5', 'vol6', 'vol7', 'vol8', 'vol9']
 
 const CERT_TYPES = [
   ['National Police Check',36,true,true,[90,30,7,0]],
@@ -181,6 +193,13 @@ async function main() {
     }
     await sb.from('ess_messages').delete().eq('company_id', cid)
   }
+  // Demo dataset tables (reseeded fresh below).
+  await sb.from('ess_reminder_sends').delete().eq('company_id', cid)
+  await sb.from('ess_recertifications').delete().eq('company_id', cid) // cascades recert_history
+  await sb.from('ess_certifications').delete().eq('company_id', cid)   // cascades cert messages + history
+  await sb.from('ess_training_item_progress').delete().eq('company_id', cid)
+  await sb.from('ess_training_progress').delete().eq('company_id', cid)
+  await sb.from('ess_compliance_requirements').delete().eq('company_id', cid)
   await sb.from('ess_training_assignments').delete().eq('company_id', cid)
   await sb.from('ess_training_items').delete().eq('company_id', cid)
   await sb.from('ess_training_modules').delete().eq('company_id', cid)
@@ -286,14 +305,16 @@ async function main() {
   await sb.from('ess_onboarding_steps').insert(STEP_DEFS.map((s, i) => stepRow(s, i, { template_id: tmpl.id, employee_id: null })))
 
   // 3h. ancillary master data
-  await sb.from('ess_reminder_configs').insert({ company_id: cid, applies_to: 'certification', offsets: [90,30,7,0,-7], email_subject: 'Your {{cert_name}} is due to expire', email_body_html: '<p>Please renew your {{cert_name}}.</p>', is_active: true })
+  const { data: reminderCfg } = await sb.from('ess_reminder_configs').insert({ company_id: cid, applies_to: 'certification', offsets: [90,30,7,0,-7], frequency: 'weekly', email_subject: 'Your {{cert_name}} is due to expire', email_body_html: '<p>Please renew your {{cert_name}}.</p>', escalate_to: 'supervisor', is_active: true }).select('id').single()
+  const reminderConfigId = reminderCfg?.id
   await sb.from('ess_message_templates').insert([
     { company_id: cid, name: 'Welcome', subject: 'Welcome to Birch', body_html: '<p>Welcome aboard!</p>' },
     { company_id: cid, name: 'Outreach roster', subject: 'This week roster', body_html: '<p>Surfers Paradise (Mon), Southport (Wed).</p>' },
   ])
 
-  // 4. instantiate onboarding for the volunteers from the typed template
-  for (const key of ['volOutreach', 'volOpshop', 'volAuto']) {
+  // 4. instantiate onboarding for every volunteer from the typed template.
+  //    volOutreach/volOpshop/volAuto MUST start not_started (E2E gate specs).
+  for (const key of VOL_KEYS) {
     const emp = fixtures.users[key].employeeId
     await sb.from('ess_onboarding_states').insert({ company_id: cid, employee_id: emp, status: 'not_started' })
     await sb.from('ess_onboarding_steps').insert(STEP_DEFS.map((s, i) => stepRow(s, i, { employee_id: emp })))
@@ -310,6 +331,147 @@ async function main() {
   for (const dm of DEMO_MSGS) {
     const { data: msg } = await sb.from('ess_messages').insert({ company_id: cid, subject: dm.subject, body_html: dm.body, sender_app_user_id: adminAu, status: 'sent', sent_at: new Date().toISOString() }).select('id').single()
     if (msg) await sb.from('ess_message_recipients').insert(volEmps.map((eid) => ({ company_id: cid, message_id: msg.id, employee_id: eid })))
+  }
+
+  // ============ 6. DEMO DATASET — authentic, varied compliance data ============
+  // Real expiry dates (valid / expiring-soon / expired), review states, training
+  // progress + expiry, requirements, recertifications and reminder sends — so the
+  // Compliance Register, Reports, Recertification and Expiry Reminders screens
+  // are populated and presentable to customers.
+  const todayD = new Date()
+  const dDays = (n) => { const x = new Date(todayD); x.setDate(x.getDate() + n); return x.toISOString().slice(0, 10) }
+  const dMonthsAgo = (n) => { const x = new Date(todayD); x.setMonth(x.getMonth() - n); return x.toISOString().slice(0, 10) }
+  const addMonthsIso = (dateStr, n) => { const x = new Date(dateStr + 'T00:00:00Z'); x.setMonth(x.getMonth() + n); return x.toISOString() }
+  const certStatusFor = (expiry) => {
+    if (!expiry) return 'valid'
+    const days = Math.round((new Date(expiry + 'T00:00:00Z').getTime() - todayD.getTime()) / 86400000)
+    return days < 0 ? 'expired' : days <= 30 ? 'expiring' : 'valid'
+  }
+  const E = (k) => fixtures.users[k].employeeId
+
+  // Training module expiry (validity in months) — drives auto re-assignment.
+  await sb.from('ess_training_modules').update({ validity_months: 12 }).eq('id', safeguardingId)
+  await sb.from('ess_training_modules').update({ validity_months: 12 }).eq('id', modByName['WHS & Manual Handling'])
+  await sb.from('ess_training_modules').update({ validity_months: 24 }).eq('id', modByName['Food Safety Basics'])
+
+  // Certifications: [key, [[certName, completedMonthsAgo, expiryInDays|null, verification, hasFile]]]
+  const CERT_PROFILES = {
+    superadmin:  [['National Police Check', 2, 900, 'validated', false], ['Blue Card (Working With Children)', 2, 800, 'validated', false]],
+    admin:       [['National Police Check', 2, 950, 'validated', false], ['Blue Card (Working With Children)', 2, 850, 'validated', false]],
+    volOutreach: [['National Police Check', 6, 540, 'validated', true], ['Blue Card (Working With Children)', 30, 20, 'validated', false], ['First Aid Certificate (HLTAID011)', 38, -12, 'validated', false]],
+    volOpshop:   [['National Police Check', 2, 800, 'validated', false], ['Food Safety (Handling)', 10, 600, 'validated', false]],
+    volAuto:     [['National Police Check', 1, 1000, 'validated', false]],
+    vol4:        [['National Police Check', 8, 360, 'validated', true], ['Blue Card (Working With Children)', 33, 18, 'validated', false], ['First Aid Certificate (HLTAID011)', 40, -25, 'validated', false]],
+    vol5:        [['National Police Check', 0, 1000, 'submitted', true], ['Blue Card (Working With Children)', 5, 700, 'validated', false]],
+    vol6:        [['National Police Check', 3, 900, 'validated', true], ['Food Safety (Handling)', 1, 1700, 'changes_requested', false]],
+    vol7:        [['National Police Check', 33, 25, 'validated', false], ['NDIS Worker Screening', 6, 1600, 'validated', false]],
+    vol8:        [['National Police Check', 37, -6, 'validated', true], ['Blue Card (Working With Children)', 12, 700, 'validated', false]],
+    vol9:        [['National Police Check', 4, 600, 'validated', false], ['Manual Handling / WHS Induction', 13, -18, 'validated', false]],
+    staff:       [['National Police Check', 4, 700, 'validated', true], ['Blue Card (Working With Children)', 30, 28, 'validated', false], ['First Aid Certificate (HLTAID011)', 6, 540, 'validated', false]],
+    staff2:      [['National Police Check', 5, 400, 'validated', false], ['Blue Card (Working With Children)', 8, 500, 'validated', false]],
+  }
+  const certIdByKeyName = {}
+  const fileTargets = []
+  for (const [key, certs] of Object.entries(CERT_PROFILES)) {
+    for (const [cName, compM, expD, vs, hasFile] of certs) {
+      const expiry = expD === null ? null : dDays(expD)
+      const { data: row } = await sb.from('ess_certifications').insert({
+        company_id: cid, employee_id: E(key), cert_type_id: certByName[cName], title: cName,
+        completion_date: dMonthsAgo(compM), expiry_date: expiry, status: certStatusFor(expiry),
+        verification_status: vs, verified_by: vs === 'validated' ? adminAu : null,
+        verified_at: vs === 'validated' ? new Date().toISOString() : null, created_by: E(key),
+      }).select('id').single()
+      if (row) {
+        certIdByKeyName[`${key}:${cName}`] = row.id
+        if (hasFile) fileTargets.push({ id: row.id, certName: cName })
+      }
+    }
+  }
+  // Attach a generic evidence PDF to flagged certs (private 'certifications' bucket).
+  await ensureBucket('certifications', false)
+  for (const ft of fileTargets) {
+    const path = `${cid}/${ft.id}/evidence.pdf`
+    const pdf = await makePdf(`${ft.certName} — Evidence (Birch Foundation)`)
+    await sb.storage.from('certifications').upload(path, pdf, { contentType: 'application/pdf', upsert: true })
+    await sb.from('ess_certifications').update({ file_url: path, file_name: 'evidence.pdf' }).eq('id', ft.id)
+  }
+
+  // Training progress: [key, [[moduleName, status, completedMonthsAgo|null, percent]]]
+  const TRAIN_PROFILES = {
+    superadmin:  [['Safeguarding & Child-Safe', 'complete', 3, 100]],
+    admin:       [['Safeguarding & Child-Safe', 'complete', 2, 100]],
+    volOutreach: [['Volunteer Induction', 'in_progress', 1, 60], ['Safeguarding & Child-Safe', 'not_started', null, 0]],
+    volOpshop:   [['Volunteer Induction', 'complete', 3, 100], ['Safeguarding & Child-Safe', 'complete', 2, 100]],
+    volAuto:     [['Volunteer Induction', 'not_started', null, 0]],
+    vol4:        [['Volunteer Induction', 'complete', 5, 100], ['Safeguarding & Child-Safe', 'complete', 13, 100]],
+    vol5:        [['Volunteer Induction', 'in_progress', 1, 40]],
+    vol6:        [['Volunteer Induction', 'complete', 1, 100], ['Safeguarding & Child-Safe', 'complete', 1, 100]],
+    vol7:        [['Volunteer Induction', 'complete', 6, 100], ['Safeguarding & Child-Safe', 'complete', 11, 100]],
+    vol8:        [['Volunteer Induction', 'complete', 2, 100], ['Safeguarding & Child-Safe', 'in_progress', 1, 30]],
+    vol9:        [['Volunteer Induction', 'complete', 4, 100], ['Safeguarding & Child-Safe', 'complete', 2, 100]],
+    staff:       [['Volunteer Induction', 'complete', 8, 100], ['WHS & Manual Handling', 'complete', 13, 100]],
+    staff2:      [['Volunteer Induction', 'complete', 3, 100]],
+  }
+  const modValidity = { [safeguardingId]: 12, [modByName['WHS & Manual Handling']]: 12, [modByName['Food Safety Basics']]: 24 }
+  const progressRows = []
+  for (const [key, mods] of Object.entries(TRAIN_PROFILES)) {
+    for (const [mName, status, compM, pct] of mods) {
+      const moduleId = modByName[mName]
+      const startedRef = dMonthsAgo(compM ?? 1)
+      const completedAt = status === 'complete' ? new Date(dMonthsAgo(compM) + 'T00:00:00Z').toISOString() : null
+      const validity = modValidity[moduleId]
+      const expiresAt = status === 'complete' && validity ? addMonthsIso(dMonthsAgo(compM), validity) : null
+      progressRows.push({
+        company_id: cid, employee_id: E(key), module_id: moduleId, status, percent_complete: pct,
+        started_at: status === 'not_started' ? null : new Date(startedRef + 'T00:00:00Z').toISOString(),
+        completed_at: completedAt, expires_at: expiresAt,
+      })
+    }
+  }
+  if (progressRows.length) await sb.from('ess_training_progress').insert(progressRows)
+
+  // Compliance requirements (the admin-defined register).
+  await sb.from('ess_compliance_requirements').insert([
+    { company_id: cid, kind: 'certification', ref_id: certByName['National Police Check'], target_type: 'tier', target_value: 'all', created_by: adminAu },
+    { company_id: cid, kind: 'certification', ref_id: certByName['Blue Card (Working With Children)'], target_type: 'tier', target_value: 'all', created_by: adminAu },
+    { company_id: cid, kind: 'training', ref_id: safeguardingId, target_type: 'tier', target_value: 'all', created_by: adminAu },
+    { company_id: cid, kind: 'training', ref_id: inductionId, target_type: 'tier', target_value: 'volunteer', created_by: adminAu },
+    { company_id: cid, kind: 'certification', ref_id: certByName['First Aid Certificate (HLTAID011)'], target_type: 'tier', target_value: 'volunteer', created_by: adminAu },
+    { company_id: cid, kind: 'training', ref_id: modByName['WHS & Manual Handling'], target_type: 'tier', target_value: 'staff', created_by: adminAu },
+  ])
+
+  // Recertifications opened from expired certs.
+  const recertRows = []
+  const addRecert = (key, certName, status, moduleName, triggeredDaysAgo, completedDaysAgo) => {
+    const certId = certIdByKeyName[`${key}:${certName}`]
+    if (!certId) return
+    recertRows.push({
+      company_id: cid, employee_id: E(key), certification_id: certId,
+      triggered_at: new Date(dDays(-triggeredDaysAgo) + 'T00:00:00Z').toISOString(),
+      assigned_module_id: modByName[moduleName], status,
+      completed_at: completedDaysAgo != null ? new Date(dDays(-completedDaysAgo) + 'T00:00:00Z').toISOString() : null,
+    })
+  }
+  addRecert('volOutreach', 'First Aid Certificate (HLTAID011)', 'assigned', 'Safeguarding & Child-Safe', 10, null)
+  addRecert('vol4', 'First Aid Certificate (HLTAID011)', 'in_progress', 'Volunteer Induction', 22, null)
+  addRecert('vol8', 'National Police Check', 'assigned', 'Safeguarding & Child-Safe', 5, null)
+  addRecert('vol9', 'Manual Handling / WHS Induction', 'completed', 'WHS & Manual Handling', 16, 2)
+  if (recertRows.length) await sb.from('ess_recertifications').insert(recertRows)
+
+  // Reminder sends log (expiry notices already issued).
+  if (reminderConfigId) {
+    const sendRows = []
+    const addSends = (key, certName, offsets) => {
+      const certId = certIdByKeyName[`${key}:${certName}`]
+      if (!certId) return
+      for (const off of offsets) sendRows.push({ company_id: cid, reminder_config_id: reminderConfigId, certification_id: certId, employee_id: E(key), offset_sent: off, sent_at: new Date(dDays(-(Math.abs(off) + 1)) + 'T09:00:00Z').toISOString() })
+    }
+    addSends('volOutreach', 'Blue Card (Working With Children)', [90, 30])
+    addSends('vol4', 'Blue Card (Working With Children)', [90, 30])
+    addSends('staff', 'Blue Card (Working With Children)', [90, 30])
+    addSends('volOutreach', 'First Aid Certificate (HLTAID011)', [30, 7, 0, -7])
+    addSends('vol8', 'National Police Check', [30, 7, 0])
+    if (sendRows.length) await sb.from('ess_reminder_sends').insert(sendRows)
   }
 
   // 5. export the artifact ids the gate spec drives

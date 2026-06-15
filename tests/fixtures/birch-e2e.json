@@ -24,7 +24,7 @@
       "isSuperAdmin": false,
       "appUserId": "780c184d-1013-4ac2-9ab4-5693cfaa97a3",
       "employeeId": "6da81770-2916-49b6-8b58-0496709bccaa",
-      "department": "Operations"
+      "department": "Volunteer Coordination"
     },
     "volOutreach": {
       "email": "vol.outreach@birch-e2e.test",
@@ -49,40 +49,96 @@
       "appUserId": "ab9507ee-1d7a-4da5-b848-801e42edda03",
       "employeeId": "8956a410-f52d-48a1-82b1-364c235f0c44",
       "department": "Street Outreach"
+    },
+    "staff2": {
+      "email": "hannah.lee@birch-e2e.test",
+      "role": "hr",
+      "isSuperAdmin": false,
+      "appUserId": "82db37e6-2992-41f8-9584-18445dfb2150",
+      "employeeId": "08787b7a-def9-45ef-baed-e0686c9926a3",
+      "department": "Family Support"
+    },
+    "vol4": {
+      "email": "priya.nair@birch-e2e.test",
+      "role": "employee",
+      "isSuperAdmin": false,
+      "appUserId": "2abea601-c467-46f4-9e14-3553fef2beaa",
+      "employeeId": "86034e36-259c-4fdc-8f07-f4ed294e8aa3",
+      "department": "Family Support"
+    },
+    "vol5": {
+      "email": "noah.williams@birch-e2e.test",
+      "role": "employee",
+      "isSuperAdmin": false,
+      "appUserId": "fa3e112a-8ae1-49ed-8d4c-d8c5965517a7",
+      "employeeId": "24eaecd5-af8c-4d6b-8f40-c6ee1a160a7c",
+      "department": "Crisis Accommodation"
+    },
+    "vol6": {
+      "email": "sofia.martinez@birch-e2e.test",
+      "role": "employee",
+      "isSuperAdmin": false,
+      "appUserId": "401fc841-fe36-412e-8730-50075f403d80",
+      "employeeId": "a08ac99c-ea95-4e2f-b3fa-7ee95f739ec8",
+      "department": "Op Shop & Cafe"
+    },
+    "vol7": {
+      "email": "ethan.nguyen@birch-e2e.test",
+      "role": "employee",
+      "isSuperAdmin": false,
+      "appUserId": "ad9e734a-0bf2-4a5b-a2ac-d7c7ac43fc2d",
+      "employeeId": "dafbd5d2-9722-4ba5-92c5-6e17a15177ca",
+      "department": "Fundraising & Events"
+    },
+    "vol8": {
+      "email": "grace.thompson@birch-e2e.test",
+      "role": "employee",
+      "isSuperAdmin": false,
+      "appUserId": "7b4e32b6-5290-43f5-aa74-1523004cf505",
+      "employeeId": "6b27269d-606e-42d3-a729-7fc76b3896a5",
+      "department": "Street Outreach"
+    },
+    "vol9": {
+      "email": "daniel.cohen@birch-e2e.test",
+      "role": "employee",
+      "isSuperAdmin": false,
+      "appUserId": "bbc1df9a-a0c7-48ef-b6d3-55a3d67b7c37",
+      "employeeId": "41eb62eb-4693-4724-8661-afd59475a35a",
+      "department": "Crisis Accommodation"
     }
   },
   "onboarding": {
     "docs": {
       "volunteerAgreement": {
-        "id": "1e02d960-4ee4-4a80-b5f2-2e0cf1945433",
-        "versionId": "cbd56388-9440-4eb5-ab32-aa2820461f12"
+        "id": "ce776408-419c-48e0-a702-cffe0c5c842a",
+        "versionId": "9dcd497f-d3a5-4313-85f7-f878b9267f25"
       },
       "codeOfConduct": {
-        "id": "014a1244-cd7d-41c4-87d0-9dc2ad26e5f5",
-        "versionId": "3da8d312-314a-4e84-a1a3-52a3a581c20d"
+        "id": "65bc7f87-6cb1-4131-bcf3-7b45a91b087e",
+        "versionId": "9aae39c6-107d-4149-b4b1-0b9d53f84a42"
       },
       "safeguardingPolicy": {
-        "id": "1fa36531-fc83-4f40-a79d-22ce40f401ef",
-        "versionId": "296a0065-28cc-49b7-93fc-0a806254f703"
+        "id": "8b93477b-fb6c-489f-b572-30ef124735f2",
+        "versionId": "7ebe0a1d-f102-48c3-9bb0-0326a2627261"
       }
     },
     "certTypes": {
-      "policeCheck": "ff1b8657-7eb1-4617-9e15-50481296e06f",
-      "blueCard": "00fbf681-994d-4df5-b159-30fe9134a159"
+      "policeCheck": "8f01d020-a5f7-46f3-8eff-5f9c72393c5f",
+      "blueCard": "75564015-af15-4aea-8801-c133f943b3e0"
     },
     "modules": {
       "induction": {
-        "id": "48845541-7988-45da-a53c-3446b8a2646e",
+        "id": "537979af-5fdf-4024-81fa-4ccae6b6c457",
         "items": {
-          "video": "ebbfed32-aaec-426e-bfbc-bccbf44c4dcd",
-          "document": "2e3cf515-fa7b-4100-9d89-962b943b39f0",
-          "quiz": "401248d0-d081-45fc-a0ce-bc7dd814d487"
+          "video": "1524b2e1-8469-4329-9985-2ea449d98177",
+          "document": "f27507f4-0e60-409b-9f7f-f366abc9ffb0",
+          "quiz": "a7eaecde-9cde-456d-af9b-e446c5d54d2c"
         }
       },
       "safeguarding": {
-        "id": "84e2642d-55f1-4b20-abf3-aa92d40580a0",
+        "id": "4cbaa5d3-c26f-4c71-ad3f-6e3298b9fe39",
         "items": {
-          "video": "2cc69d6c-7e01-47a1-b8a0-524579553143"
+          "video": "d27d3eae-f421-48f2-90b7-6ec502f663d9"
         }
       }
     }

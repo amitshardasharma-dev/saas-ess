@@ -107,8 +107,15 @@ function buildCertItem(
   const vs = cert.verification_status
   if (vs === 'validated') {
     const exp = calcStatus(cert.expiry_date)
-    if (exp === 'expired') return { ...base, state: 'expired', color: 'red', label: 'Expired' }
-    return { ...base, state: 'validated', color: 'green', label: exp === 'expiring' ? 'Valid · expiring soon' : 'Validated' }
+    if (exp === 'expired') {
+      return { ...base, state: 'expired', color: 'red', label: cert.expiry_date ? `Expired ${fmtDate(cert.expiry_date)}` : 'Expired' }
+    }
+    const label = !cert.expiry_date
+      ? 'Validated'
+      : exp === 'expiring'
+        ? `Expiring ${fmtDate(cert.expiry_date)}`
+        : `Valid until ${fmtDate(cert.expiry_date)}`
+    return { ...base, state: 'validated', color: 'green', label }
   }
   if (vs === 'submitted' || vs === 'pending') return { ...base, state: 'pending_review', color: 'amber', label: 'Pending review' }
   if (vs === 'changes_requested') return { ...base, state: 'changes_requested', color: 'red', label: 'Changes requested' }
