@@ -122,6 +122,10 @@ export function PeopleTable({
           <option value="all">All org units</option>
           {orgUnits.map((o) => (<option key={o} value={o}>{o}</option>))}
         </select>
+        {/* Existing org units, offered as a dropdown when editing a row's dept. */}
+        <datalist id="edit-dept-units">
+          {orgUnits.map((o) => (<option key={o} value={o} />))}
+        </datalist>
         <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as OnboardingStatus | 'all')} aria-label="Filter by onboarding status" className={selectClass}>
           <option value="all">All statuses</option>
           {ONBOARDING_STATUSES.map((s) => (<option key={s} value={s}>{s.replace('_', ' ')}</option>))}
@@ -168,7 +172,7 @@ export function PeopleTable({
                   </td>
                   <td className={td}>
                     {editing ? (
-                      <Input value={editDept} onChange={(e) => setEditDept(e.target.value)} aria-label={`Org unit for ${p.name}`} className="h-9 max-w-[160px]" />
+                      <Input list="edit-dept-units" value={editDept} onChange={(e) => setEditDept(e.target.value)} aria-label={`Org unit for ${p.name}`} className="h-9 max-w-[160px]" autoComplete="off" />
                     ) : (p.orgUnit ?? '—')}
                   </td>
                   <td className={td}>{statusBadge(p.onboardingStatus)}</td>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Plus } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/dashboard-layout';
 import { Button } from '@/components/ui/button';
@@ -27,6 +27,13 @@ export default function PeoplePage() {
   const [error, setError] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+
+  // Existing org units, so the add form can offer them as a dropdown.
+  const orgUnits = useMemo(() => {
+    const set = new Set<string>();
+    for (const p of people) if (p.orgUnit) set.add(p.orgUnit);
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [people]);
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -74,6 +81,7 @@ export default function PeoplePage() {
 
         {canManage && showAdd ? (
           <AddPersonForm
+            orgUnits={orgUnits}
             onClose={() => setShowAdd(false)}
             onCreated={(m) => { setNotice(m); setShowAdd(false); reload(); }}
           />
@@ -87,7 +95,7 @@ export default function PeoplePage() {
   );
 }
 
-function AddPersonForm({ onClose, onCreated }: { onClose: () => void; onCreated: (notice: string) => void }) {
+function AddPersonForm({ orgUnits, onClose, onCreated }: { orgUnits: string[]; onClose: () => void; onCreated: (notice: string) => void }) {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<UserRole>('employee');
@@ -142,7 +150,17 @@ function AddPersonForm({ onClose, onCreated }: { onClose: () => void; onCreated:
         </div>
         <div className="grid gap-1">
           <label className="text-xs text-muted-foreground" htmlFor="np-dept">Org unit / department</label>
-          <Input id="np-dept" value={department} onChange={(e) => setDepartment(e.target.value)} />
+          <Input
+            id="np-dept"
+            list="np-dept-units"
+            value={department}
+            onChange={(e) => setDepartment(e.target.value)}
+            placeholder="Select or type a department"
+            autoComplete="off"
+          />
+          <datalist id="np-dept-units">
+            {orgUnits.map((o) => (<option key={o} value={o} />))}
+          </datalist>
         </div>
       </div>
       {err ? <p role="alert" className="mt-3 text-sm text-destructive">{err}</p> : null}
