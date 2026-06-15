@@ -6,11 +6,21 @@
 //
 // Behaviour (spec §4.3):
 //  - For each ACTIVE reminder config in a company:
-//      * Find certs whose daysUntil(expiry) === one of the config offsets.
-//      * For each (cert, offset) not already in ess_reminder_sends, send a templated
-//        email to the volunteer and record the send (dedupe per offset).
+//      * Find certs whose daysUntil(expiry) triggers under the config (see below).
+//      * For each (cert, trigger) not already in ess_reminder_sends, send a templated
+//        email to the volunteer and record the send (dedupe per offset_sent).
 //      * Negative offsets are "overdue" — escalate to supervisor/admin per config.
-//  - Dedupe is enforced both in-code and by the DB unique (config, cert, offset).
+//  - Dedupe is enforced both in-code and by the DB unique (config, cert, offset_sent).
+//
+// FREQUENCY (config.frequency) — controls how the OVERDUE path repeats. The
+// before/on-expiry offsets are always "once per offset" (you never want to re-nag
+// the 90-day notice every day); frequency only governs negative-offset re-sends:
+//   - 'once'         : fire only on the literal configured negative offsets.
+//   - 'weekly'       : also fire every 7 days once overdue (days <= most-overdue offset).
+//   - 'daily_overdue': fire every day once overdue.
+// Each overdue send records offset_sent = days (the actual whole-day count, which is
+// distinct per calendar day), so repeats never collide with the DB unique constraint
+// and a cert can be reminded at most once per calendar day per config.
 
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { sendEmail } from '@/lib/email/send'
@@ -40,7 +50,7 @@ export interface ScanResult {
   skippedDuplicate: number
 }
 
-/** Fill {{name}} / {{days}} / {{expiry}} tokens in a template string. */
+/** Fill {{name}} / {{cert_name}} / {{cert}} / {{days}} / {{expiry}} tokens. */
 function render(template: string, vars: Record<string, string>): string {
   return template.replace(/\{\{\s*(\w+)\s*\}\}/g, (_m, key: string) => vars[key] ?? '')
 }
@@ -59,6 +69,31 @@ async function emailFor(employeeId: string): Promise<string | null> {
     .eq('id', appUserId)
     .single()
   return (au as { email?: string | null } | null)?.email ?? null
+}
+
+/**
+ * Decide whether a cert at `days` until expiry should trigger a reminder under
+ * `config`, given its frequency. Pure — no I/O — so the cadence rule is unit-clear.
+ *
+ *  - days >= 0 (before / on expiry): trigger iff `days` is one of the configured
+ *    offsets. Always once-per-offset regardless of frequency.
+ *  - days < 0 (overdue): a literal configured offset always triggers. Beyond that,
+ *    'weekly' triggers every 7 days and 'daily_overdue' triggers every day, but only
+ *    once `days` has reached the most-overdue (smallest) configured offset so we
+ *    don't start nagging before the admin's first overdue checkpoint.
+ */
+export function shouldTrigger(config: ReminderConfig, days: number): boolean {
+  if (config.offsets.includes(days)) return true
+  if (days >= 0) return false
+
+  const overdueOffsets = config.offsets.filter((o) => o < 0)
+  if (overdueOffsets.length === 0) return false
+  const deepestOverdue = Math.min(...overdueOffsets) // most negative configured offset
+  if (days > deepestOverdue) return false // not yet at the first overdue checkpoint
+
+  if (config.frequency === 'daily_overdue') return true
+  if (config.frequency === 'weekly') return days % 7 === 0
+  return false // 'once' — only the literal offsets above
 }
 
 /**
@@ -88,9 +123,11 @@ export async function scanReminders(companyId: string, today: Date = new Date())
     for (const cert of (certs ?? []) as CertRow[]) {
       const days = daysUntil(cert.expiry_date, today)
       if (days === null) continue
-      if (!config.offsets.includes(days)) continue
+      if (!shouldTrigger(config, days)) continue
 
-      // Dedupe guard: has this (config, cert, offset) already been sent?
+      // Dedupe guard: has this (config, cert, offset_sent=days) already been sent?
+      // For overdue re-sends, `days` is distinct per calendar day, so this both
+      // dedupes within a day and lets the next day's run send again.
       const { data: existing } = await supabaseAdmin
         .from('ess_reminder_sends')
         .select('id')
@@ -110,9 +147,22 @@ export async function scanReminders(companyId: string, today: Date = new Date())
         .single()
       const employee = empData as EmployeeRow | null
 
+      // Certification type name for the {{cert_name}} / {{cert}} tokens.
+      let certName = 'certification'
+      if (cert.cert_type_id) {
+        const { data: ct } = await supabaseAdmin
+          .from('ess_cert_types')
+          .select('name')
+          .eq('id', cert.cert_type_id)
+          .single()
+        certName = (ct as { name?: string | null } | null)?.name ?? certName
+      }
+
       const recipientEmail = await emailFor(cert.employee_id)
       const vars = {
         name: employee?.full_name ?? 'Volunteer',
+        cert_name: certName,
+        cert: certName,
         days: String(days),
         expiry: cert.expiry_date ?? '',
       }
