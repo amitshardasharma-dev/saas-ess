@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { withAuth, type AuthContext } from '@/lib/auth-middleware'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { resolveOrgName } from '@/lib/branding'
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
 
 function fmtDate(iso: string | null): string {
@@ -37,8 +38,7 @@ export const GET = withAuth(
       return NextResponse.json({ error: 'Complete this training to download your certificate.' }, { status: 403 })
     }
 
-    const { data: company } = await supabaseAdmin.from('ess_companies').select('name').eq('id', ctx.companyId).single()
-    const org = company?.name ?? 'Our Organisation'
+    const org = await resolveOrgName(ctx.companyId)
     const learner = ctx.employee.full_name || 'Volunteer'
     const moduleTitle = (mod as { title?: string }).title ?? 'Training'
     const dateStr = fmtDate((prog as { completed_at?: string | null }).completed_at ?? null)

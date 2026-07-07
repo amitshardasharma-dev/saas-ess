@@ -1,7 +1,7 @@
 // Onboarding invitation email sent when a person is created (ISS-001).
 // Best-effort: a failed send never blocks account creation. In dev (no
 // MAILRELAY_API_KEY) sendEmail is a console no-op, so this is safe locally.
-import { supabaseAdmin } from '@/lib/supabase-admin'
+import { resolveOrgName } from '@/lib/branding'
 import { sendEmail } from './send'
 
 const APP_URL = (process.env.NEXT_PUBLIC_APP_URL || 'https://saas-ess.vercel.app').replace(/\/$/, '')
@@ -17,11 +17,7 @@ export async function sendInvitationEmail(opts: {
   tempPassword: string
 }): Promise<void> {
   const { companyId, to, name, tempPassword } = opts
-  let org = 'the ESS Portal'
-  try {
-    const { data } = await supabaseAdmin.from('ess_companies').select('name').eq('id', companyId).single()
-    if (data?.name) org = data.name
-  } catch { /* non-fatal */ }
+  const org = await resolveOrgName(companyId, 'the ESS Portal')
 
   const loginUrl = `${APP_URL}/login`
   const html = `

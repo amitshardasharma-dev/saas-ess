@@ -152,12 +152,12 @@ async function main() {
   if (!company) {
     const { data, error } = await sb.from('ess_companies').insert({
       name: 'Birch E2E', slug: SLUG, plan: 'enterprise', status: 'active', max_users: 250, max_storage_mb: 10000,
-      settings: { modules_enabled: MODULES },
+      settings: { modules_enabled: MODULES, brand_name: 'Birch Foundation' },
     }).select('id').single()
     if (error) throw new Error('company: ' + error.message)
     company = data
   } else {
-    await sb.from('ess_companies').update({ settings: { modules_enabled: MODULES }, max_users: 250 }).eq('id', company.id)
+    await sb.from('ess_companies').update({ settings: { modules_enabled: MODULES, brand_name: 'Birch Foundation' }, max_users: 250 }).eq('id', company.id)
   }
   const cid = company.id
   console.log('company birch-e2e:', cid)
