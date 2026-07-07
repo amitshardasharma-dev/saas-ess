@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { useAuthStore } from '@/stores/auth'
 import { useEmployee } from '@/hooks/use-employee'
 import { useModules } from '@/hooks/use-modules'
+import { useBranding } from '@/hooks/use-branding'
 import { useLabels } from '@/hooks/use-labels'
 import { UserRole } from '@/types/roles'
 import { navRegistry } from '@/config/navigation'
@@ -36,6 +37,7 @@ export function Sidebar({ className }: SidebarProps) {
 	const { logout, user } = useAuthStore()
 	const { hasLeaveApprovalAccess, loading: employeeLoading } = useEmployee()
 	const { isModuleEnabled } = useModules()
+	const branding = useBranding()
 	const { t } = useLabels()
 	const userRole = (user?.role || 'employee') as UserRole
 
@@ -141,11 +143,16 @@ export function Sidebar({ className }: SidebarProps) {
 				<div className="flex items-center justify-between">
 					{!isCollapsed && (
 						<div className="flex items-center space-x-3">
-							<div className="floating-element p-2">
-								<Building className="h-5 w-5 text-primary" />
+							<div className="floating-element flex h-9 w-9 items-center justify-center overflow-hidden p-1">
+								{branding.logoUrl ? (
+									// eslint-disable-next-line @next/next/no-img-element
+									<img src={branding.logoUrl} alt={branding.name} className="h-full w-full object-contain" />
+								) : (
+									<Building className="h-5 w-5 text-primary" />
+								)}
 							</div>
-							<div>
-								<h2 className="font-bold text-sm text-foreground">ESS Portal</h2>
+							<div className="min-w-0">
+								<h2 className="truncate font-bold text-sm text-foreground">{branding.name}</h2>
 								<p className="text-xs text-muted-foreground">Employee Self Service</p>
 							</div>
 						</div>

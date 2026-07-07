@@ -34,6 +34,7 @@ export class ProxyAuthService {
 		// Drop the cached per-tenant module set so the next user (e.g. a
 		// different tenant on a shared browser) never inherits stale nav.
 		localStorage.removeItem('ess_modules_enabled')
+		localStorage.removeItem('ess_branding')
 	}
 
 	async login(credentials: LoginCredentials): Promise<LoginResponse> {

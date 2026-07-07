@@ -32,7 +32,9 @@ import {
   Activity,
   LayoutGrid,
   AlertTriangle,
+  Award,
 } from 'lucide-react'
+import toast from 'react-hot-toast'
 
 // Status chip presentation, keyed by the module's rolled-up progress status.
 const STATUS_CHIP: Record<TrainingProgressStatus, { label: string; className: string }> = {
@@ -137,6 +139,26 @@ export default function TrainingPage() {
 
   const sectionTitle = t('training_module', { plural: true })
   const active = modules.find((m) => m.id === activeId) ?? null
+
+  // ISS-006: download a Certificate of Completion for a finished module.
+  const downloadCertificate = async (moduleId: string) => {
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('ess_access_token') : null
+      const res = await fetch(`/api/training/modules/${moduleId}/certificate`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+      if (!res.ok) throw new Error()
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'certificate.pdf'
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+    } catch {
+      toast.error('Could not download the certificate')
+    }
+  }
 
   // ---- Portfolio summary across all assigned modules ----
   const summary = useMemo(() => {
@@ -360,13 +382,20 @@ export default function TrainingPage() {
                         ) : null}
                       </div>
 
-                      <Button
-                        className="mt-auto w-full"
-                        variant={isComplete ? 'outline' : 'default'}
-                        onClick={() => setActiveId(m.id)}
-                      >
-                        {isComplete ? 'Review' : m.module_status === 'not_started' ? 'Start' : 'Continue'}
-                      </Button>
+                      <div className="mt-auto space-y-2">
+                        <Button
+                          className="w-full"
+                          variant={isComplete ? 'outline' : 'default'}
+                          onClick={() => setActiveId(m.id)}
+                        >
+                          {isComplete ? 'Review' : m.module_status === 'not_started' ? 'Start' : 'Continue'}
+                        </Button>
+                        {isComplete ? (
+                          <Button variant="ghost" className="w-full text-primary" onClick={() => void downloadCertificate(m.id)}>
+                            <Award className="h-4 w-4" /> Download certificate
+                          </Button>
+                        ) : null}
+                      </div>
                     </CardContent>
                   </Card>
                 )

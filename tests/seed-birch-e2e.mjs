@@ -214,6 +214,7 @@ async function main() {
   await sb.from('ess_compliance_requirements').delete().eq('company_id', cid)
   await sb.from('ess_training_assignments').delete().eq('company_id', cid)
   await sb.from('ess_training_items').delete().eq('company_id', cid)
+  await sb.from('ess_quizzes').delete().eq('company_id', cid) // cascades questions + options
   await sb.from('ess_training_modules').delete().eq('company_id', cid)
   await sb.from('ess_document_fields').delete().eq('company_id', cid)
   // versions/acknowledgments cascade from documents
@@ -275,10 +276,32 @@ async function main() {
   const inductionId = modByName['Volunteer Induction']
   const safeguardingId = modByName['Safeguarding & Child-Safe']
   const whsDocId = docByName['WHS Policy']
+
+  // A real, PUBLISHED quiz linked to the induction quiz item (ISS-003 fix — an
+  // unlinked quiz item can never be completed, so the module would stick).
+  const seedQuiz = async (title, questions) => {
+    const { data: quiz } = await sb.from('ess_quizzes')
+      .insert({ company_id: cid, title, description: title, passing_score: 70, status: 'published', created_by: adminEmp })
+      .select('id').single()
+    for (let qi = 0; qi < questions.length; qi++) {
+      const q = questions[qi]
+      const { data: qrow } = await sb.from('ess_quiz_questions')
+        .insert({ company_id: cid, quiz_id: quiz.id, type: q.type, prompt: q.prompt, points: 1, sort_order: qi })
+        .select('id').single()
+      await sb.from('ess_quiz_options').insert(q.options.map((o, oi) => ({ company_id: cid, question_id: qrow.id, label: o.label, is_correct: !!o.correct, sort_order: oi })))
+    }
+    return quiz.id
+  }
+  const inductionQuizId = await seedQuiz('Volunteer Induction Quiz', [
+    { type: 'true_false', prompt: 'Volunteers must keep all client information confidential.', options: [{ label: 'True', correct: true }, { label: 'False' }] },
+    { type: 'mc_single', prompt: 'Who should you contact first if you have a safety concern about a child?', options: [{ label: 'Your coordinator', correct: true }, { label: 'Ignore it' }, { label: 'Post about it on social media' }] },
+    { type: 'true_false', prompt: 'You may attend a shift while unwell or under the influence of alcohol.', options: [{ label: 'True' }, { label: 'False', correct: true }] },
+  ])
+
   const { data: indItems, error: indErr } = await sb.from('ess_training_items').insert([
     { company_id: cid, module_id: inductionId, type: 'video', title: 'Induction video', video_url: 'https://example.test/induction.mp4', required: true, sort_order: 0 },
     { company_id: cid, module_id: inductionId, type: 'document', title: 'Induction handbook', document_id: whsDocId, required: true, sort_order: 1 },
-    { company_id: cid, module_id: inductionId, type: 'quiz', title: 'Induction quiz', quiz_id: null, required: true, sort_order: 2 },
+    { company_id: cid, module_id: inductionId, type: 'quiz', title: 'Induction quiz', quiz_id: inductionQuizId, required: true, sort_order: 2 },
   ]).select('id, type')
   if (indErr) throw new Error('induction items: ' + indErr.message)
   const indByType = Object.fromEntries(indItems.map((i) => [i.type, i.id]))

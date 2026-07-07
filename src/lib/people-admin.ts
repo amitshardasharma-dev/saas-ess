@@ -1,6 +1,7 @@
 import { randomBytes } from 'crypto'
 import { supabaseAdmin } from '@/lib/supabase-server'
 import { initOnboarding } from '@/lib/onboarding'
+import { sendInvitationEmail } from '@/lib/email/invitation'
 import type { UserRole } from '@/types/roles'
 import type { OnboardingStatus } from '@/lib/onboarding'
 
@@ -186,6 +187,10 @@ export async function createPerson(input: {
   }
 
   await initOnboarding(employee.id, companyId, role)
+
+  // ISS-001: send the onboarding invitation email (best-effort — a failed send
+  // never blocks account creation; no-ops in dev without MAILRELAY_API_KEY).
+  await sendInvitationEmail({ companyId, to: email, name: fullName, tempPassword: password })
 
   return {
     ok: true,
