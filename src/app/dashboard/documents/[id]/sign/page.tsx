@@ -50,6 +50,41 @@ function SignDocumentInner({ documentId }: { documentId: string }) {
   const [submitting, setSubmitting] = useState(false)
   const [done, setDone] = useState(false)
   const [signedRecordId, setSignedRecordId] = useState<string | null>(null)
+  const [downloading, setDownloading] = useState(false)
+
+  // Download the signed PDF. The API needs the Bearer token (a plain <a href>
+  // navigation can't send it — that returned 401); it returns a short-lived
+  // signed URL, which we then fetch as a blob for a real download (falling back
+  // to opening the URL if a cross-origin blob fetch is blocked).
+  const downloadSignedCopy = async () => {
+    if (!signedRecordId) return
+    setDownloading(true)
+    try {
+      const res = await fetch(`/api/signed-documents/${signedRecordId}/download`, { headers: authHeaders() })
+      const data = await res.json().catch(() => null)
+      if (!res.ok || !data?.url) throw new Error(data?.error || `HTTP ${res.status}`)
+      const filename = `${(meta?.title || 'signed-document').replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '')}.pdf`
+      try {
+        const pdf = await fetch(data.url as string)
+        if (!pdf.ok) throw new Error()
+        const objUrl = URL.createObjectURL(await pdf.blob())
+        const a = document.createElement('a')
+        a.href = objUrl
+        a.download = filename
+        document.body.appendChild(a)
+        a.click()
+        a.remove()
+        URL.revokeObjectURL(objUrl)
+      } catch {
+        // Cross-origin blob fetch blocked — open the signed URL directly.
+        window.open(data.url as string, '_blank', 'noopener,noreferrer')
+      }
+    } catch {
+      toast.error('Could not download the signed copy')
+    } finally {
+      setDownloading(false)
+    }
+  }
 
   // Prefill the legal name from the signed-in volunteer's profile.
   useEffect(() => {
@@ -165,10 +200,8 @@ function SignDocumentInner({ documentId }: { documentId: string }) {
             <Button asChild><Link href="/dashboard/onboarding">Back to onboarding</Link></Button>
             <Button asChild variant="outline"><Link href={`/dashboard/documents/${documentId}`}>View document</Link></Button>
             {signedRecordId ? (
-              <Button asChild variant="ghost">
-                <a href={esignService.downloadUrl(signedRecordId)} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="h-4 w-4" /> Download signed copy
-                </a>
+              <Button variant="ghost" onClick={() => void downloadSignedCopy()} disabled={downloading}>
+                {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ExternalLink className="h-4 w-4" />} Download signed copy
               </Button>
             ) : null}
           </div>
