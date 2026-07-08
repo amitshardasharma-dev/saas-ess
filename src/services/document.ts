@@ -44,7 +44,7 @@ export const documentService = {
     return data.documents || []
   },
 
-  async getDocument(id: string): Promise<{ document: Document; versions: DocumentVersion[]; acknowledged: boolean; signed?: boolean; signable?: boolean }> {
+  async getDocument(id: string): Promise<{ document: Document; versions: DocumentVersion[]; acknowledged: boolean; signed?: boolean; signable?: boolean; signedDocumentId?: string | null }> {
     const res = await fetch(`/api/documents/${id}`, { headers: authHeaders() })
     if (!res.ok) throw new Error('Failed to fetch document')
     return res.json()

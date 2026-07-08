@@ -112,6 +112,25 @@ export const esignService = {
   },
 
   /**
+   * Open a SIGNED copy (the PDF with the embedded signature) in a new tab. Same
+   * popup-safe pattern as openDocumentFile: the signed-documents download route
+   * returns a short-lived signed URL, not the file bytes.
+   */
+  async openSignedDocument(signedDocumentId: string): Promise<void> {
+    const win = typeof window !== 'undefined' ? window.open('about:blank', '_blank') : null
+    try {
+      const res = await fetch(`/api/signed-documents/${signedDocumentId}/download`, { headers: authHeaders() })
+      const data = await res.json().catch(() => null)
+      if (!res.ok || !data?.url) throw new Error(data?.error || 'Could not open the signed copy')
+      if (win) win.location.href = data.url as string
+      else window.open(data.url as string, '_blank', 'noopener,noreferrer')
+    } catch (err) {
+      if (win) win.close()
+      throw err
+    }
+  },
+
+  /**
    * Open a document's source file. A version's `file_url` is a STORAGE PATH, not
    * a URL — using it directly as a link 404s. This fetches a short-lived signed
    * URL (auth-checked) and opens it. Throws on failure so callers can toast.

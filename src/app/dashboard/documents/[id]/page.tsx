@@ -26,6 +26,7 @@ export default function DocumentDetailPage() {
   const [versions, setVersions] = useState<DocumentVersion[]>([])
   const [acknowledged, setAcknowledged] = useState(false)
   const [signed, setSigned] = useState(false)
+  const [signedDocumentId, setSignedDocumentId] = useState<string | null>(null)
   const [signable, setSignable] = useState(false)
   const [loading, setLoading] = useState(true)
   const [acknowledging, setAcknowledging] = useState(false)
@@ -41,6 +42,7 @@ export default function DocumentDetailPage() {
       setVersions(data.versions)
       setAcknowledged(data.acknowledged)
       setSigned(Boolean(data.signed))
+      setSignedDocumentId(data.signedDocumentId ?? null)
       setSignable(Boolean(data.signable))
     } catch {
       toast.error('Failed to load document')
@@ -69,6 +71,16 @@ export default function DocumentDetailPage() {
       await esignService.openDocumentFile(params.id as string, versionId)
     } catch {
       toast.error('Could not open the document')
+    }
+  }
+
+  // Open the signed copy (the PDF with the embedded signature).
+  const openSignedCopy = async () => {
+    if (!signedDocumentId) return
+    try {
+      await esignService.openSignedDocument(signedDocumentId)
+    } catch {
+      toast.error('Could not open the signed copy')
     }
   }
 
@@ -131,6 +143,12 @@ export default function DocumentDetailPage() {
           {latestVersion ? (
             <Button variant="outline" onClick={() => void openFile(latestVersion.id)}>
               <ExternalLink className="h-4 w-4" /> View document
+            </Button>
+          ) : null}
+
+          {signed && signedDocumentId ? (
+            <Button onClick={() => void openSignedCopy()}>
+              <CheckCircle2 className="h-4 w-4" /> View signed copy
             </Button>
           ) : null}
 
