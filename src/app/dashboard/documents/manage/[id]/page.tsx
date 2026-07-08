@@ -26,6 +26,8 @@ import { useAuthStore } from '@/stores/auth'
 import { hasMinRole } from '@/types/roles'
 import type { Document, DocumentVersion } from '@/types/document'
 import type { SignedDocument } from '@/types/esign'
+import { esignService } from '@/services/esign-client'
+import toast from 'react-hot-toast'
 import { ProgressBar } from '@/components/training/progress-bar'
 import { RegisterTable, type RegisterPerson } from '@/components/documents/register-table'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -447,14 +449,12 @@ export default function DocumentRegisterPage() {
                   </div>
                   {v.file_url ? (
                     <Button
-                      asChild
                       variant="ghost"
                       size="icon"
                       title={`Download v${v.version_number}`}
+                      onClick={() => { void esignService.openDocumentFile(documentId, v.id).catch(() => toast.error('Could not open the document')) }}
                     >
-                      <a href={v.file_url} target="_blank" rel="noopener noreferrer">
-                        <Download className="h-4 w-4" />
-                      </a>
+                      <Download className="h-4 w-4" />
                     </Button>
                   ) : null}
                 </div>

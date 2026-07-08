@@ -8,6 +8,7 @@ import { DocumentCard } from '@/components/documents/document-card'
 import { useAuthStore } from '@/stores/auth'
 import { documentService } from '@/services/document'
 import { DocumentWithVersion, DocumentCategory } from '@/types/document'
+import { esignService } from '@/services/esign-client'
 import { Search, AlertCircle, FolderOpen, Loader2 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -43,8 +44,13 @@ export default function DocumentLibraryPage() {
   }
 
   const open = (doc: DocumentWithVersion) => router.push(`/dashboard/documents/${doc.id}`)
-  const download = (doc: DocumentWithVersion) => {
-    if (doc.latest_version?.file_url) window.open(doc.latest_version.file_url, '_blank')
+  const download = async (doc: DocumentWithVersion) => {
+    if (!doc.latest_version) return
+    try {
+      await esignService.openDocumentFile(doc.id, doc.latest_version.id)
+    } catch {
+      toast.error('Could not open the document')
+    }
   }
 
   const filtered = documents.filter((doc) => {

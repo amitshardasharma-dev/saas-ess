@@ -110,4 +110,27 @@ export const esignService = {
   downloadUrl(signedDocumentId: string): string {
     return `/api/signed-documents/${signedDocumentId}/download`
   },
+
+  /**
+   * Open a document's source file. A version's `file_url` is a STORAGE PATH, not
+   * a URL — using it directly as a link 404s. This fetches a short-lived signed
+   * URL (auth-checked) and opens it. Throws on failure so callers can toast.
+   *
+   * The blank tab is opened SYNCHRONOUSLY (on the click) and navigated once the
+   * URL resolves — opening after the await would trip popup blockers.
+   */
+  async openDocumentFile(documentId: string, versionId?: string): Promise<void> {
+    const win = typeof window !== 'undefined' ? window.open('about:blank', '_blank') : null
+    try {
+      const qs = versionId ? `?versionId=${encodeURIComponent(versionId)}` : ''
+      const res = await fetch(`/api/documents/${documentId}/view-url${qs}`, { headers: authHeaders() })
+      const data = await res.json().catch(() => null)
+      if (!res.ok || !data?.url) throw new Error(data?.error || 'Could not open the document')
+      if (win) win.location.href = data.url as string
+      else window.open(data.url as string, '_blank', 'noopener,noreferrer')
+    } catch (err) {
+      if (win) win.close()
+      throw err
+    }
+  },
 }

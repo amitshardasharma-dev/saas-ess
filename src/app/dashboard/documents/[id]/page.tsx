@@ -16,6 +16,7 @@ import {
   ArrowLeft, Download, CheckCircle2, FileText, Clock, AlertCircle, PenLine, ExternalLink, Loader2,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { esignService } from '@/services/esign-client'
 
 export default function DocumentDetailPage() {
   const params = useParams()
@@ -58,6 +59,16 @@ export default function DocumentDetailPage() {
       toast.error('Failed to acknowledge')
     } finally {
       setAcknowledging(false)
+    }
+  }
+
+  // Open a document version's file via a signed URL (file_url is a storage path,
+  // not a URL — using it directly 404s).
+  const openFile = async (versionId?: string) => {
+    try {
+      await esignService.openDocumentFile(params.id as string, versionId)
+    } catch {
+      toast.error('Could not open the document')
     }
   }
 
@@ -118,8 +129,8 @@ export default function DocumentDetailPage() {
         ) : null}
         <CardContent className="flex flex-wrap items-center gap-3 py-4">
           {latestVersion ? (
-            <Button asChild variant="outline">
-              <a href={latestVersion.file_url} target="_blank" rel="noopener noreferrer"><ExternalLink className="h-4 w-4" /> View document</a>
+            <Button variant="outline" onClick={() => void openFile(latestVersion.id)}>
+              <ExternalLink className="h-4 w-4" /> View document
             </Button>
           ) : null}
 
@@ -182,7 +193,7 @@ export default function DocumentDetailPage() {
                       </p>
                     </div>
                   </div>
-                  <Button variant="ghost" size="sm" onClick={() => window.open(v.file_url, '_blank')}><Download className="h-4 w-4" /></Button>
+                  <Button variant="ghost" size="sm" onClick={() => void openFile(v.id)}><Download className="h-4 w-4" /></Button>
                 </div>
               ))}
             </div>
