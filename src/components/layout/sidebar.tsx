@@ -36,7 +36,7 @@ export function Sidebar({ className }: SidebarProps) {
 	const router = useRouter()
 	const { logout, user } = useAuthStore()
 	const { hasLeaveApprovalAccess, loading: employeeLoading } = useEmployee()
-	const { isModuleEnabled } = useModules()
+	const { isModuleEnabled, loading: modulesLoading } = useModules()
 	const branding = useBranding()
 	const { t } = useLabels()
 	const userRole = (user?.role || 'employee') as UserRole
@@ -174,7 +174,23 @@ export function Sidebar({ className }: SidebarProps) {
 
 			{/* Navigation */}
 			<nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-				{navRegistry
+				{modulesLoading ? (
+					/* Fresh session with no cached module set yet: render a skeleton for
+					   the whole nav rather than the ungated items alone, so the full menu
+					   appears in one paint instead of the rest popping in a moment later. */
+					Array.from({ length: 9 }).map((_, i) => (
+						<div key={`skeleton-${i}`} className="flex items-center space-x-3 px-3 py-2.5">
+							<div className="h-5 w-5 shrink-0 rounded-md bg-muted animate-pulse" />
+							{!isCollapsed && (
+								<div className="flex-1 min-w-0 space-y-1.5">
+									<div className="h-3 w-24 rounded bg-muted animate-pulse" />
+									<div className="h-2 w-16 rounded bg-muted/60 animate-pulse" />
+								</div>
+							)}
+						</div>
+					))
+				) : (
+					navRegistry
 					.filter(section => isNavSectionVisible(section, filterCtx))
 					.map(section => {
 						const item = section.item
@@ -253,7 +269,8 @@ export function Sidebar({ className }: SidebarProps) {
 								)}
 							</div>
 						)
-					})}
+					})
+				)}
 			</nav>
 
 			{/* Footer with Logout */}
