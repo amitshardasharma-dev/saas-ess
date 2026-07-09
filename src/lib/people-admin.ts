@@ -2,6 +2,8 @@ import { randomBytes } from 'crypto'
 import { supabaseAdmin } from '@/lib/supabase-server'
 import { initOnboarding } from '@/lib/onboarding'
 import { sendInvitationEmail } from '@/lib/email/invitation'
+import { sendPasswordResetEmail } from '@/lib/email/password-reset'
+import { recordAudit } from '@/lib/audit'
 import type { UserRole } from '@/types/roles'
 import type { OnboardingStatus } from '@/lib/onboarding'
 
@@ -206,6 +208,48 @@ export async function createPerson(input: {
     // Only surfaced when WE generated it (so the admin can relay it).
     tempPassword: suppliedPassword === undefined ? password : undefined,
   }
+}
+
+/**
+ * Admin-initiated password reset: sets a fresh temporary password on the
+ * person's auth account, emails it to them (best-effort), and returns it so the
+ * admin can relay it directly. Company-scoped; a foreign-tenant id -> 404.
+ */
+export async function resetPersonPassword(
+  employeeId: string,
+  companyId: string,
+  actorAppUserId: string,
+): Promise<{ ok: true; email: string; name: string; password: string } | Fail> {
+  const { data: employee } = await supabaseAdmin
+    .from('ess_employees')
+    .select('id, app_user_id, email, full_name')
+    .eq('id', employeeId)
+    .eq('company_id', companyId)
+    .maybeSingle()
+  if (!employee) return { ok: false, status: 404, error: 'Person not found' }
+
+  const { data: appUser } = await supabaseAdmin
+    .from('ess_app_users')
+    .select('auth_user_id')
+    .eq('id', employee.app_user_id ?? '')
+    .eq('company_id', companyId)
+    .maybeSingle()
+  if (!appUser?.auth_user_id) return { ok: false, status: 404, error: 'Account not found' }
+
+  const password = genTempPassword()
+  const { error: pwErr } = await supabaseAdmin.auth.admin.updateUserById(appUser.auth_user_id as string, { password })
+  if (pwErr) return { ok: false, status: 500, error: `Failed to reset password: ${pwErr.message}` }
+
+  await recordAudit({
+    companyId,
+    actorId: actorAppUserId,
+    action: 'people.password_reset',
+    target: { type: 'employee', id: employee.id },
+  })
+
+  await sendPasswordResetEmail({ companyId, to: employee.email, name: employee.full_name, tempPassword: password })
+
+  return { ok: true, email: employee.email, name: employee.full_name, password }
 }
 
 export async function updatePerson(

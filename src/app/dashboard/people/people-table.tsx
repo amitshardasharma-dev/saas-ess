@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import toast from 'react-hot-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { roleManageLabel, USER_ROLES } from '@/types/roles';
@@ -53,6 +54,8 @@ export function PeopleTable({
   const [editActive, setEditActive] = useState(true);
   const [busy, setBusy] = useState(false);
   const [rowErr, setRowErr] = useState<string | null>(null);
+  const [resettingId, setResettingId] = useState<string | null>(null);
+  const [resetResult, setResetResult] = useState<{ name: string; email: string; password: string } | null>(null);
 
   const orgUnits = useMemo(() => {
     const set = new Set<string>();
@@ -97,6 +100,25 @@ export function PeopleTable({
       setRowErr(e instanceof Error ? e.message : 'failed to save');
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function resetPassword(p: PersonRow) {
+    if (!window.confirm(`Reset password for ${p.name}? A new password will be set and emailed to them.`)) return;
+    setResettingId(p.id);
+    try {
+      const t = authToken();
+      const res = await fetch(`/api/people/${p.id}/reset-password`, {
+        method: 'POST',
+        headers: { ...(t ? { Authorization: `Bearer ${t}` } : {}) },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      setResetResult({ name: p.name, email: p.email ?? data.email ?? '', password: data.password });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to reset password');
+    } finally {
+      setResettingId(null);
     }
   }
 
@@ -199,7 +221,12 @@ export function PeopleTable({
                           {rowErr ? <span role="alert" className="text-xs text-destructive">{rowErr}</span> : null}
                         </div>
                       ) : (
-                        <Button size="sm" variant="outline" onClick={() => startEdit(p)}>Edit</Button>
+                        <div className="flex items-center gap-2">
+                          <Button size="sm" variant="outline" onClick={() => startEdit(p)}>Edit</Button>
+                          <Button size="sm" variant="ghost" onClick={() => resetPassword(p)} disabled={resettingId === p.id}>
+                            {resettingId === p.id ? 'Resetting…' : 'Reset password'}
+                          </Button>
+                        </div>
                       )}
                     </td>
                   ) : null}
@@ -216,6 +243,32 @@ export function PeopleTable({
           </tbody>
         </table>
       </div>
+
+      {/* New-password modal (bg-white — not bg-background, which is a gradient
+          and renders transparent). */}
+      {resetResult ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setResetResult(null)}>
+          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-base font-semibold text-foreground">Password reset — {resetResult.name}</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              A new password has been set{resetResult.email ? <> and emailed to <strong>{resetResult.email}</strong></> : ''}. Share it securely:
+            </p>
+            <div className="mt-3 flex items-center gap-2 rounded-md border bg-muted/30 p-3">
+              <code className="flex-1 break-all text-sm text-foreground">{resetResult.password}</code>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => { navigator.clipboard?.writeText(resetResult.password).then(() => toast.success('Copied')).catch(() => {}); }}
+              >
+                Copy
+              </Button>
+            </div>
+            <div className="mt-4 flex justify-end">
+              <Button size="sm" onClick={() => setResetResult(null)}>Done</Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
