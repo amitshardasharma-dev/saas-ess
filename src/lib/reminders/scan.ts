@@ -97,6 +97,23 @@ export function shouldTrigger(config: ReminderConfig, days: number): boolean {
 }
 
 /**
+ * The reminder milestone to fire for a cert `days` from expiry — the LATEST
+ * configured checkpoint it has reached (the smallest offset >= days), or null if
+ * it isn't in any reminder window yet.
+ *
+ * This is CATCH-UP matching: unlike an exact-day match, a scan on any day (or
+ * after a skipped cron day, or an on-demand "Run scan now") still fires the right
+ * milestone once. e.g. offsets [90,30,7,0,-7]: a cert 16 days out fires "30" (its
+ * most-recent milestone), 5 days out fires "7", 117 days out fires nothing yet.
+ * Deduped by the returned offset, so each milestone sends exactly once per cert.
+ */
+export function dueOffset(config: ReminderConfig, days: number): number | null {
+  const reached = config.offsets.filter((o) => days <= o)
+  if (reached.length === 0) return null
+  return Math.min(...reached)
+}
+
+/**
  * Run the reminder scan for one company. `today` is injectable for deterministic
  * tests. Returns aggregate counters.
  */
@@ -123,17 +140,28 @@ export async function scanReminders(companyId: string, today: Date = new Date())
     for (const cert of (certs ?? []) as CertRow[]) {
       const days = daysUntil(cert.expiry_date, today)
       if (days === null) continue
-      if (!shouldTrigger(config, days)) continue
 
-      // Dedupe guard: has this (config, cert, offset_sent=days) already been sent?
-      // For overdue re-sends, `days` is distinct per calendar day, so this both
-      // dedupes within a day and lets the next day's run send again.
+      // Catch-up milestone (fires the latest reached checkpoint), then — for certs
+      // past the deepest "after expiry" checkpoint — an overdue re-nag per frequency.
+      const milestone = dueOffset(config, days)
+      if (milestone === null) continue
+      let firedOffset = milestone
+      const overdueOffsets = config.offsets.filter((o) => o < 0)
+      if (days < 0 && overdueOffsets.length > 0 && days < Math.min(...overdueOffsets)) {
+        if (config.frequency === 'daily_overdue') firedOffset = days // once per day
+        else if (config.frequency === 'weekly') firedOffset = Math.floor(days / 7) * 7 // once per 7-day bucket
+        else continue // 'once' — nothing past the last configured checkpoint
+      }
+
+      // Dedupe guard: has this (config, cert, offset_sent=firedOffset) already been
+      // sent? Milestones dedupe once per checkpoint; overdue re-nags dedupe per
+      // day/week bucket so the next period can send again.
       const { data: existing } = await supabaseAdmin
         .from('ess_reminder_sends')
         .select('id')
         .eq('reminder_config_id', config.id)
         .eq('certification_id', cert.id)
-        .eq('offset_sent', days)
+        .eq('offset_sent', firedOffset)
         .limit(1)
       if (existing && existing.length > 0) {
         result.skippedDuplicate += 1
@@ -179,13 +207,13 @@ export async function scanReminders(companyId: string, today: Date = new Date())
         reminder_config_id: config.id,
         certification_id: cert.id,
         employee_id: cert.employee_id,
-        offset_sent: days,
+        offset_sent: firedOffset,
       })
       await recordAudit({
         companyId,
         action: 'reminder.sent',
         target: { type: 'certification', id: cert.id },
-        meta: { offset: days, to: recipientEmail, config: config.id },
+        meta: { offset: firedOffset, days, to: recipientEmail, config: config.id },
       })
       result.remindersSent += 1
 
