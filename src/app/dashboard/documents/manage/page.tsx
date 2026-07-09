@@ -12,7 +12,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { AcknowledgmentTable } from '@/components/documents/acknowledgment-table'
+import { SignatureTable } from '@/components/documents/signature-table'
 import { DocumentEditor } from '@/components/documents/document-editor'
+import { esignService, type SignatureStatusReport } from '@/services/esign-client'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -61,6 +63,13 @@ export default function DocumentManagePage() {
   const [expandedAckId, setExpandedAckId] = useState<string | null>(null)
   const [ackReports, setAckReports] = useState<Record<string, AckReport>>({})
   const [loadingAckId, setLoadingAckId] = useState<string | null>(null)
+
+  // Signature report (signable docs): who signed / hasn't, download, remind.
+  const [expandedSigId, setExpandedSigId] = useState<string | null>(null)
+  const [sigReports, setSigReports] = useState<Record<string, SignatureStatusReport>>({})
+  const [loadingSigId, setLoadingSigId] = useState<string | null>(null)
+  const [remindingId, setRemindingId] = useState<string | null>(null)
+  const [downloadingSigId, setDownloadingSigId] = useState<string | null>(null)
 
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
 
@@ -145,6 +154,51 @@ export default function DocumentManagePage() {
       } finally {
         setLoadingAckId(null)
       }
+    }
+  }
+
+  const loadSigReport = async (docId: string) => {
+    try {
+      setLoadingSigId(docId)
+      const report = await esignService.getSignatureStatus(docId)
+      setSigReports((prev) => ({ ...prev, [docId]: report }))
+    } catch {
+      toast.error('Failed to load signature report')
+      setExpandedSigId(null)
+    } finally {
+      setLoadingSigId(null)
+    }
+  }
+
+  const handleToggleSigReport = async (doc: DocumentWithVersion) => {
+    if (expandedSigId === doc.id) {
+      setExpandedSigId(null)
+      return
+    }
+    setExpandedSigId(doc.id)
+    if (!sigReports[doc.id]) await loadSigReport(doc.id)
+  }
+
+  const handleRemindUnsigned = async (doc: DocumentWithVersion) => {
+    try {
+      setRemindingId(doc.id)
+      const { reminded } = await esignService.remindUnsigned(doc.id)
+      toast.success(reminded > 0 ? `Reminder sent to ${reminded} non-signer${reminded === 1 ? '' : 's'}` : 'Everyone has already signed')
+    } catch {
+      toast.error('Failed to send reminders')
+    } finally {
+      setRemindingId(null)
+    }
+  }
+
+  const handleDownloadSigned = async (signedDocumentId: string) => {
+    try {
+      setDownloadingSigId(signedDocumentId)
+      await esignService.openSignedDocument(signedDocumentId)
+    } catch {
+      toast.error('Could not open the signed copy')
+    } finally {
+      setDownloadingSigId(null)
     }
   }
 
@@ -316,6 +370,16 @@ export default function DocumentManagePage() {
                           )}
                         </Button>
                       ) : null}
+                      {doc.signable ? (
+                        <Button variant="outline" size="sm" onClick={() => handleToggleSigReport(doc)}>
+                          <ShieldCheck className="h-4 w-4" /> Signatures
+                          {expandedSigId === doc.id ? (
+                            <ChevronUp className="h-4 w-4" />
+                          ) : (
+                            <ChevronDown className="h-4 w-4" />
+                          )}
+                        </Button>
+                      ) : null}
                       <Button
                         variant="outline"
                         size="sm"
@@ -341,6 +405,27 @@ export default function DocumentManagePage() {
                           version={ackReports[doc.id].version}
                           acknowledgedCount={ackReports[doc.id].acknowledged_count}
                           total={ackReports[doc.id].total}
+                        />
+                      ) : null}
+                    </div>
+                  ) : null}
+
+                  {/* Signature report */}
+                  {expandedSigId === doc.id ? (
+                    <div className="mt-4 border-t pt-4">
+                      {loadingSigId === doc.id ? (
+                        <div className="flex items-center justify-center py-8">
+                          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                        </div>
+                      ) : sigReports[doc.id] ? (
+                        <SignatureTable
+                          employees={sigReports[doc.id].employees}
+                          signedCount={sigReports[doc.id].signed_count}
+                          total={sigReports[doc.id].total}
+                          onDownload={handleDownloadSigned}
+                          onRemind={async () => { await handleRemindUnsigned(doc); await loadSigReport(doc.id) }}
+                          reminding={remindingId === doc.id}
+                          downloadingId={downloadingSigId}
                         />
                       ) : null}
                     </div>

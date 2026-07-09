@@ -107,6 +107,13 @@ export const esignService = {
     return res.json()
   },
 
+  /** Send an inbox reminder to everyone who hasn't signed. Returns the count. */
+  async remindUnsigned(documentId: string): Promise<{ reminded: number; non_signers: number }> {
+    const res = await fetch(`/api/documents/${documentId}/remind-unsigned`, { method: 'POST', headers: authHeaders() })
+    if (!res.ok) throw new Error('Failed to send reminders')
+    return res.json()
+  },
+
   downloadUrl(signedDocumentId: string): string {
     return `/api/signed-documents/${signedDocumentId}/download`
   },
