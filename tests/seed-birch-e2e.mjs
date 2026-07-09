@@ -192,7 +192,6 @@ async function main() {
   await sb.from('ess_onboarding_steps').delete().eq('company_id', cid) // template + instances
   await sb.from('ess_onboarding_states').delete().eq('company_id', cid)
   await sb.from('ess_onboarding_templates').delete().eq('company_id', cid)
-  await sb.from('ess_cert_types').delete().eq('company_id', cid)
   await sb.from('ess_reminder_configs').delete().eq('company_id', cid)
   await sb.from('ess_message_templates').delete().eq('company_id', cid)
   // Wipe any prior messages (incl. accumulated E2E test sends) + their children.
@@ -209,6 +208,10 @@ async function main() {
   await sb.from('ess_reminder_sends').delete().eq('company_id', cid)
   await sb.from('ess_recertifications').delete().eq('company_id', cid) // cascades recert_history
   await sb.from('ess_certifications').delete().eq('company_id', cid)   // cascades cert messages + history
+  // Cert types MUST be deleted AFTER certifications (which FK-reference them),
+  // else the delete fails silently on the FK and every reseed accumulates a new
+  // duplicate set of cert types (the "35 copies in the dropdown" bug).
+  await sb.from('ess_cert_types').delete().eq('company_id', cid)
   await sb.from('ess_training_item_progress').delete().eq('company_id', cid)
   await sb.from('ess_training_progress').delete().eq('company_id', cid)
   await sb.from('ess_compliance_requirements').delete().eq('company_id', cid)
