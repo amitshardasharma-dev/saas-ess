@@ -324,7 +324,7 @@ export default function QuizPlayer({ quizId, trainingItemId }: QuizPlayerProps) 
           aria-labelledby="confirm-title"
           onClick={() => setConfirmOpen(false)}
         >
-          <Card className="w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+          <Card className="w-full max-w-md bg-white dark:bg-slate-900" onClick={(e) => e.stopPropagation()}>
             <CardHeader>
               <CardTitle id="confirm-title" className="text-base">
                 Submit your quiz?

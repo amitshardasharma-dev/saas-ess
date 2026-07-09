@@ -411,7 +411,7 @@ export default function PendingApprovalsPage() {
 				{/* Approval Dialog */}
 				{showApprovalDialog && selectedApproval && (
 					<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-						<Card className="w-full max-w-md mx-4">
+						<Card className="w-full max-w-md mx-4 bg-white dark:bg-slate-900">
 							<CardHeader>
 								<CardTitle className="flex items-center space-x-2">
 									{approvalAction === 'approve' ? (

@@ -89,7 +89,7 @@ function ActivateDialog({ cycle, onConfirm, onCancel }: ActivateDialogProps) {
 
 	return (
 		<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-			<Card className="w-full max-w-md mx-4">
+			<Card className="w-full max-w-md mx-4 bg-white dark:bg-slate-900">
 				<CardHeader className="pb-3">
 					<CardTitle className="text-base flex items-center gap-2">
 						<Zap className="h-4 w-4 text-amber-500" />

@@ -258,7 +258,7 @@ function MessageViewer({ message, onClose, onReuse }: { message: MessageRow; onC
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Message">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} aria-hidden />
-      <Card className="relative z-10 flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden py-0">
+      <Card className="relative z-10 flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden py-0 bg-white dark:bg-slate-900">
         <div className="flex items-start justify-between gap-3 border-b px-5 py-4">
           <div className="min-w-0">
             <h3 className="truncate text-base font-semibold text-foreground">{message.subject || '(no subject)'}</h3>
