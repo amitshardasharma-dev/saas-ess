@@ -1,4 +1,5 @@
 import { LoginCredentials, LoginResponse, User } from '@/types/auth'
+import { dedupedGet } from '@/lib/api-dedupe'
 
 interface AuthUserResponse {
 	user: User | null
@@ -104,7 +105,7 @@ export class ProxyAuthService {
 			const token = this.getToken()
 			if (!token) return null
 
-			const response = await fetch('/api/auth/user', {
+			const response = await dedupedGet('/api/auth/user', {
 				headers: {
 					Authorization: `Bearer ${token}`,
 				},
@@ -128,7 +129,7 @@ export class ProxyAuthService {
 			const token = this.getToken()
 			if (!token) return false
 
-			const response = await fetch('/api/auth/user', {
+			const response = await dedupedGet('/api/auth/user', {
 				headers: {
 					Authorization: `Bearer ${token}`,
 				},

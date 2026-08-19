@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { ModuleId } from '@/types/roles'
+import { dedupedGet } from '@/lib/api-dedupe'
 
 interface UseModulesReturn {
   modules: ModuleId[]
@@ -60,7 +61,7 @@ export function useModules(): UseModulesReturn {
       const hadCache = readCachedModules() !== null
       try {
         const token = localStorage.getItem('ess_access_token')
-        const response = await fetch('/api/modules', {
+        const response = await dedupedGet('/api/modules', {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         })
 

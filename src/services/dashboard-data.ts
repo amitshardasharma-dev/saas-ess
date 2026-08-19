@@ -10,6 +10,7 @@ import {
 	DashboardTimesheet,
 	PendingAcknowledgment
 } from '@/types/dashboard'
+import { dedupedGet } from '@/lib/api-dedupe'
 
 // Raw API response shapes (snake_case) returned by the internal API routes
 interface RawExpenseClaim {
@@ -74,7 +75,7 @@ const getLeaveTypeColor = (leaveType: string): string => {
 // Function to fetch leave types from Frappe
 const fetchLeaveTypes = async (): Promise<FrappeLeaveTypeData[]> => {
 	try {
-		const response = await fetch('/api/leave-types', {
+		const response = await dedupedGet('/api/leave-types', {
 			headers: authHeaders(),
 		})
 
@@ -114,7 +115,7 @@ const fetchLeaveTypes = async (): Promise<FrappeLeaveTypeData[]> => {
 // Function to fetch leave applications from Frappe
 const fetchLeaveApplications = async (): Promise<{ applications: FrappeLeaveApplicationData[], summary: { [leaveType: string]: number }, pendingCount: number }> => {
 	try {
-		const response = await fetch('/api/leave-applications', {
+		const response = await dedupedGet('/api/leave-applications', {
 			headers: authHeaders(),
 		})
 		
@@ -378,7 +379,7 @@ export const myLeaveApplications: MyLeaveApplication[] = [
 // Fetch expense claims from API
 const fetchExpenseClaims = async (): Promise<MyExpenseClaim[]> => {
 	try {
-		const response = await fetch('/api/expense-claims', {
+		const response = await dedupedGet('/api/expense-claims', {
 			headers: authHeaders(),
 		})
 
@@ -673,7 +674,7 @@ const convertFrappeToMyLeaveApplications = async (): Promise<MyLeaveApplication[
 // Function to fetch employee's recent timesheets for dashboard
 const fetchMyTimesheets = async (): Promise<DashboardTimesheet[]> => {
 	try {
-		const response = await fetch('/api/timesheets', { headers: authHeaders() })
+		const response = await dedupedGet('/api/timesheets', { headers: authHeaders() })
 		if (!response.ok) return []
 		const data = await response.json()
 		return (data.timesheets || []).slice(0, 5).map((ts: RawDashboardTimesheet) => ({
@@ -692,7 +693,7 @@ const fetchMyTimesheets = async (): Promise<DashboardTimesheet[]> => {
 // Function to fetch pending acknowledgments from documents API
 const fetchPendingAcknowledgments = async (): Promise<PendingAcknowledgment[]> => {
 	try {
-		const response = await fetch('/api/documents', { headers: authHeaders() })
+		const response = await dedupedGet('/api/documents', { headers: authHeaders() })
 		if (!response.ok) return []
 		const data = await response.json()
 		const documents = Array.isArray(data.documents) ? data.documents : []
