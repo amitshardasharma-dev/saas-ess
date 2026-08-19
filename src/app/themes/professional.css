@@ -248,6 +248,110 @@ html[data-ui='pro'] ::-webkit-scrollbar-thumb {
   border-radius: var(--radius-full, 999px);
 }
 
+/* ---------------------------------------------------------------------------
+   The frame: an inverted L. A fixed 220px rail sits on the page surface, and the
+   work panel is inset 8px from the top, right and bottom with a 12px radius and
+   --shadow-panel. Scrolling happens inside the panel, not on the page.
+
+   Applied from `lg` up only — below that the rail is already an overlay drawer,
+   which is what the kit specifies for small screens.
+--------------------------------------------------------------------------- */
+@media (min-width: 1024px) {
+  html[data-ui='pro'] [data-shell='rail'] {
+    width: var(--rail-width);
+    background: var(--color-rail);
+    backdrop-filter: none;
+    border-right: 0;
+  }
+
+  html[data-ui='pro'] [data-shell='panel'] {
+    margin: var(--workspace-inset) var(--workspace-inset) var(--workspace-inset) 0;
+    background: var(--color-canvas);
+    border-radius: var(--panel-radius);
+    box-shadow: var(--shadow-panel);
+    overflow: hidden; /* the panel clips; its <main> scrolls */
+  }
+}
+
+/* On mobile the drawer is opaque rail, no blur (the kit uses a 30% ink scrim). */
+html[data-ui='pro'] [data-shell='rail'] {
+  background: var(--color-rail);
+  backdrop-filter: none;
+}
+
+/* Rail items: single-line 36px targets with a 17px glyph. The kit's rail carries
+   the label only — subtitles are dropped so nothing truncates at 220px. */
+html[data-ui='pro'] [data-shell='rail'] [data-nav='desc'] {
+  display: none;
+}
+
+html[data-ui='pro'] [data-shell='rail'] nav {
+  padding: var(--space-4, 8px);
+  gap: var(--space-1, 2px);
+}
+
+html[data-ui='pro'] [data-shell='rail'] nav a > div,
+html[data-ui='pro'] [data-shell='rail'] nav > div > div:first-child {
+  min-height: 36px;
+  padding-top: var(--space-2, 4px);
+  padding-bottom: var(--space-2, 4px);
+  border-radius: var(--radius-lg);
+  font-size: var(--text-caption);
+}
+
+html[data-ui='pro'] [data-shell='rail'] nav svg {
+  width: 17px;
+  height: 17px;
+}
+
+/* Selected rail item: a quiet tonal fill, not a saturated accent bar. */
+html[data-ui='pro'] [data-shell='rail'] .bg-primary {
+  background: var(--color-rail-active);
+  color: var(--color-ink);
+  box-shadow: none;
+}
+
+html[data-ui='pro'] [data-shell='rail'] .bg-primary .text-primary-foreground,
+html[data-ui='pro'] [data-shell='rail'] .bg-primary svg {
+  color: var(--color-ink);
+}
+
+/* Density: the kit's control and text sizes. Density is the point — these are
+   deliberately tighter than the Classic design. */
+html[data-ui='pro'] main {
+  font-size: var(--text-caption);
+}
+
+html[data-ui='pro'] h1 {
+  font-size: var(--text-page);
+  letter-spacing: var(--tracking-page);
+  font-weight: var(--weight-semibold);
+}
+
+html[data-ui='pro'] h2 {
+  font-size: var(--text-section);
+  letter-spacing: var(--tracking-section);
+  font-weight: var(--weight-semibold);
+}
+
+html[data-ui='pro'] h3 {
+  font-size: var(--text-title);
+  font-weight: var(--weight-semibold);
+}
+
+/* Tables read as data rows, not cards. */
+html[data-ui='pro'] table {
+  font-size: var(--text-caption);
+}
+
+html[data-ui='pro'] thead th {
+  font-size: var(--text-label);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  color: var(--color-muted);
+  font-weight: var(--weight-medium);
+}
+
 /* Motion collapses for users who ask for it (kit rule). */
 @media (prefers-reduced-motion: reduce) {
   html[data-ui='pro'] *,

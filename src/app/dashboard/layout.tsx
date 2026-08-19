@@ -22,7 +22,9 @@ export default function DashboardRouteLayout({ children }: { children: ReactNode
 
       <Sidebar mobileOpen={drawerOpen} onNavigate={() => setDrawerOpen(false)} />
 
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+      {/* data-shell hooks let the Professional theme restyle this frame (220px
+          rail + inset work panel) without duplicating the shell component. */}
+      <div data-shell="panel" className="flex min-w-0 flex-1 flex-col overflow-hidden">
         {/* Mobile top bar with the menu button */}
         <div className="flex items-center gap-3 border-b border-border bg-background/80 px-3 py-2 backdrop-blur lg:hidden">
           <button

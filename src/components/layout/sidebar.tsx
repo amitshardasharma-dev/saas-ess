@@ -120,7 +120,7 @@ export function Sidebar({ className, mobileOpen = false, onNavigate }: SidebarPr
 					)}>
 						{titleFor(item)}
 					</div>
-					<div className={cn(
+					<div data-nav="desc" className={cn(
 						"text-xs truncate opacity-75",
 						pathname === item.href ? "text-primary/70" : "text-muted-foreground"
 					)}>
@@ -137,7 +137,7 @@ export function Sidebar({ className, mobileOpen = false, onNavigate }: SidebarPr
 	)
 
 	return (
-		<div className={cn(
+		<div data-shell="rail" className={cn(
 			// Off-canvas drawer on mobile (slides in over the content); static column on desktop.
 			"fixed inset-y-0 left-0 z-50 flex flex-col h-screen bg-background/95 backdrop-blur-xl border-r border-border transition-transform duration-300",
 			"lg:static lg:z-auto lg:translate-x-0 lg:bg-background/50",
@@ -243,7 +243,9 @@ export function Sidebar({ className, mobileOpen = false, onNavigate }: SidebarPr
 											)}>
 												{titleFor(item)}
 											</div>
-											<div className={cn(
+											{/* data-nav lets the Professional theme hide these subtitles:
+											    its 220px rail uses single-line 36px items. */}
+											<div data-nav="desc" className={cn(
 												"text-xs truncate",
 												shouldHighlight ? "text-primary-foreground/80" : "text-muted-foreground"
 											)}>
