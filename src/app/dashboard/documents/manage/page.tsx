@@ -11,10 +11,9 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { AcknowledgmentTable } from '@/components/documents/acknowledgment-table'
-import { SignatureTable } from '@/components/documents/signature-table'
+import { DocumentStatusReport, type ReportMode, type StatusEmployee } from '@/components/documents/document-status-report'
 import { DocumentEditor } from '@/components/documents/document-editor'
-import { esignService, type SignatureStatusReport } from '@/services/esign-client'
+import { esignService } from '@/services/esign-client'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -27,18 +26,11 @@ import {
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-interface AckReport {
-  version: number
+interface DocReport {
+  mode: ReportMode
+  employees: StatusEmployee[]
+  doneCount: number
   total: number
-  acknowledged_count: number
-  employees: Array<{
-    id: string
-    name: string
-    employee_no: string
-    department: string
-    acknowledged: boolean
-    acknowledged_at: string | null
-  }>
 }
 
 type EditorState = { mode: 'closed' } | { mode: 'new' } | { mode: 'edit'; document: DocumentWithVersion }
@@ -60,16 +52,12 @@ export default function DocumentManagePage() {
   const [publishingId, setPublishingId] = useState<string | null>(null)
   const [uploadingId, setUploadingId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
-  const [expandedAckId, setExpandedAckId] = useState<string | null>(null)
-  const [ackReports, setAckReports] = useState<Record<string, AckReport>>({})
-  const [loadingAckId, setLoadingAckId] = useState<string | null>(null)
-
-  // Signature report (signable docs): who signed / hasn't, download, remind.
-  const [expandedSigId, setExpandedSigId] = useState<string | null>(null)
-  const [sigReports, setSigReports] = useState<Record<string, SignatureStatusReport>>({})
-  const [loadingSigId, setLoadingSigId] = useState<string | null>(null)
+  // One unified per-document status report (signature or acknowledgment).
+  const [expandedReportId, setExpandedReportId] = useState<string | null>(null)
+  const [reports, setReports] = useState<Record<string, DocReport>>({})
+  const [loadingReportId, setLoadingReportId] = useState<string | null>(null)
   const [remindingId, setRemindingId] = useState<string | null>(null)
-  const [downloadingSigId, setDownloadingSigId] = useState<string | null>(null)
+  const [downloadingId, setDownloadingId] = useState<string | null>(null)
 
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
 
@@ -137,53 +125,49 @@ export default function DocumentManagePage() {
     }
   }
 
-  const handleToggleAckReport = async (doc: DocumentWithVersion) => {
-    if (expandedAckId === doc.id) {
-      setExpandedAckId(null)
-      return
-    }
-    setExpandedAckId(doc.id)
-    if (!ackReports[doc.id]) {
-      try {
-        setLoadingAckId(doc.id)
-        const report = await documentService.getAcknowledgmentReport(doc.id)
-        setAckReports((prev) => ({ ...prev, [doc.id]: report }))
-      } catch {
-        toast.error('Failed to load acknowledgment report')
-        setExpandedAckId(null)
-      } finally {
-        setLoadingAckId(null)
-      }
-    }
-  }
-
-  const loadSigReport = async (docId: string) => {
+  // Load the unified report: signature status for signable docs, else acknowledgments.
+  const loadReport = async (doc: DocumentWithVersion) => {
+    setLoadingReportId(doc.id)
     try {
-      setLoadingSigId(docId)
-      const report = await esignService.getSignatureStatus(docId)
-      setSigReports((prev) => ({ ...prev, [docId]: report }))
+      if (doc.signable) {
+        const r = await esignService.getSignatureStatus(doc.id)
+        setReports((prev) => ({
+          ...prev,
+          [doc.id]: {
+            mode: 'signature', total: r.total, doneCount: r.signed_count,
+            employees: r.employees.map((e) => ({ id: e.id, name: e.name, employee_no: e.employee_no, department: e.department, done: e.signed, doneAt: e.signed_at, signedDocumentId: e.signed_document_id })),
+          },
+        }))
+      } else {
+        const r = await documentService.getAcknowledgmentReport(doc.id)
+        setReports((prev) => ({
+          ...prev,
+          [doc.id]: {
+            mode: 'acknowledgment', total: r.total, doneCount: r.acknowledged_count,
+            employees: r.employees.map((e) => ({ id: e.id, name: e.name, employee_no: e.employee_no, department: e.department, done: e.acknowledged, doneAt: e.acknowledged_at })),
+          },
+        }))
+      }
     } catch {
-      toast.error('Failed to load signature report')
-      setExpandedSigId(null)
+      toast.error('Failed to load the report')
+      setExpandedReportId(null)
     } finally {
-      setLoadingSigId(null)
+      setLoadingReportId(null)
     }
   }
 
-  const handleToggleSigReport = async (doc: DocumentWithVersion) => {
-    if (expandedSigId === doc.id) {
-      setExpandedSigId(null)
-      return
-    }
-    setExpandedSigId(doc.id)
-    if (!sigReports[doc.id]) await loadSigReport(doc.id)
+  const handleToggleReport = async (doc: DocumentWithVersion) => {
+    if (expandedReportId === doc.id) { setExpandedReportId(null); return }
+    setExpandedReportId(doc.id)
+    if (!reports[doc.id]) await loadReport(doc)
   }
 
-  const handleRemindUnsigned = async (doc: DocumentWithVersion) => {
+  const handleRemind = async (doc: DocumentWithVersion) => {
     try {
       setRemindingId(doc.id)
-      const { reminded } = await esignService.remindUnsigned(doc.id)
-      toast.success(reminded > 0 ? `Reminder sent to ${reminded} non-signer${reminded === 1 ? '' : 's'}` : 'Everyone has already signed')
+      const { reminded } = await esignService.remindPending(doc.id)
+      toast.success(reminded > 0 ? `Reminder sent to ${reminded} pending` : 'Everyone has completed this')
+      await loadReport(doc)
     } catch {
       toast.error('Failed to send reminders')
     } finally {
@@ -191,14 +175,14 @@ export default function DocumentManagePage() {
     }
   }
 
-  const handleDownloadSigned = async (signedDocumentId: string) => {
+  const handleDownload = async (signedDocumentId: string) => {
     try {
-      setDownloadingSigId(signedDocumentId)
+      setDownloadingId(signedDocumentId)
       await esignService.openSignedDocument(signedDocumentId)
     } catch {
       toast.error('Could not open the signed copy')
     } finally {
-      setDownloadingSigId(null)
+      setDownloadingId(null)
     }
   }
 
@@ -365,24 +349,10 @@ export default function DocumentManagePage() {
                           <SquarePen className="h-4 w-4" /> Prepare fields
                         </Button>
                       ) : null}
-                      {doc.requires_acknowledgment && !doc.signable ? (
-                        <Button variant="outline" size="sm" onClick={() => handleToggleAckReport(doc)}>
+                      {doc.requires_acknowledgment || doc.signable ? (
+                        <Button variant="outline" size="sm" onClick={() => handleToggleReport(doc)}>
                           <ClipboardList className="h-4 w-4" /> Report
-                          {expandedAckId === doc.id ? (
-                            <ChevronUp className="h-4 w-4" />
-                          ) : (
-                            <ChevronDown className="h-4 w-4" />
-                          )}
-                        </Button>
-                      ) : null}
-                      {doc.signable ? (
-                        <Button variant="outline" size="sm" onClick={() => handleToggleSigReport(doc)}>
-                          <ShieldCheck className="h-4 w-4" /> Signatures
-                          {expandedSigId === doc.id ? (
-                            <ChevronUp className="h-4 w-4" />
-                          ) : (
-                            <ChevronDown className="h-4 w-4" />
-                          )}
+                          {expandedReportId === doc.id ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                         </Button>
                       ) : null}
                       <Button
@@ -397,40 +367,23 @@ export default function DocumentManagePage() {
                     </div>
                   </div>
 
-                  {/* Acknowledgment report */}
-                  {expandedAckId === doc.id ? (
+                  {/* Unified status report */}
+                  {expandedReportId === doc.id ? (
                     <div className="mt-4 border-t pt-4">
-                      {loadingAckId === doc.id ? (
+                      {loadingReportId === doc.id ? (
                         <div className="flex items-center justify-center py-8">
                           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                         </div>
-                      ) : ackReports[doc.id] ? (
-                        <AcknowledgmentTable
-                          employees={ackReports[doc.id].employees}
-                          version={ackReports[doc.id].version}
-                          acknowledgedCount={ackReports[doc.id].acknowledged_count}
-                          total={ackReports[doc.id].total}
-                        />
-                      ) : null}
-                    </div>
-                  ) : null}
-
-                  {/* Signature report */}
-                  {expandedSigId === doc.id ? (
-                    <div className="mt-4 border-t pt-4">
-                      {loadingSigId === doc.id ? (
-                        <div className="flex items-center justify-center py-8">
-                          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                        </div>
-                      ) : sigReports[doc.id] ? (
-                        <SignatureTable
-                          employees={sigReports[doc.id].employees}
-                          signedCount={sigReports[doc.id].signed_count}
-                          total={sigReports[doc.id].total}
-                          onDownload={handleDownloadSigned}
-                          onRemind={async () => { await handleRemindUnsigned(doc); await loadSigReport(doc.id) }}
+                      ) : reports[doc.id] ? (
+                        <DocumentStatusReport
+                          mode={reports[doc.id].mode}
+                          employees={reports[doc.id].employees}
+                          doneCount={reports[doc.id].doneCount}
+                          total={reports[doc.id].total}
+                          onDownload={handleDownload}
+                          onRemind={() => handleRemind(doc)}
                           reminding={remindingId === doc.id}
-                          downloadingId={downloadingSigId}
+                          downloadingId={downloadingId}
                         />
                       ) : null}
                     </div>

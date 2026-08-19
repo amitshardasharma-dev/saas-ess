@@ -114,6 +114,13 @@ export const esignService = {
     return res.json()
   },
 
+  /** Remind everyone who hasn't completed the doc (sign or acknowledge). */
+  async remindPending(documentId: string): Promise<{ reminded: number; pending: number; mode: string }> {
+    const res = await fetch(`/api/documents/${documentId}/remind`, { method: 'POST', headers: authHeaders() })
+    if (!res.ok) throw new Error('Failed to send reminders')
+    return res.json()
+  },
+
   downloadUrl(signedDocumentId: string): string {
     return `/api/signed-documents/${signedDocumentId}/download`
   },
