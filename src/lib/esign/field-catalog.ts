@@ -29,15 +29,20 @@ export const FIELD_CATALOG: Record<FieldKind, FieldCatalogEntry> = {
   first_name: { kind: 'first_name', type: 'text', label: 'First name', palette: 'First name', size: { w: 0.22, h: 0.035 }, prefill: (p) => firstWord(p.fullName) || null },
   last_name: { kind: 'last_name', type: 'text', label: 'Last name', palette: 'Last name', size: { w: 0.22, h: 0.035 }, prefill: (p) => restWords(p.fullName) || null },
   email: { kind: 'email', type: 'text', label: 'Email', palette: 'Email', size: { w: 0.3, h: 0.035 }, prefill: (p) => p.email },
+  phone: { kind: 'phone', type: 'text', label: 'Phone', palette: 'Phone', size: { w: 0.24, h: 0.035 }, prefill: () => null },
+  address: { kind: 'address', type: 'text', label: 'Address', palette: 'Address', size: { w: 0.42, h: 0.035 }, prefill: () => null },
   employee_no: { kind: 'employee_no', type: 'text', label: 'Member / staff no.', palette: 'Member no.', size: { w: 0.22, h: 0.035 }, prefill: (p) => p.employeeNo },
   dob: { kind: 'dob', type: 'date', label: 'Date of birth', palette: 'Date of birth', size: { w: 0.2, h: 0.035 }, prefill: () => null },
+  date: { kind: 'date', type: 'date', label: 'Date', palette: 'Date', size: { w: 0.2, h: 0.035 }, prefill: () => null },
+  number: { kind: 'number', type: 'text', label: 'Number', palette: 'Number', size: { w: 0.18, h: 0.035 }, prefill: () => null },
   id_number: { kind: 'id_number', type: 'text', label: 'Document / ID number', palette: 'ID number', size: { w: 0.28, h: 0.035 }, prefill: () => null },
-  custom: { kind: 'custom', type: 'text', label: 'Text', palette: 'Text', size: { w: 0.28, h: 0.035 }, prefill: () => null },
+  custom: { kind: 'custom', type: 'text', label: 'Text', palette: 'Custom text', size: { w: 0.28, h: 0.035 }, prefill: () => null },
 }
 
 /** The palette the designer shows, in order. Signature first, then smart fields, then generic. */
 export const PALETTE_KINDS: FieldKind[] = [
-  'full_name', 'first_name', 'last_name', 'email', 'employee_no', 'dob', 'id_number', 'custom',
+  'full_name', 'first_name', 'last_name', 'email', 'phone', 'address',
+  'employee_no', 'id_number', 'dob', 'date', 'number', 'custom',
 ]
 
 /** Auto-fill value for a placed field from the signer's profile, or null. */

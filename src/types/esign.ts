@@ -16,8 +16,12 @@ export const FIELD_KINDS = [
   'first_name',
   'last_name',
   'email',
+  'phone',
+  'address',
   'employee_no',
   'dob',
+  'date',
+  'number',
   'id_number',
 ] as const
 export type FieldKind = (typeof FIELD_KINDS)[number]

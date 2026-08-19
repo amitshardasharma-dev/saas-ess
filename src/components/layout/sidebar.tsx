@@ -27,9 +27,13 @@ import {
 
 interface SidebarProps {
 	className?: string
+	/** Open state of the mobile off-canvas drawer (ignored on desktop). */
+	mobileOpen?: boolean
+	/** Called when a nav item is chosen — used to close the mobile drawer. */
+	onNavigate?: () => void
 }
 
-export function Sidebar({ className }: SidebarProps) {
+export function Sidebar({ className, mobileOpen = false, onNavigate }: SidebarProps) {
 	const [isCollapsed, setIsCollapsed] = useState(false)
 	const [expandedMenus, setExpandedMenus] = useState<string[]>(['leave', 'timesheets']) // Default expand Leave & Timesheets
 	const pathname = usePathname()
@@ -134,7 +138,10 @@ export function Sidebar({ className }: SidebarProps) {
 
 	return (
 		<div className={cn(
-			"relative flex flex-col h-screen bg-background/50 backdrop-blur-xl border-r border-border transition-all duration-300",
+			// Off-canvas drawer on mobile (slides in over the content); static column on desktop.
+			"fixed inset-y-0 left-0 z-50 flex flex-col h-screen bg-background/95 backdrop-blur-xl border-r border-border transition-transform duration-300",
+			"lg:static lg:z-auto lg:translate-x-0 lg:bg-background/50",
+			mobileOpen ? "translate-x-0" : "-translate-x-full",
 			isCollapsed ? "w-16" : "w-64",
 			className
 		)}>
@@ -219,6 +226,7 @@ export function Sidebar({ className }: SidebarProps) {
 									}
 									if (item.href) {
 										router.push(item.href)
+										onNavigate?.()
 									}
 								}}
 								>

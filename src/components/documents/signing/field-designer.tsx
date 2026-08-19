@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import toast from 'react-hot-toast'
-import { PenLine, Type, Calendar, Hash, Mail, User, Trash2, Save, Loader2, MousePointer2 } from 'lucide-react'
+import { PenLine, Type, Calendar, Hash, Mail, User, Trash2, Save, Loader2, MousePointer2, Phone, MapPin } from 'lucide-react'
 import type { DocumentField, FieldDefinitionInput, FieldKind } from '@/types/esign'
 import { FIELD_CATALOG, PALETTE_KINDS } from '@/lib/esign/field-catalog'
 import { esignService } from '@/services/esign-client'
@@ -43,7 +43,8 @@ const SIGNATURE_SIZE = { w: 0.26, h: 0.07 }
 
 const KIND_ICON: Record<string, typeof Type> = {
   signature: PenLine, full_name: User, first_name: User, last_name: User,
-  email: Mail, employee_no: Hash, dob: Calendar, id_number: Hash, custom: Type,
+  email: Mail, phone: Phone, address: MapPin, employee_no: Hash, dob: Calendar,
+  date: Calendar, number: Hash, id_number: Hash, custom: Type,
 }
 
 let seq = 0
@@ -171,19 +172,19 @@ export function FieldDesigner({
 
   return (
     <div className="flex flex-col gap-4 lg:flex-row">
-      {/* Palette */}
+      {/* Palette — a wrapping toolbar on mobile, a sidebar on desktop */}
       <aside className="lg:w-52 lg:shrink-0">
-        <div className="sticky top-4 space-y-3 rounded-xl border bg-white p-3">
+        <div className="space-y-2 rounded-xl border bg-white p-3 lg:sticky lg:top-4">
           <p className="px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Add a field</p>
-          <ToolButton active={tool === 'signature'} icon={PenLine} label="Signature" onClick={() => setTool((t) => (t === 'signature' ? null : 'signature'))} accent />
-          <div className="border-t pt-2">
+          <div className="flex flex-wrap gap-1.5 lg:flex-col lg:gap-1">
+            <ToolButton active={tool === 'signature'} icon={PenLine} label="Signature" onClick={() => setTool((t) => (t === 'signature' ? null : 'signature'))} accent />
             {PALETTE_KINDS.map((k) => (
               <ToolButton key={k} active={tool === k} icon={KIND_ICON[k]} label={FIELD_CATALOG[k].palette} onClick={() => setTool((t) => (t === k ? null : k))} />
             ))}
           </div>
           <p className="flex items-start gap-1.5 px-1 pt-1 text-[11px] leading-snug text-muted-foreground">
             <MousePointer2 className="mt-0.5 h-3 w-3 shrink-0" />
-            {tool ? 'Click on the document to place it. Drag to move, corner to resize.' : 'Pick a field, then click the document to place it.'}
+            {tool ? 'Tap the document to place it. Drag to move, corner to resize.' : 'Pick a field, then tap the document to place it.'}
           </p>
         </div>
       </aside>
@@ -208,7 +209,7 @@ export function FieldDesigner({
 
       {/* Properties */}
       <aside className="lg:w-60 lg:shrink-0">
-        <div className="sticky top-4 rounded-xl border bg-white p-4">
+        <div className="rounded-xl border bg-white p-4 lg:sticky lg:top-4">
           {sel ? (
             <div className="space-y-4">
               <p className="text-sm font-semibold">Field properties</p>
@@ -254,8 +255,8 @@ function ToolButton({ active, icon: Icon, label, onClick, accent }: { active: bo
     <button
       type="button"
       onClick={onClick}
-      className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-sm transition ${
-        active ? 'bg-primary text-primary-foreground' : accent ? 'bg-teal-50 text-teal-800 hover:bg-teal-100' : 'hover:bg-muted'
+      className={`flex w-auto items-center gap-2 rounded-lg border px-2.5 py-2 text-sm transition lg:w-full lg:border-0 ${
+        active ? 'border-primary bg-primary text-primary-foreground' : accent ? 'border-teal-200 bg-teal-50 text-teal-800 hover:bg-teal-100' : 'border-input hover:bg-muted'
       }`}
     >
       <Icon className="h-4 w-4 shrink-0" /> {label}

@@ -22,8 +22,13 @@ export const SignaturePad = forwardRef<SignaturePadHandle, { width?: number; hei
     const dirty = useRef(false)
 
     function pos(e: React.PointerEvent<HTMLCanvasElement>) {
-      const rect = canvasRef.current!.getBoundingClientRect()
-      return { x: e.clientX - rect.left, y: e.clientY - rect.top }
+      // Map CSS/display coordinates back to the fixed bitmap resolution so drawing
+      // stays accurate when the canvas is scaled down to fit a small screen.
+      const c = canvasRef.current!
+      const rect = c.getBoundingClientRect()
+      const sx = rect.width ? c.width / rect.width : 1
+      const sy = rect.height ? c.height / rect.height : 1
+      return { x: (e.clientX - rect.left) * sx, y: (e.clientY - rect.top) * sy }
     }
 
     function start(e: React.PointerEvent<HTMLCanvasElement>) {
@@ -73,7 +78,7 @@ export const SignaturePad = forwardRef<SignaturePadHandle, { width?: number; hei
           onPointerUp={end}
           onPointerLeave={end}
           style={{ touchAction: 'none' }}
-          className="rounded-md border border-input bg-white"
+          className="h-auto max-w-full rounded-md border border-input bg-white"
         />
         <div className="mt-2">
           <Button

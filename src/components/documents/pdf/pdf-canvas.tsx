@@ -6,7 +6,7 @@
 // next/dynamic({ ssr: false }).
 'use client'
 
-import { useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Document, Page, pdfjs } from 'react-pdf'
 import { Loader2, AlertTriangle } from 'lucide-react'
 
@@ -23,7 +23,7 @@ export interface PdfPageDims {
 interface PdfCanvasProps {
   /** Raw PDF bytes. */
   data: Uint8Array | ArrayBuffer
-  /** Render width in px (page height follows the page aspect ratio). */
+  /** Max render width in px; the actual width shrinks to fit the container (mobile). */
   pageWidth?: number
   className?: string
   onLoad?: (numPages: number) => void
@@ -36,6 +36,19 @@ interface PdfCanvasProps {
 export function PdfCanvas({ data, pageWidth = 820, className, onLoad, renderOverlay, onPageClick }: PdfCanvasProps) {
   const [numPages, setNumPages] = useState(0)
   const [error, setError] = useState<string | null>(null)
+  // Fit the page to the available width so it never overflows on small screens.
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [containerWidth, setContainerWidth] = useState(0)
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const measure = () => setContainerWidth(el.clientWidth)
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+  const effectiveWidth = containerWidth > 0 ? Math.min(pageWidth, containerWidth) : pageWidth
   // Original page point-sizes, captured on load, to compute the rendered height.
   const [aspects, setAspects] = useState<Record<number, number>>({}) // pageNumber -> height/width
 
@@ -60,7 +73,7 @@ export function PdfCanvas({ data, pageWidth = 820, className, onLoad, renderOver
   }
 
   return (
-    <div className={className}>
+    <div className={className} ref={containerRef}>
       <Document
         file={file}
         loading={<div className="flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Loading document…</div>}
@@ -71,13 +84,13 @@ export function PdfCanvas({ data, pageWidth = 820, className, onLoad, renderOver
       >
         {Array.from({ length: numPages }, (_, i) => i + 1).map((pageNumber) => {
           const aspect = aspects[pageNumber]
-          const renderedHeight = aspect ? pageWidth * aspect : undefined
-          const dims: PdfPageDims = { pageNumber, width: pageWidth, height: renderedHeight ?? 0 }
+          const renderedHeight = aspect ? effectiveWidth * aspect : undefined
+          const dims: PdfPageDims = { pageNumber, width: effectiveWidth, height: renderedHeight ?? 0 }
           return (
             <PageWrapper
               key={pageNumber}
               pageNumber={pageNumber}
-              pageWidth={pageWidth}
+              pageWidth={effectiveWidth}
               renderedHeight={renderedHeight}
               onAspect={(a) => setAspects((prev) => (prev[pageNumber] === a ? prev : { ...prev, [pageNumber]: a }))}
               overlay={renderedHeight ? renderOverlay?.(dims) : null}
