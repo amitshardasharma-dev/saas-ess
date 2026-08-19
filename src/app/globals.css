@@ -1,5 +1,8 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+/* Opt-in secondary design. Scoped to html[data-ui='pro'], so it is inert until
+   a user switches to it in their profile. */
+@import "./themes/professional.css";
 
 @custom-variant dark (&:is(.dark *));
 

@@ -1,0 +1,259 @@
+/* ---------------------------------------------------------------------------
+   "Professional" theme — the opt-in secondary design.
+   Source: the Northbridge Care Compliance design system (Mosping Professional
+   Design). Token values are copied verbatim from that kit.
+
+   Design intent (from the kit): a *quiet operational workbench* — dense,
+   keyboard-friendly, built on a perceptually even LCH neutral ladder at hue 282
+   with one lavender action accent and four data tones. Flat tonal surfaces:
+   no gradients, no glassmorphism, no glow, no blur.
+
+   HOW THIS CONVERTS THE WHOLE APP
+   The second block below re-maps the app's existing shadcn semantic variables
+   (--background, --card, --primary, --border, …) onto these tokens. Every screen
+   that styles itself with those tokens therefore adopts this design with no
+   per-page work, and stays single-source for future features.
+
+   LIGHT ONLY, ON PURPOSE. The kit ships no dark ramp and its authors declined to
+   invent one ("inventing a dark ramp here would be guesswork"), so the selector
+   is `html[data-ui='pro']` — higher specificity than `.dark`, which keeps this
+   theme light even when dark mode is toggled.
+--------------------------------------------------------------------------- */
+
+html[data-ui='pro'] {
+  /* ---- Tonal surface ladder (lightest to darkest) ---- */
+  --color-paper: lch(100% 0 282);
+  --color-canvas: lch(97.94% 0.5 282);
+  --color-rail: lch(94.44% 0.5 282);
+  --color-rail-active: lch(89.54% 0.5 282);
+  --color-sunken: lch(92.44% 0.5 282);
+  --color-quiet: lch(93.483% 0.5 282);
+  --color-avatar: lch(86.8% 2.5 282);
+
+  /* ---- Borders ---- */
+  --color-line: lch(90.55% 0.5 282);
+  --color-line-soft: lch(95.24% 0.5 282);
+  --color-field: lch(88.49% 0.5 282);
+  --color-hairline: lch(78% 0.8 282);
+
+  /* ---- Text ladder ---- */
+  --color-ink: lch(9.794% 0 282);
+  --color-copy: lch(19.588% 0 282);
+  --color-muted: lch(39.176% 0 282);
+  --color-faded: lch(39.176% 0 282);
+  --color-nav: lch(27% 0 282);
+  --color-disabled: lch(64.64% 0 282);
+
+  /* ---- Action accent + focus ---- */
+  --color-accent-brand: #5e6ad2;
+  --color-accent-hover: #4f5bc4;
+  --color-accent-soft: lch(94.5% 11 287);
+  --color-accent-tint: lch(97.2% 5 287);
+  --color-accent-line: lch(86% 18 287);
+  --color-focus: #6d78d5;
+
+  /* ---- Semantic state tones ---- */
+  --color-ok: #287a55;
+  --color-ok-dot: #4cb782;
+  --color-ok-soft: lch(94.5% 15 151);
+  --color-warn: lch(38% 42 85);
+  --color-warn-dot: lch(72% 78 85);
+  --color-warn-soft: lch(94.5% 22 85);
+  --color-warn-tint: lch(98% 8 85);
+  --color-warn-line: lch(87% 28 85);
+  --color-bad: #c51d32;
+  --color-bad-dot: #e1243a;
+  --color-bad-soft: lch(94.5% 17 27);
+  --color-bad-tint: lch(98% 7 27);
+  --color-bad-line: lch(88% 22 27);
+  --color-bad-edge: lch(81% 34 27);
+  --color-waive: #6e56cf;
+  --color-waive-soft: lch(94% 14 300);
+  --color-neutral-soft: lch(92.44% 0.5 282);
+
+  /* ---- Dashboard metric tiles (the kit's only sanctioned gradients) ---- */
+  --metric-ok-line: #d7eee3;
+  --metric-ok-fill: linear-gradient(135deg, #effaf4 0%, #fbfefd 100%);
+  --metric-ok-ink: #20a66b;
+  --metric-neutral-line: #e3e6ef;
+  --metric-neutral-fill: linear-gradient(135deg, #f5f6fa 0%, #fcfcfe 100%);
+  --metric-neutral-ink: #68738d;
+  --metric-warn-line: #f3e4ca;
+  --metric-warn-fill: linear-gradient(135deg, #fff7ea 0%, #fffdfa 100%);
+  --metric-warn-ink: #ec8b1c;
+  --metric-bad-line: #f2d9df;
+  --metric-bad-fill: linear-gradient(135deg, #fff0f3 0%, #fffafb 100%);
+  --metric-bad-ink: #e9384f;
+  --metric-accent-line: #e3e1f7;
+  --metric-accent-fill: linear-gradient(135deg, #f4f2ff 0%, #fbfaff 100%);
+  --metric-accent-ink: #635bdf;
+  --metric-info-line: #d9e7f5;
+  --metric-info-fill: linear-gradient(135deg, #edf6ff 0%, #fbfdff 100%);
+  --metric-info-ink: #2684e6;
+
+  /* ---- Identity / avatars ---- */
+  --avatar-1-bg: #eeeaff; --avatar-1-ink: #6256b4;
+  --avatar-2-bg: #e7f5ee; --avatar-2-ink: #26734f;
+  --avatar-3-bg: #fff0e3; --avatar-3-ink: #a65d24;
+  --avatar-4-bg: #e7f1fb; --avatar-4-ink: #376f9d;
+  --avatar-5-bg: #f7e8ef; --avatar-5-ink: #985170;
+  --avatar-large-fill: linear-gradient(to bottom right, #dfe5ff, #b9c5f2);
+  --avatar-large-ink: #33416f;
+
+  /* ---- Type scale (11–26px; weight carries hierarchy before colour) ---- */
+  --text-label: 11px;
+  --text-micro: 12px;
+  --text-caption: 13px;
+  --text-title: 15px;
+  --text-head: 17px;
+  --text-section: 20px;
+  --text-page: 24px;
+  --text-page-wide: 26px;
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --tracking-page: -0.035em;
+  --tracking-section: -0.015em;
+  --tracking-caps: 0.02em;
+
+  /* ---- Frame + density (4px unit; density is the point) ---- */
+  --rail-width: 220px;
+  --workspace-inset: 8px;
+  --panel-radius: 12px;
+  --topbar-height: 44px;
+  --pane-padding: 16px;
+  --pane-gap: 20px;
+  --row-height: 48px;
+  --row-height-roomy: 62px;
+  --control-height-sm: 28px;
+  --control-height: 32px;
+  --control-height-lg: 36px;
+
+  /* ---- Elevation: tonal layers, 1px edges, very low alpha ---- */
+  --shadow-panel: 0 0 0 1px color-mix(in lch, var(--color-line) 88%, transparent),
+    0 8px 24px rgba(20, 20, 32, 0.06), 0 1px 2px rgba(20, 20, 32, 0.05);
+  --shadow-card: 0 1px 2px rgba(20, 20, 32, 0.025);
+  --shadow-card-raised: 0 8px 24px rgba(20, 20, 32, 0.035);
+  --shadow-soft: 0 3px 14px rgba(20, 20, 32, 0.035);
+  --shadow-popover: 0 16px 42px rgba(20, 20, 32, 0.14), 0 2px 8px rgba(20, 20, 32, 0.08);
+  --shadow-drawer: 0 18px 48px rgba(20, 20, 32, 0.18);
+
+  /* ---- Motion: quick and mechanical; no springs, no overshoot ---- */
+  --motion-instant: 100ms;
+  --motion-base: 150ms;
+  --motion-panel: 200ms;
+
+  /* =========================================================================
+     RE-MAP the app's semantic tokens → this design.
+     This is what converts every existing screen.
+     ========================================================================= */
+  --background: var(--color-rail);
+  --foreground: var(--color-ink);
+
+  --card: var(--color-paper);           /* opaque — no translucent cards here */
+  --card-foreground: var(--color-copy);
+  --popover: var(--color-paper);
+  --popover-foreground: var(--color-copy);
+
+  --primary: var(--color-accent-brand);
+  --primary-foreground: #ffffff;
+  --secondary: var(--color-quiet);
+  --secondary-foreground: var(--color-copy);
+
+  --muted: var(--color-quiet);
+  --muted-foreground: var(--color-muted);
+  --accent: var(--color-accent-soft);   /* shadcn --accent = hover surface */
+  --accent-foreground: var(--color-copy);
+
+  --destructive: var(--color-bad);
+  --border: var(--color-line);
+  --input: var(--color-field);
+  --ring: var(--color-focus);
+
+  --sidebar: var(--color-rail);
+  --sidebar-foreground: var(--color-nav);
+  --sidebar-primary: var(--color-accent-brand);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: var(--color-rail-active);
+  --sidebar-accent-foreground: var(--color-ink);
+  --sidebar-border: var(--color-line);
+  --sidebar-ring: var(--color-focus);
+
+  /* Radius ladder — grows with elevation and independence */
+  --radius: 10px;
+  --radius-sm: 4px;
+  --radius-md: 5px;
+  --radius-lg: 6px;
+  --radius-xl: 12px;
+
+  --font-sans: var(--font-inter), "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+/* ---------------------------------------------------------------------------
+   Flatten the default theme's decorative treatments.
+   The kit is explicit: no gradients, no glassmorphism, no glow, no blur, and
+   `backdrop-filter` appears nowhere.
+--------------------------------------------------------------------------- */
+html[data-ui='pro'] body {
+  background: var(--color-rail);
+  font-feature-settings: normal;
+  font-variation-settings: normal;
+  font-size: var(--text-caption);
+  color: var(--color-copy);
+}
+
+html[data-ui='pro'] .fluid-bg {
+  background: var(--color-rail);
+}
+
+html[data-ui='pro'] .flowing-card,
+html[data-ui='pro'] .content-flow {
+  background: var(--color-paper);
+  backdrop-filter: none;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-card);
+}
+
+html[data-ui='pro'] .floating-element {
+  background: var(--color-quiet);
+  backdrop-filter: none;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+  box-shadow: none;
+}
+
+html[data-ui='pro'] .metric-bubble {
+  background: var(--color-paper);
+  backdrop-filter: none;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-card);
+}
+
+/* No glow — the kit forbids it outright. */
+html[data-ui='pro'] .accent-glow::before {
+  display: none;
+}
+
+/* Focus: 2px accent outline at 2px offset. */
+html[data-ui='pro'] :focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+/* Thin, themed scrollbar rather than the accent-tinted default. */
+html[data-ui='pro'] ::-webkit-scrollbar-thumb {
+  background: var(--color-hairline);
+  border-radius: var(--radius-full, 999px);
+}
+
+/* Motion collapses for users who ask for it (kit rule). */
+@media (prefers-reduced-motion: reduce) {
+  html[data-ui='pro'] *,
+  html[data-ui='pro'] *::before,
+  html[data-ui='pro'] *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

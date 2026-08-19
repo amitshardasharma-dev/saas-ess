@@ -20,7 +20,12 @@ export interface User {
 	department?: string
 	designation?: string
 	mobile_phone_no?: string
+	/** Interface design this user chose: 'classic' (default) | 'pro'. */
+	ui_theme?: UiTheme
 }
+
+/** The available interface designs. */
+export type UiTheme = 'classic' | 'pro'
 
 export interface AuthState {
 	user: User | null

@@ -36,6 +36,10 @@ export class ProxyAuthService {
 		// different tenant on a shared browser) never inherits stale nav.
 		localStorage.removeItem('ess_modules_enabled')
 		localStorage.removeItem('ess_branding')
+		// The next person on this browser must not inherit this user's design;
+		// their own choice is restored from their account on sign-in.
+		localStorage.removeItem('ess_ui_theme')
+		if (typeof document !== 'undefined') document.documentElement.removeAttribute('data-ui')
 	}
 
 	async login(credentials: LoginCredentials): Promise<LoginResponse> {

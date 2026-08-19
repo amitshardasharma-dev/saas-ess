@@ -2,6 +2,7 @@
 
 import { Toaster } from 'react-hot-toast'
 import { ProfileSettings } from '@/components/profile/profile-settings'
+import { AppearanceCard } from '@/components/profile/appearance-card'
 
 export default function ProfilePage() {
   return (
@@ -10,9 +11,10 @@ export default function ProfilePage() {
       <div>
         <h1 className="text-2xl font-semibold text-foreground">My Profile</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Manage your details, emergency contact, photo, and password.
+          Manage your details, emergency contact, photo, password, and how the portal looks.
         </p>
       </div>
+      <AppearanceCard />
       <ProfileSettings />
     </div>
   )
