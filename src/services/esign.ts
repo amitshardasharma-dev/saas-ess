@@ -152,6 +152,7 @@ export async function defineFields(
       field_key: f.fieldKey,
       label: f.label,
       type: f.type,
+      kind: f.kind ?? 'custom',
       required: f.required ?? true,
       page: f.page ?? 1,
       x_ratio: f.xRatio ?? null,

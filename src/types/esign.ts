@@ -8,6 +8,20 @@ import { z } from 'zod'
 export const FIELD_TYPES = ['text', 'date', 'checkbox', 'signature'] as const
 export type FieldType = (typeof FIELD_TYPES)[number]
 
+// Semantic hint used for the designer palette + profile auto-fill on signing.
+// `type` is still the input/embed type; `kind` is an orthogonal label/prefill hint.
+export const FIELD_KINDS = [
+  'custom',
+  'full_name',
+  'first_name',
+  'last_name',
+  'email',
+  'employee_no',
+  'dob',
+  'id_number',
+] as const
+export type FieldKind = (typeof FIELD_KINDS)[number]
+
 export const SIGNATURE_TYPES = ['typed', 'drawn'] as const
 export type SignatureType = (typeof SIGNATURE_TYPES)[number]
 
@@ -22,6 +36,7 @@ export interface DocumentField {
   field_key: string
   label: string
   type: FieldType
+  kind: FieldKind
   required: boolean
   page: number
   x_ratio: number | null
@@ -61,6 +76,7 @@ export interface FieldDefinitionInput {
   fieldKey: string
   label: string
   type: FieldType
+  kind?: FieldKind
   required?: boolean
   page?: number
   xRatio?: number
@@ -77,6 +93,7 @@ export const FieldDefinitionSchema = z
     fieldKey: z.string().min(1).max(100),
     label: z.string().min(1).max(200),
     type: z.enum(FIELD_TYPES),
+    kind: z.enum(FIELD_KINDS).optional(),
     required: z.boolean().optional(),
     page: z.number().int().min(1).optional(),
     xRatio: z.number().min(0).max(1).optional(),

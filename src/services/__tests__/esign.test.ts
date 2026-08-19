@@ -71,6 +71,7 @@ function field(p: Partial<DocumentField>): DocumentField {
     field_key: 'name',
     label: 'Name',
     type: 'text',
+    kind: 'custom',
     required: true,
     page: 1,
     x_ratio: 0.1,

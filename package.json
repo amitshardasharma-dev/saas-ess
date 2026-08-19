@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack --port 3001",
+    "prebuild": "node scripts/copy-pdf-worker.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
@@ -33,6 +34,7 @@
     "react-dom": "^18.3.1",
     "react-hook-form": "^7.57.0",
     "react-hot-toast": "^2.5.2",
+    "react-pdf": "^10.4.1",
     "recharts": "^2.15.3",
     "tailwind-merge": "^3.3.1",
     "zod": "^3.25.58",

@@ -23,7 +23,7 @@ import { documentService } from '@/services/document'
 import { DocumentWithVersion, DocumentCategory } from '@/types/document'
 import {
   Plus, Upload, Eye, EyeOff, ClipboardList, FileText, ChevronDown, ChevronUp,
-  Loader2, Pencil, Trash2, PenLine, ShieldCheck, ArrowLeft, FolderOpen,
+  Loader2, Pencil, Trash2, PenLine, ShieldCheck, ArrowLeft, FolderOpen, SquarePen,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -360,6 +360,11 @@ export default function DocumentManagePage() {
                           if (e.target) e.target.value = ''
                         }}
                       />
+                      {doc.latest_version ? (
+                        <Button variant="outline" size="sm" onClick={() => router.push(`/dashboard/documents/sign/${doc.id}/design`)}>
+                          <SquarePen className="h-4 w-4" /> Prepare fields
+                        </Button>
+                      ) : null}
                       {doc.requires_acknowledgment ? (
                         <Button variant="outline" size="sm" onClick={() => handleToggleAckReport(doc)}>
                           <ClipboardList className="h-4 w-4" /> Report
