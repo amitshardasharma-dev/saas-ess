@@ -461,6 +461,25 @@ export async function createSignedDocument(
   // Auto-complete the linked onboarding step (doc_sign -> this document).
   await advanceOnboardingBestEffort(input.employeeId, ctx.documentId)
 
+  // Signing includes a read-and-agree affirmation, so it also satisfies any
+  // acknowledgment requirement — record one so the document's acknowledgment
+  // report reflects signers too (best-effort; never breaks the signing op).
+  try {
+    await supabaseAdmin
+      .from('ess_document_acknowledgments')
+      .upsert(
+        {
+          document_id: ctx.documentId,
+          version_id: input.versionId,
+          employee_id: input.employeeId,
+          acknowledged_at: signedAtIso,
+        },
+        { onConflict: 'document_id,version_id,employee_id' },
+      )
+  } catch (err) {
+    console.error('[esign] acknowledgment-on-sign failed (non-fatal):', (err as Error)?.message)
+  }
+
   return signed
 }
 

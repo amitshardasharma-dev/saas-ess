@@ -365,7 +365,7 @@ export default function DocumentManagePage() {
                           <SquarePen className="h-4 w-4" /> Prepare fields
                         </Button>
                       ) : null}
-                      {doc.requires_acknowledgment ? (
+                      {doc.requires_acknowledgment && !doc.signable ? (
                         <Button variant="outline" size="sm" onClick={() => handleToggleAckReport(doc)}>
                           <ClipboardList className="h-4 w-4" /> Report
                           {expandedAckId === doc.id ? (
