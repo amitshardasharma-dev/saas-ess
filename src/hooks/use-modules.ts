@@ -41,14 +41,20 @@ function writeCachedModules(modules: ModuleId[]): void {
 }
 
 export function useModules(): UseModulesReturn {
-  // Hydrate synchronously from the cached module set so the full nav renders on
-  // the first client paint instead of popping in after the fetch resolves.
-  const [modules, setModules] = useState<ModuleId[]>(() => readCachedModules() ?? [])
-  // Only surface a loading state when there's no cache to render from yet.
-  const [loading, setLoading] = useState<boolean>(() => readCachedModules() === null)
+  // Start empty + loading so the server render and the first client render match
+  // (reading localStorage during render causes a hydration mismatch). The cached
+  // set is applied in the effect below, before the network revalidation — so the
+  // nav still renders from cache almost immediately, without a hydration error.
+  const [modules, setModules] = useState<ModuleId[]>([])
+  const [loading, setLoading] = useState<boolean>(true)
 
   useEffect(() => {
     let cancelled = false
+
+    // Apply the cached module set right after mount (pre-fetch) so returning users
+    // get the full nav without waiting on /api/modules.
+    const cached = readCachedModules()
+    if (cached) { setModules(cached); setLoading(false) }
 
     const fetchModules = async () => {
       const hadCache = readCachedModules() !== null

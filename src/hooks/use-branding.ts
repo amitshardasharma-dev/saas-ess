@@ -33,10 +33,15 @@ function writeCache(b: Branding): void {
 }
 
 export function useBranding(): Branding {
-  const [branding, setBranding] = useState<Branding>(() => readCache() ?? DEFAULT)
+  // Start from the default so the server render and the first client render match
+  // (localStorage isn't available on the server — reading it during render causes
+  // a hydration mismatch). Hydrate from the cache in the effect below instead.
+  const [branding, setBranding] = useState<Branding>(DEFAULT)
 
   useEffect(() => {
     let cancelled = false
+    const cached = readCache()
+    if (cached) setBranding(cached)
     ;(async () => {
       try {
         const token = localStorage.getItem('ess_access_token')
