@@ -1,14 +1,16 @@
 // /api/onboarding/templates — manage the editable onboarding flows (admin).
 //   GET -> the Volunteer + Staff templates (with steps) plus the documents,
 //          certificate types and training modules a step can link to.
-//   PUT -> replace one audience's steps. Edits apply to people onboarded from
-//          now on; existing in-progress checklists are unchanged.
+//   PUT -> replace one audience's steps. The saved flow is then applied to the
+//          people who ALREADY exist, not just future joiners: missing steps are
+//          added (already-satisfied ones land done), wording is refreshed, and
+//          steps that left the flow are dropped unless they were completed.
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { withAuth, type AuthContext } from '@/lib/auth-middleware'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { recordAudit } from '@/lib/audit'
-import { loadTemplate, saveTemplateSteps, refKindForStepType } from '@/lib/onboarding'
+import { loadTemplate, saveTemplateSteps, refKindForStepType, syncTemplateToExistingPeople } from '@/lib/onboarding'
 
 const STEP_TYPES = ['profile_field', 'doc_sign', 'doc_ack', 'certification', 'training', 'manual'] as const
 
@@ -90,15 +92,24 @@ export const PUT = withAuth(
       })),
     )
 
+    // Apply the change to people who already exist. Best-effort: a sync failure
+    // must not lose the admin's edit, which is already saved above.
+    let sync = { people: 0, added: 0, removed: 0, autoCompleted: 0 }
+    try {
+      sync = await syncTemplateToExistingPeople(ctx.companyId, parsed.data.audience)
+    } catch (err) {
+      console.error('[onboarding] template sync failed (non-fatal):', (err as Error)?.message)
+    }
+
     await recordAudit({
       companyId: ctx.companyId,
       actorId: ctx.appUser.id,
       action: 'onboarding.template_updated',
       target: { type: 'onboarding_template', id: parsed.data.audience },
-      meta: { audience: parsed.data.audience, steps: parsed.data.steps.length },
+      meta: { audience: parsed.data.audience, steps: parsed.data.steps.length, sync },
     })
 
-    return NextResponse.json({ template: await loadTemplate(ctx.companyId, parsed.data.audience) })
+    return NextResponse.json({ template: await loadTemplate(ctx.companyId, parsed.data.audience), sync })
   },
   { minRole: 'admin' },
 )

@@ -1,7 +1,9 @@
 // /dashboard/onboarding/manage — edit the Volunteer & Staff onboarding flows (admin).
 // Add / reorder / remove steps, set each step's type, link it to a document /
 // certificate / training, and toggle auto-complete. Changes apply to people
-// onboarded from now on (existing in-progress checklists are unchanged).
+// onboarded from now on AND to people who already exist (saving syncs the
+// flow: new steps are added, already-satisfied ones land done, and completed
+// steps are never reset or deleted).
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
@@ -130,7 +132,7 @@ export default function OnboardingFlowsPage() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-semibold text-foreground"><ClipboardList className="h-6 w-6 text-muted-foreground" /> Onboarding Flows</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Design the checklist each new person works through. Changes apply to people onboarded from now on.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Design the checklist everyone works through. Saving applies your changes to existing people too — anything they have already done stays done.</p>
         </div>
         <Button onClick={() => void save()} disabled={saving || loading}>
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Save {audience === 'volunteer' ? 'volunteer' : 'staff'} flow
