@@ -1,5 +1,10 @@
-// Seed the DISPOSABLE `birch-e2e` tenant for the Ralph E2E triage loop.
-// NEVER touches `birch-foundation`. Idempotent: re-running refreshes the tenant.
+// Seed the DISPOSABLE test tenant (`mosping`) used by the E2E suite.
+//
+// SAFETY: this script DESTROYS content in whatever tenant it targets (documents,
+// certifications, training, onboarding, messages...). Customers test in their own
+// tenants, so it is hard-guarded below: it refuses to run against any tenant that
+// is not on ALLOWED_SLUGS, and always refuses the protected ones. Do not add a
+// customer tenant to that list.
 // Run: node tests/seed-birch-e2e.mjs   (reads .env.local for the service key)
 import { createClient } from '@supabase/supabase-js'
 import { readFileSync, writeFileSync, mkdirSync } from 'fs'
@@ -10,7 +15,24 @@ const env = readFileSync(resolve(process.cwd(), '.env.local'), 'utf8')
 const ge = (k) => { const m = env.match(new RegExp(`^${k}=(.*)$`, 'm')); return m ? m[1].trim() : '' }
 const sb = createClient(ge('NEXT_PUBLIC_SUPABASE_URL'), ge('SUPABASE_SERVICE_ROLE_KEY'), { auth: { persistSession: false } })
 
-const SLUG = 'birch-e2e'
+// Target tenant. Override with SEED_SLUG only for a tenant you own.
+const SLUG = process.env.SEED_SLUG || 'mosping'
+
+// --- Hard guard -------------------------------------------------------------
+// Tenants that must never be reseeded: real customer data lives here. birch-e2e
+// is included because a customer actively tests in it.
+const PROTECTED_SLUGS = ['birch-foundation', 'birch-e2e']
+// The only tenants this script may destroy.
+const ALLOWED_SLUGS = ['mosping']
+if (PROTECTED_SLUGS.includes(SLUG)) {
+  console.error(`\n  REFUSING to seed '${SLUG}'.\n  That tenant holds real customer data and this script deletes content.\n  Test in one of: ${ALLOWED_SLUGS.join(', ')}\n`)
+  process.exit(1)
+}
+if (!ALLOWED_SLUGS.includes(SLUG)) {
+  console.error(`\n  REFUSING to seed '${SLUG}' — not on the allow-list (${ALLOWED_SLUGS.join(', ')}).\n  Add it only if you own that tenant and accept its content being deleted.\n`)
+  process.exit(1)
+}
+// ---------------------------------------------------------------------------
 const PASSWORD = 'E2ePass123!'
 const MODULES = ['profiles','documents','documents_esign','communications','training','quizzes','training_tracking','reporting','compliance','expiry_reminders','recertification']
 const SOURCE_BUCKET = 'ess-documents'
@@ -19,22 +41,22 @@ const SIGNED_BUCKET = 'signed-documents'
 const USERS = [
   // Realistic, authentic Birch Foundation people (Gold Coast DV/homelessness
   // charity). The stable KEYS are what the E2E specs reference — names are free.
-  { key: 'superadmin', email: 'superadmin@birch-e2e.test', name: 'Olivia Bennett',     role: 'admin', superAdmin: true,  dept: 'Management' },
-  { key: 'admin',      email: 'admin@birch-e2e.test',      name: 'Margaret Whitfield', role: 'admin', superAdmin: false, dept: 'Management' },
-  { key: 'staff',      email: 'staff@birch-e2e.test',      name: 'David Okoro',        role: 'hr',    superAdmin: false, dept: 'Volunteer Coordination' },
-  { key: 'volOutreach',email: 'vol.outreach@birch-e2e.test',name:'Aisha Rahman',       role: 'employee', superAdmin: false, dept: 'Street Outreach' },
-  { key: 'volOpshop',  email: 'vol.opshop@birch-e2e.test', name: 'Tom Bennett',        role: 'employee', superAdmin: false, dept: 'Op Shop & Cafe' },
+  { key: 'superadmin', email: 'superadmin@mosping.test', name: 'Olivia Bennett',     role: 'admin', superAdmin: true,  dept: 'Management' },
+  { key: 'admin',      email: 'admin@mosping.test',      name: 'Margaret Whitfield', role: 'admin', superAdmin: false, dept: 'Management' },
+  { key: 'staff',      email: 'staff@mosping.test',      name: 'David Okoro',        role: 'hr',    superAdmin: false, dept: 'Volunteer Coordination' },
+  { key: 'volOutreach',email: 'vol.outreach@mosping.test',name:'Aisha Rahman',       role: 'employee', superAdmin: false, dept: 'Street Outreach' },
+  { key: 'volOpshop',  email: 'vol.opshop@mosping.test', name: 'Tom Bennett',        role: 'employee', superAdmin: false, dept: 'Op Shop & Cafe' },
   // Dedicated to the onboarding auto-complete gate spec (mutated heavily). Kept
   // separate so volOutreach/volOpshop stay pristine for the other specs.
-  { key: 'volAuto',    email: 'vol.auto@birch-e2e.test',   name: 'Liam Carter',        role: 'employee', superAdmin: false, dept: 'Street Outreach' },
+  { key: 'volAuto',    email: 'vol.auto@mosping.test',   name: 'Liam Carter',        role: 'employee', superAdmin: false, dept: 'Street Outreach' },
   // Additional demo people (no spec dependency) — for a populated, authentic org.
-  { key: 'staff2',     email: 'hannah.lee@birch-e2e.test',     name: 'Hannah Lee',      role: 'hr',       superAdmin: false, dept: 'Family Support' },
-  { key: 'vol4',       email: 'priya.nair@birch-e2e.test',     name: 'Priya Nair',      role: 'employee', superAdmin: false, dept: 'Family Support' },
-  { key: 'vol5',       email: 'noah.williams@birch-e2e.test',  name: 'Noah Williams',   role: 'employee', superAdmin: false, dept: 'Crisis Accommodation' },
-  { key: 'vol6',       email: 'sofia.martinez@birch-e2e.test', name: 'Sofia Martinez',  role: 'employee', superAdmin: false, dept: 'Op Shop & Cafe' },
-  { key: 'vol7',       email: 'ethan.nguyen@birch-e2e.test',   name: 'Ethan Nguyen',    role: 'employee', superAdmin: false, dept: 'Fundraising & Events' },
-  { key: 'vol8',       email: 'grace.thompson@birch-e2e.test', name: 'Grace Thompson',  role: 'employee', superAdmin: false, dept: 'Street Outreach' },
-  { key: 'vol9',       email: 'daniel.cohen@birch-e2e.test',   name: 'Daniel Cohen',    role: 'employee', superAdmin: false, dept: 'Crisis Accommodation' },
+  { key: 'staff2',     email: 'hannah.lee@mosping.test',     name: 'Hannah Lee',      role: 'hr',       superAdmin: false, dept: 'Family Support' },
+  { key: 'vol4',       email: 'priya.nair@mosping.test',     name: 'Priya Nair',      role: 'employee', superAdmin: false, dept: 'Family Support' },
+  { key: 'vol5',       email: 'noah.williams@mosping.test',  name: 'Noah Williams',   role: 'employee', superAdmin: false, dept: 'Crisis Accommodation' },
+  { key: 'vol6',       email: 'sofia.martinez@mosping.test', name: 'Sofia Martinez',  role: 'employee', superAdmin: false, dept: 'Op Shop & Cafe' },
+  { key: 'vol7',       email: 'ethan.nguyen@mosping.test',   name: 'Ethan Nguyen',    role: 'employee', superAdmin: false, dept: 'Fundraising & Events' },
+  { key: 'vol8',       email: 'grace.thompson@mosping.test', name: 'Grace Thompson',  role: 'employee', superAdmin: false, dept: 'Street Outreach' },
+  { key: 'vol9',       email: 'daniel.cohen@mosping.test',   name: 'Daniel Cohen',    role: 'employee', superAdmin: false, dept: 'Crisis Accommodation' },
 ]
 // Volunteer keys used for the demo dataset + onboarding instantiation.
 const VOL_KEYS = ['volOutreach', 'volOpshop', 'volAuto', 'vol4', 'vol5', 'vol6', 'vol7', 'vol8', 'vol9']
@@ -160,7 +182,7 @@ async function main() {
     await sb.from('ess_companies').update({ settings: { modules_enabled: MODULES, brand_name: 'Birch Foundation' }, max_users: 250 }).eq('id', company.id)
   }
   const cid = company.id
-  console.log('company birch-e2e:', cid)
+  console.log(`company ${SLUG}:`, cid)
 
   // 2. users -> app_user + employee
   const fixtures = { companyId: cid, password: PASSWORD, users: {} }
@@ -539,6 +561,6 @@ async function main() {
   mkdirSync(resolve(process.cwd(), 'tests/fixtures'), { recursive: true })
   writeFileSync(resolve(process.cwd(), 'tests/fixtures/birch-e2e.json'), JSON.stringify(fixtures, null, 2))
   console.log('Wrote tests/fixtures/birch-e2e.json')
-  console.log('Seeded birch-e2e:', Object.keys(fixtures.users).join(', '))
+  console.log(`Seeded ${SLUG}:`, Object.keys(fixtures.users).join(', '))
 }
 main().then(() => { console.log('Done.'); process.exit(0) }).catch((e) => { console.error(e); process.exit(1) })
