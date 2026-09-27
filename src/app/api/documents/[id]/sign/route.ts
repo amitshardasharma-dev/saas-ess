@@ -8,6 +8,7 @@ import {
   FieldValidationError,
   SigningError,
 } from '@/services/esign'
+import { getVersionSigningConfig, isMultiSigner, signStep } from '@/services/signing-sequence'
 
 function clientIp(request: Request): string | null {
   const fwd = request.headers.get('x-forwarded-for')
@@ -48,6 +49,34 @@ export const POST = withAuth(async (request, { companyId, employee, appUser }, p
   }
 
   try {
+    // MOS-720: documents with a signing order are signed one step at a time.
+    const config = await getVersionSigningConfig(parsed.data.versionId)
+    if (isMultiSigner(config)) {
+      const step = await signStep({
+        companyId,
+        documentId,
+        versionId: parsed.data.versionId,
+        recipient: parsed.data.recipientEmployeeId ?? null,
+        signerEmployeeId: employee.id,
+        signerAppUserId: appUser.id,
+        signerName: parsed.data.signerName,
+        signatureType: parsed.data.signatureType,
+        signatureDataUrl: parsed.data.signatureDataUrl,
+        fieldValues: parsed.data.fieldValues,
+        signingLocation: parsed.data.signingLocation,
+        ipAddress: clientIp(request),
+        userAgent: request.headers.get('user-agent'),
+      })
+      return NextResponse.json(
+        {
+          signed_document: step.signedDocumentId ? { id: step.signedDocumentId } : null,
+          step,
+          message: step.status === 'completed' ? 'Document fully signed' : 'Signature recorded',
+        },
+        { status: 201 }
+      )
+    }
+
     const signed = await createSignedDocument({
       companyId,
       employeeId: employee.id,

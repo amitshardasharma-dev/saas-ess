@@ -13,9 +13,11 @@ import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import toast from 'react-hot-toast'
 import { PenLine, Type, Calendar, Hash, Mail, User, Trash2, Save, Loader2, MousePointer2, Phone, MapPin } from 'lucide-react'
-import type { DocumentField, FieldDefinitionInput, FieldKind } from '@/types/esign'
+import type { DocumentField, FieldDefinitionInput, FieldKind, SignerRole, SigningConfig } from '@/types/esign'
+import { RECIPIENT_ROLE } from '@/types/esign'
 import { FIELD_CATALOG, PALETTE_KINDS } from '@/lib/esign/field-catalog'
-import { esignService } from '@/services/esign-client'
+import { esignService, SigningInProgressError, type SignerOption } from '@/services/esign-client'
+import { SigningOrderPanel, DEFAULT_ROLES, roleColor } from '@/components/documents/signing/signing-order-panel'
 import type { PdfPageDims } from '@/components/documents/pdf/pdf-canvas'
 
 const PdfCanvas = dynamic(() => import('@/components/documents/pdf/pdf-canvas').then((m) => m.PdfCanvas), {
@@ -37,6 +39,8 @@ interface Placed {
   y: number
   w: number
   h: number
+  /** MOS-720: which signer fills this field. */
+  signerRole: string
 }
 
 const SIGNATURE_SIZE = { w: 0.26, h: 0.07 }
@@ -55,14 +59,22 @@ export function FieldDesigner({
   versionId,
   pdfData,
   initialFields,
+  initialSigningConfig = null,
   onSaved,
 }: {
   documentId: string
   versionId: string
   pdfData: ArrayBuffer | Uint8Array
   initialFields: DocumentField[]
+  initialSigningConfig?: SigningConfig | null
   onSaved?: () => void
 }) {
+  const [roles, setRoles] = useState<SignerRole[]>(() =>
+    initialSigningConfig && initialSigningConfig.roles.length > 1 ? initialSigningConfig.roles : DEFAULT_ROLES,
+  )
+  const [activeRole, setActiveRole] = useState<string>(RECIPIENT_ROLE)
+  const [people, setPeople] = useState<SignerOption[]>([])
+  useEffect(() => { void esignService.getSignerOptions().then(setPeople) }, [])
   const [fields, setFields] = useState<Placed[]>(() =>
     initialFields.map((f) => ({
       key: uid(),
@@ -76,6 +88,7 @@ export function FieldDesigner({
       y: f.y_ratio ?? 0.1,
       w: f.width_ratio ?? 0.28,
       h: f.height_ratio ?? 0.035,
+      signerRole: f.signer_role || RECIPIENT_ROLE,
     })),
   )
   const [tool, setTool] = useState<Tool | null>(null)
@@ -102,11 +115,12 @@ export function FieldDesigner({
         x: Math.min(1 - size.w, Math.max(0, xRatio - size.w / 2)),
         y: Math.min(1 - size.h, Math.max(0, yRatio - size.h / 2)),
         w: size.w, h: size.h,
+        signerRole: activeRole,
       },
     ])
     setSelected(key)
     markDirty()
-  }, [fields.length])
+  }, [fields.length, activeRole])
 
   const updateField = useCallback((key: string, patch: Partial<Placed>) => {
     setFields((prev) => prev.map((f) => (f.key === key ? { ...f, ...patch } : f)))
@@ -132,18 +146,51 @@ export function FieldDesigner({
     return () => window.removeEventListener('keydown', onKey)
   }, [selected, removeField])
 
-  const save = async () => {
+  const multi = roles.length > 1
+  const fieldCounts = fields.reduce<Record<string, number>>((acc, f) => { acc[f.signerRole] = (acc[f.signerRole] ?? 0) + 1; return acc }, {})
+
+  const changeRoles = (next: SignerRole[]) => {
+    setRoles(next)
+    // Fields of a removed signer go back to the recipient.
+    const keys = new Set(next.map((r) => r.key))
+    setFields((prev) => prev.map((f) => (keys.has(f.signerRole) ? f : { ...f, signerRole: RECIPIENT_ROLE })))
+    markDirty()
+  }
+
+  /** Problems that would leave a signer unable to sign; null when OK. */
+  const orderProblem = (): string | null => {
+    if (!multi) return null
+    for (const r of roles) {
+      if (!r.label.trim()) return 'Give every signer a name'
+      if (r.assignee.type === 'employee' && !r.assignee.employeeId) return `Choose who signs as "${r.label}"`
+      if (!fields.some((f) => f.signerRole === r.key && f.type === 'signature')) return `Add a signature box for "${r.label}"`
+    }
+    return null
+  }
+
+  const save = async (restart = false) => {
+    const problem = orderProblem()
+    if (problem) { toast.error(problem); return }
     setSaving(true)
     try {
       const payload: FieldDefinitionInput[] = fields.map((f, i) => ({
         fieldKey: f.fieldKey, label: f.label, type: f.type, kind: f.kind, required: f.required,
         page: f.page, xRatio: f.x, yRatio: f.y, widthRatio: f.w, heightRatio: f.h, sortOrder: i,
+        signerRole: multi ? f.signerRole : RECIPIENT_ROLE,
       }))
-      await esignService.saveFields(documentId, versionId, payload)
+      const signingConfig: SigningConfig | null = multi ? { roles: roles.map((r) => ({ ...r, label: r.label.trim() })) } : null
+      await esignService.saveFields(documentId, versionId, payload, { signingConfig, restart })
       setDirty(false)
-      toast.success(fields.length ? `Saved ${fields.length} field${fields.length === 1 ? '' : 's'}` : 'Fields cleared')
+      toast.success(fields.length ? `Saved ${fields.length} field${fields.length === 1 ? '' : 's'}${multi ? ` and ${roles.length} signers` : ''}` : 'Fields cleared')
       onSaved?.()
     } catch (e) {
+      if (e instanceof SigningInProgressError) {
+        if (window.confirm(`${e.message}\n\nRestart signing and save?`)) {
+          setSaving(false)
+          return save(true)
+        }
+        return
+      }
       toast.error(e instanceof Error ? e.message : 'Could not save fields')
     } finally {
       setSaving(false)
@@ -163,14 +210,25 @@ export function FieldDesigner({
             selected={selected === f.key}
             onSelect={() => setSelected(f.key)}
             onChange={(patch) => updateField(f.key, patch)}
+            colorClass={multi ? roleColor(roles, f.signerRole).box : undefined}
+            roleLabel={multi ? roles.find((r) => r.key === f.signerRole)?.label : undefined}
           />
         ))}
       </>
     ),
-    [fields, selected, updateField, removeField],
+    [fields, selected, updateField, removeField, multi, roles],
   )
 
   return (
+    <div className="space-y-4">
+    <SigningOrderPanel
+      roles={roles}
+      onChange={changeRoles}
+      activeRole={activeRole}
+      onActiveRoleChange={setActiveRole}
+      people={people}
+      fieldCounts={fieldCounts}
+    />
     <div className="flex flex-col gap-4 lg:flex-row">
       {/* Palette — a wrapping toolbar on mobile, a sidebar on desktop */}
       <aside className="lg:w-52 lg:shrink-0">
@@ -193,7 +251,7 @@ export function FieldDesigner({
       <div className="min-w-0 flex-1">
         <div className="mb-3 flex items-center justify-between gap-2">
           <p className="text-sm text-muted-foreground">{fields.length} field{fields.length === 1 ? '' : 's'} placed{dirty ? ' · unsaved' : ''}</p>
-          <Button size="sm" onClick={() => void save()} disabled={saving || !dirty}>
+          <Button size="sm" onClick={() => void save()} disabled={saving || !dirty} data-testid="save-fields">
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Save fields
           </Button>
         </div>
@@ -233,6 +291,19 @@ export function FieldDesigner({
                   </select>
                 </div>
               ) : null}
+              {multi ? (
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Filled in by</Label>
+                  <select
+                    className="h-9 w-full rounded-md border border-input bg-white px-2 text-sm"
+                    value={sel.signerRole}
+                    onChange={(e) => updateField(sel.key, { signerRole: e.target.value })}
+                    aria-label="Filled in by"
+                  >
+                    {roles.map((r, i) => (<option key={r.key} value={r.key}>{i + 1}. {r.label}</option>))}
+                  </select>
+                </div>
+              ) : null}
               <label className="flex items-center gap-2 text-sm">
                 <Checkbox checked={sel.required} onCheckedChange={(v) => updateField(sel.key, { required: v === true })} /> Required
               </label>
@@ -246,6 +317,7 @@ export function FieldDesigner({
           )}
         </div>
       </aside>
+    </div>
     </div>
   )
 }
@@ -265,13 +337,15 @@ function ToolButton({ active, icon: Icon, label, onClick, accent }: { active: bo
 }
 
 function FieldBox({
-  field, dims, selected, onSelect, onChange,
+  field, dims, selected, onSelect, onChange, colorClass, roleLabel,
 }: {
   field: Placed
   dims: PdfPageDims
   selected: boolean
   onSelect: () => void
   onChange: (patch: Partial<Placed>) => void
+  colorClass?: string
+  roleLabel?: string
 }) {
   const drag = useRef<{ mode: 'move' | 'resize'; startX: number; startY: number; ox: number; oy: number; ow: number; oh: number } | null>(null)
   const isSig = field.type === 'signature'
@@ -310,12 +384,14 @@ function FieldBox({
       onPointerMove={onPointerMove}
       onPointerUp={end}
       className={`absolute flex select-none items-center gap-1 overflow-hidden rounded border-2 px-1 text-[11px] font-medium ${
-        isSig
-          ? 'border-teal-500 bg-teal-500/15 text-teal-800'
-          : 'border-indigo-500 bg-indigo-500/10 text-indigo-800'
+        colorClass
+          ? colorClass
+          : isSig
+            ? 'border-teal-500 bg-teal-500/15 text-teal-800'
+            : 'border-indigo-500 bg-indigo-500/10 text-indigo-800'
       } ${selected ? 'ring-2 ring-offset-1 ring-primary' : ''}`}
       style={{ left: field.x * dims.width, top: field.y * dims.height, width: field.w * dims.width, height: field.h * dims.height, cursor: 'move' }}
-      title={field.label}
+      title={roleLabel ? `${field.label} — ${roleLabel}` : field.label}
     >
       <Icon className="h-3 w-3 shrink-0" />
       <span className="truncate">{field.label}{field.required ? ' *' : ''}</span>

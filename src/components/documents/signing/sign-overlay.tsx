@@ -24,6 +24,15 @@ interface SignOverlayProps {
   signatureType: 'drawn' | 'typed' | null
   onRequestSignature: () => void
   pageWidth?: number
+  /**
+   * MOS-720 (signing order): the role the viewer is filling. When set, only that
+   * role's fields are editable; other signers' fields show what they entered, or
+   * who still has to fill them. Undefined = every field is the viewer's (classic).
+   */
+  editableRole?: string | null
+  lockedValues?: Record<string, unknown>
+  roleSignatures?: Record<string, { signerName: string; signatureType: 'typed' | 'drawn'; signatureDataUrl: string | null }>
+  roleLabels?: Record<string, string>
 }
 
 export function SignOverlay(props: SignOverlayProps) {
@@ -46,6 +55,7 @@ export function SignOverlay(props: SignOverlayProps) {
 
 function FieldControl({
   field, dims, values, onValueChange, signerName, signatureDataUrl, signatureType, onRequestSignature,
+  editableRole, lockedValues, roleSignatures, roleLabels,
 }: SignOverlayProps & { field: DocumentField; dims: PdfPageDims }) {
   const style: React.CSSProperties = {
     left: (field.x_ratio ?? 0) * dims.width,
@@ -54,6 +64,35 @@ function FieldControl({
     height: (field.height_ratio ?? 0.04) * dims.height,
   }
   const fontSize = Math.max(9, Math.min(15, style.height ? (style.height as number) * 0.55 : 12))
+
+  const role = field.signer_role || 'recipient'
+  if (editableRole !== undefined && role !== editableRole) {
+    const who = roleLabels?.[role] ?? 'another signer'
+    if (field.type === 'signature') {
+      const sig = roleSignatures?.[role]
+      return (
+        <div data-field-box data-readonly className="absolute flex items-center justify-center overflow-hidden rounded border border-slate-300 bg-slate-50/80" style={style} title={sig ? `Signed by ${sig.signerName} (${who})` : `To be signed by ${who}`}>
+          {sig ? (
+            sig.signatureType === 'drawn' && sig.signatureDataUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={sig.signatureDataUrl} alt={`Signature of ${sig.signerName}`} className="max-h-full max-w-full object-contain" />
+            ) : (
+              <span className="truncate px-1 font-[cursive] text-slate-900" style={{ fontSize: fontSize * 1.2 }}>{sig.signerName}</span>
+            )
+          ) : (
+            <span className="truncate px-1 text-[10px] text-slate-500">{who} signs here</span>
+          )}
+        </div>
+      )
+    }
+    const v = lockedValues?.[field.field_key]
+    const text = field.type === 'checkbox' ? (v === true ? '✓' : '') : v === undefined || v === null ? '' : String(v)
+    return (
+      <div data-field-box data-readonly className="absolute flex items-center overflow-hidden rounded border border-slate-300 bg-slate-50/80 px-1 text-slate-700" style={{ ...style, fontSize }} title={text ? `${field.label} (${who})` : `${field.label} — completed by ${who}`}>
+        {text ? <span className="truncate">{text}</span> : <span className="truncate text-[10px] text-slate-400">{who}</span>}
+      </div>
+    )
+  }
 
   if (field.type === 'signature') {
     const signed = signatureType === 'drawn' ? !!signatureDataUrl : signatureType === 'typed'

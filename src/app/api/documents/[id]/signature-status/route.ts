@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase-server'
 import { withAuth } from '@/lib/auth-middleware'
 import { assertModuleEnabled, ModuleDisabledError } from '@/lib/modules'
 import { listSignedDocuments } from '@/services/esign'
+import { getVersionSigningConfig, isMultiSigner, progressForRecipients } from '@/services/signing-sequence'
 
 /**
  * GET /api/documents/[id]/signature-status  (hr+)
@@ -60,6 +61,26 @@ export const GET = withAuth(
         signed_document_id: record?.id ?? null,
       }
     })
+
+    // MOS-720: for documents with a signing order, add each copy's progress.
+    const { data: latest } = await supabaseAdmin
+      .from('ess_document_versions')
+      .select('id')
+      .eq('document_id', documentId)
+      .order('version_number', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    const config = latest ? await getVersionSigningConfig(latest.id as string) : null
+    if (latest && isMultiSigner(config)) {
+      const progress = await progressForRecipients(companyId, latest.id as string, config, rows.map((r) => r.id))
+      return NextResponse.json({
+        total: rows.length,
+        signed_count: signedByEmployee.size,
+        version_id: latest.id,
+        signing_order: config.roles.map((r, i) => ({ order: i + 1, key: r.key, label: r.label, sign_once: !!r.signOnce })),
+        employees: rows.map((r) => ({ ...r, sequence: progress.get(r.id) ?? null })),
+      })
+    }
 
     return NextResponse.json({
       total: rows.length,

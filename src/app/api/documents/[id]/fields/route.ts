@@ -4,6 +4,16 @@ import { withAuth } from '@/lib/auth-middleware'
 import { assertModuleEnabled, ModuleDisabledError } from '@/lib/modules'
 import { DefineFieldsSchema } from '@/types/esign'
 import { defineFields, listFields, getVersionForCompany } from '@/services/esign'
+import {
+  cancelInProgress,
+  countStartedCopies,
+  getVersionSigningConfig,
+  isMultiSigner,
+  notifySignOnceSigners,
+  saveSigningConfig,
+  signingConfigEquals,
+} from '@/services/signing-sequence'
+import { RECIPIENT_ROLE } from '@/types/esign'
 
 /**
  * GET /api/documents/[id]/fields?versionId=
@@ -30,8 +40,8 @@ export const GET = withAuth(async (request, { companyId }, params) => {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
 
-  const fields = await listFields(companyId, versionId)
-  return NextResponse.json({ fields })
+  const [fields, signingConfig] = await Promise.all([listFields(companyId, versionId), getVersionSigningConfig(versionId)])
+  return NextResponse.json({ fields, signing_config: signingConfig })
 })
 
 /**
@@ -63,8 +73,46 @@ export const POST = withAuth(
       return NextResponse.json({ error: 'Not found' }, { status: 404 })
     }
 
+    // MOS-720: signing order. `signingConfig` omitted = leave it as it is.
+    const current = await getVersionSigningConfig(ctx.versionId)
+    const next = parsed.data.signingConfig === undefined ? current : parsed.data.signingConfig
+    const roleKeys = new Set(isMultiSigner(next) ? next.roles.map((r) => r.key) : [RECIPIENT_ROLE])
+    const orphan = parsed.data.fields.find((f) => !roleKeys.has(f.signerRole ?? RECIPIENT_ROLE))
+    if (orphan) {
+      return NextResponse.json({ error: `Field "${orphan.label}" is assigned to a signer that is not in the signing order` }, { status: 400 })
+    }
+
+    const orderChanged = !signingConfigEquals(current, next)
+    const configChanged =
+      parsed.data.signingConfig !== undefined &&
+      JSON.stringify(isMultiSigner(current) ? current : null) !== JSON.stringify(isMultiSigner(next) ? next : null)
+
+    // Changing fields or order under copies that are part-way signed would
+    // silently invalidate those signatures, so it needs an explicit restart.
+    if (isMultiSigner(current) || isMultiSigner(next)) {
+      const started = await countStartedCopies(companyId, ctx.versionId)
+      if (started > 0 && !parsed.data.restart) {
+        return NextResponse.json(
+          {
+            error: `Signing has already started on ${started} ${started === 1 ? 'copy' : 'copies'}. Saving will restart ${started === 1 ? 'it' : 'them'} and existing signatures will no longer count.`,
+            code: 'SIGNING_IN_PROGRESS',
+            started,
+          },
+          { status: 409 }
+        )
+      }
+      // Copies started under the old order (even unsigned ones) must pick up the new one.
+      if (started > 0 || orderChanged) {
+        await cancelInProgress(companyId, ctx.versionId, appUser.id, 'Signing order or fields changed')
+      }
+    }
+
     const fields = await defineFields(companyId, appUser.id, ctx, parsed.data.fields)
-    return NextResponse.json({ fields, message: 'Fields saved' }, { status: 201 })
+    if (configChanged) {
+      await saveSigningConfig(companyId, ctx.versionId, next ?? null, appUser.id)
+      if (orderChanged && isMultiSigner(next)) await notifySignOnceSigners(companyId, ctx, next, appUser.id)
+    }
+    return NextResponse.json({ fields, signing_config: isMultiSigner(next) ? next : null, message: 'Fields saved' }, { status: 201 })
   },
   { minRole: 'hr' }
 )

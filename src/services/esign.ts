@@ -160,6 +160,7 @@ export async function defineFields(
       width_ratio: f.widthRatio ?? null,
       height_ratio: f.heightRatio ?? null,
       sort_order: f.sortOrder ?? index,
+      signer_role: f.signerRole ?? 'recipient',
     }))
     const { data, error } = await supabaseAdmin
       .from('ess_document_fields')
@@ -331,6 +332,76 @@ export async function renderSignedPdf(
       `Signed by ${identity.signerName}${where} on ${identity.signedAt}`,
       { x: 20, y: 20, size: 8, font, color: rgb(0.3, 0.3, 0.3) }
     )
+  }
+
+  return pdfDoc.save()
+}
+
+/**
+ * MOS-720: stamp a document signed by several people. Each field is filled from
+ * the signer whose role owns it, each signature box gets that signer's own
+ * signature, and the footer lists every signer in order. Kept separate from
+ * renderSignedPdf so the single-signer output is byte-for-byte unchanged.
+ */
+export async function renderMultiSignedPdf(
+  sourcePdfBytes: Uint8Array,
+  fields: DocumentField[],
+  values: FieldValues,
+  signatures: Record<string, { signerName: string; signatureDataUrl?: string | null }>,
+  footerLines: string[]
+): Promise<Uint8Array> {
+  const { PDFDocument, StandardFonts, rgb } = await import('pdf-lib')
+
+  const pdfDoc = await PDFDocument.load(sourcePdfBytes)
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
+  const pages = pdfDoc.getPages()
+
+  const images = new Map<string, Awaited<ReturnType<typeof pdfDoc.embedPng>> | null>()
+  for (const [role, sig] of Object.entries(signatures)) {
+    if (!sig.signatureDataUrl) { images.set(role, null); continue }
+    const url = sig.signatureDataUrl
+    const base64 = url.includes(',') ? url.slice(url.indexOf(',') + 1) : url
+    try {
+      images.set(role, await pdfDoc.embedPng(Buffer.from(base64, 'base64')))
+    } catch {
+      images.set(role, null)
+    }
+  }
+
+  for (const field of fields) {
+    const pageIndex = Math.max(0, (field.page ?? 1) - 1)
+    if (pageIndex >= pages.length) continue
+    const page = pages[pageIndex]
+    const { width: pw, height: ph } = page.getSize()
+    const x = (field.x_ratio ?? 0.1) * pw
+    const boxHeight = (field.height_ratio ?? 0.05) * ph
+    const boxWidth = (field.width_ratio ?? 0.3) * pw
+    const y = ph - (field.y_ratio ?? 0.1) * ph - boxHeight
+    const raw = values[field.field_key]
+
+    if (field.type === 'signature') {
+      const role = field.signer_role ?? 'recipient'
+      const image = images.get(role)
+      if (image) {
+        page.drawImage(image, { x, y, width: boxWidth, height: boxHeight })
+      } else {
+        const text = typeof raw === 'string' && raw.length > 0 ? raw : signatures[role]?.signerName
+        if (text) page.drawText(text, { x, y: y + boxHeight / 2, size: 14, font, color: rgb(0, 0, 0) })
+      }
+      continue
+    }
+
+    let text = ''
+    if (field.type === 'checkbox') text = raw === true ? 'X' : ''
+    else if (raw !== undefined && raw !== null) text = String(raw)
+    if (text) page.drawText(text, { x, y: y + boxHeight / 2, size: 12, font, color: rgb(0, 0, 0) })
+  }
+
+  if (pages.length > 0) {
+    const page = pages[0]
+    footerLines.forEach((line, i) => {
+      page.drawText(line, { x: 20, y: 20 + (footerLines.length - 1 - i) * 10, size: 8, font, color: rgb(0.3, 0.3, 0.3) })
+    })
   }
 
   return pdfDoc.save()

@@ -6,9 +6,9 @@ import { Suspense, useEffect, useMemo, useState, use } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import {
-  ArrowLeft, FileText, ExternalLink, ShieldCheck, CheckCircle2, PenLine, MapPin, Calendar, Loader2, Check,
+  ArrowLeft, FileText, ExternalLink, ShieldCheck, CheckCircle2, PenLine, MapPin, Calendar, Loader2, Check, Clock, Hourglass,
 } from 'lucide-react'
-import { esignService } from '@/services/esign-client'
+import { esignService, type SigningState } from '@/services/esign-client'
 import { useAuthStore } from '@/stores/auth'
 import type { DocumentField } from '@/types/esign'
 import { autoFillValue } from '@/lib/esign/field-catalog'
@@ -56,6 +56,10 @@ function SignDocumentInner({ documentId }: { documentId: string }) {
   const [done, setDone] = useState(false)
   const [signedRecordId, setSignedRecordId] = useState<string | null>(null)
   const [downloading, setDownloading] = useState(false)
+  // MOS-720: set when the document has a signing order (several signers).
+  const [seq, setSeq] = useState<SigningState | null>(null)
+  const [stepResult, setStepResult] = useState<{ status: 'in_progress' | 'completed'; next: { label: string; name: string | null } | null } | null>(null)
+  const recipient = search.get('recipient')
 
   const downloadSignedCopy = async () => {
     if (!signedRecordId) return
@@ -114,11 +118,21 @@ function SignDocumentInner({ documentId }: { documentId: string }) {
         }
         setFields(flds)
 
+        // Signing order: which step (if any) is the viewer's on this copy.
+        let state: SigningState | null = null
+        if (resolvedVersion) {
+          const st = await esignService.getSigningState(documentId, resolvedVersion, recipient).catch(() => null)
+          if (st && st.multi) state = st as SigningState
+        }
+        if (cancelled) return
+        setSeq(state)
+
         // Auto-fill known fields from the signer's profile so they do less work.
         const profile = { fullName: user?.full_name ?? null, email: (user as { email?: string } | null)?.email ?? null, employeeNo: null }
         const initial: Record<string, string | boolean> = {}
         for (const f of flds) {
           if (f.type === 'signature') continue
+          if (state && (f.signer_role || 'recipient') !== state.myRole) continue
           const v = autoFillValue(f.kind ?? 'custom', profile)
           if (v) initial[f.field_key] = v
         }
@@ -134,18 +148,25 @@ function SignDocumentInner({ documentId }: { documentId: string }) {
       }
     })()
     return () => { cancelled = true }
-  }, [documentId, search, user])
+  }, [documentId, search, user, recipient])
 
   const setValue = (key: string, value: string | boolean) => setValues((p) => ({ ...p, [key]: value }))
 
-  const nonSigFields = useMemo(() => fields.filter((f) => f.type !== 'signature'), [fields])
-  const hasSignatureField = useMemo(() => fields.some((f) => f.type === 'signature'), [fields])
+  // With a signing order, the viewer only completes their own step's fields.
+  const myFields = useMemo(
+    () => (seq ? fields.filter((f) => (f.signer_role || 'recipient') === seq.myRole) : fields),
+    [fields, seq],
+  )
+  const nonSigFields = useMemo(() => myFields.filter((f) => f.type !== 'signature'), [myFields])
+  const hasSignatureField = useMemo(() => myFields.some((f) => f.type === 'signature'), [myFields])
+  const myStep = seq?.steps.find((s) => s.key === seq.myRole) ?? null
+  const roleLabels = useMemo(() => Object.fromEntries((seq?.steps ?? []).map((s) => [s.key, s.label])), [seq])
   const missingRequired = nonSigFields.some(
     (f) => f.required && (f.type === 'checkbox' ? !values[f.field_key] : !String(values[f.field_key] ?? '').trim()),
   )
   const hasSignature = signature?.signatureType === 'drawn' ? !!signature.signatureDataUrl : !!signature
   const nameOk = signerName.trim().length > 1
-  const canSign = agreed && nameOk && !missingRequired && Boolean(versionId) && hasSignature
+  const canSign = agreed && nameOk && !missingRequired && Boolean(versionId) && hasSignature && (!seq || !!seq.myRole)
 
   const handleSubmit = async () => {
     if (!versionId) return toast.error('Could not resolve the document version')
@@ -154,9 +175,25 @@ function SignDocumentInner({ documentId }: { documentId: string }) {
     setSubmitting(true)
     try {
       const fieldValues: Record<string, unknown> = {}
-      for (const f of fields) {
+      for (const f of myFields) {
         if (f.type === 'signature') fieldValues[f.field_key] = signerName.trim()
         else fieldValues[f.field_key] = values[f.field_key] ?? (f.type === 'checkbox' ? false : '')
+      }
+      if (seq) {
+        const step = await esignService.signStep(documentId, {
+          versionId,
+          signerName: signerName.trim(),
+          signatureType: signature.signatureType,
+          fieldValues,
+          signatureDataUrl: signature.signatureDataUrl,
+          signingLocation: location.trim() || undefined,
+          recipientEmployeeId: recipient || undefined,
+        })
+        setSignedRecordId(step.signedDocumentId)
+        setStepResult({ status: step.status, next: step.next })
+        setDone(true)
+        toast.success(step.status === 'completed' ? 'Document fully signed' : 'Signature recorded')
+        return
       }
       const result = await esignService.sign(documentId, {
         versionId,
@@ -182,6 +219,38 @@ function SignDocumentInner({ documentId }: { documentId: string }) {
   }
   if (!meta) {
     return <Card><CardContent className="flex flex-col items-center gap-2 py-16 text-center text-sm text-muted-foreground"><FileText className="h-10 w-10 opacity-30" /> This document could not be loaded.<Button asChild variant="outline" size="sm" className="mt-2"><Link href="/dashboard/documents">Back to documents</Link></Button></CardContent></Card>
+  }
+  if (done && seq) {
+    const complete = stepResult?.status === 'completed'
+    const forOther = !!seq.recipientEmployeeId && seq.recipientName && seq.myRole !== 'recipient'
+    return (
+      <Card className="border-green-200 bg-green-50/60">
+        <CardContent className="flex flex-col items-center gap-4 py-12 text-center">
+          <CheckCircle2 className="h-12 w-12 text-green-600" />
+          <div>
+            <h2 className="text-lg font-semibold">{complete ? 'Fully signed' : 'Your signature is recorded'}</h2>
+            <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
+              You signed “{meta.title}”{myStep ? ` as ${myStep.label}` : ''}{forOther ? ` for ${seq.recipientName}` : ''} on {today}.{' '}
+              {complete
+                ? 'Everyone has signed. A secure, hashed copy has been recorded.'
+                : seq.shared
+                  ? 'Your signature will be applied to every copy of this document.'
+                  : stepResult?.next
+                    ? `${stepResult.next.label}${stepResult.next.name ? ` (${stepResult.next.name})` : ''} has been notified to sign next.`
+                    : 'The next signer has been notified.'}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <Button asChild><Link href={seq.myRole === 'recipient' ? '/dashboard/onboarding' : '/dashboard/documents/sign'}>{seq.myRole === 'recipient' ? 'Back to onboarding' : 'Back to E-Signatures'}</Link></Button>
+            {complete && signedRecordId ? (
+              <Button variant="ghost" onClick={() => void downloadSignedCopy()} disabled={downloading}>
+                {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ExternalLink className="h-4 w-4" />} Download signed copy
+              </Button>
+            ) : null}
+          </div>
+        </CardContent>
+      </Card>
+    )
   }
   if (done) {
     return (
@@ -226,6 +295,8 @@ function SignDocumentInner({ documentId }: { documentId: string }) {
         </CardHeader>
       </Card>
 
+      {seq ? <SigningProgress state={seq} /> : null}
+
       {/* Document — in-context overlay for PDFs, fallback viewer + flat form otherwise */}
       {pdfData ? (
         <SignOverlay
@@ -237,6 +308,7 @@ function SignDocumentInner({ documentId }: { documentId: string }) {
           signatureDataUrl={signature?.signatureDataUrl ?? null}
           signatureType={signature?.signatureType ?? null}
           onRequestSignature={() => setShowSig(true)}
+          {...(seq ? { editableRole: seq.myRole, lockedValues: seq.completedValues, roleSignatures: seq.completedSignatures, roleLabels } : {})}
         />
       ) : (
         <>
@@ -261,6 +333,7 @@ function SignDocumentInner({ documentId }: { documentId: string }) {
       )}
 
       {/* Sign + submit bar */}
+      {seq && !seq.myRole ? null : (
       <Card>
         <CardHeader><CardTitle className="flex items-center gap-2 text-base"><PenLine className="h-4 w-4 text-muted-foreground" /> Sign &amp; complete</CardTitle></CardHeader>
         <CardContent className="space-y-5">
@@ -299,11 +372,72 @@ function SignDocumentInner({ documentId }: { documentId: string }) {
           ) : null}
         </CardContent>
       </Card>
+      )}
 
       {showSig ? (
         <SignatureCaptureModal signerName={signerName} onClose={() => setShowSig(false)} onAdopt={(v) => { setSignature(v); setShowSig(false); toast.success('Signature added') }} />
       ) : null}
     </div>
+  )
+}
+
+/** Who signs, in what order, and where this copy is up to (MOS-720). */
+function SigningProgress({ state }: { state: SigningState }) {
+  const fmt = (d: string | null) => (d ? new Date(d).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : '')
+  const complete = state.status === 'completed'
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base">Signing order</CardTitle>
+        <CardDescription>
+          {state.shared
+            ? 'You sign once; your signature is applied to every copy of this document.'
+            : state.recipientName
+              ? `Copy for ${state.recipientName}. Each person signs in turn.`
+              : 'Each person signs in turn.'}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <ol className="space-y-2" data-testid="signing-progress">
+          {state.steps.map((s) => (
+            <li key={s.key} className="flex flex-wrap items-center gap-3 rounded-lg border p-2.5 text-sm" data-status={s.status}>
+              <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${s.status === 'completed' ? 'bg-green-100 text-green-700' : s.status === 'active' ? 'bg-amber-100 text-amber-800' : 'bg-muted text-muted-foreground'}`}>
+                {s.status === 'completed' ? <Check className="h-3.5 w-3.5" /> : s.order}
+              </span>
+              <span className="font-medium">{s.label}</span>
+              {s.assigneeName ? <span className="text-muted-foreground">{s.assigneeName}</span> : null}
+              {s.signOnce ? <Badge variant="outline" className="text-[10px]">signs once</Badge> : null}
+              <span className="ml-auto text-xs">
+                {s.status === 'completed' ? (
+                  <span className="text-green-700">Signed {fmt(s.signedAt)}</span>
+                ) : s.status === 'active' ? (
+                  <span className="inline-flex items-center gap-1 text-amber-700"><PenLine className="h-3 w-3" /> {state.myRole === s.key ? 'Your turn' : 'Signing now'}</span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-muted-foreground"><Clock className="h-3 w-3" /> Waiting for step {s.order - 1}</span>
+                )}
+              </span>
+            </li>
+          ))}
+        </ol>
+        {!complete && state.waitingFor ? (
+          <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900" role="status">
+            <Hourglass className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>
+              Waiting for <strong>{state.waitingFor.label}</strong>{state.waitingFor.name ? ` (${state.waitingFor.name})` : ''} to sign first.
+              {' '}You will get a message when it is your turn.
+            </span>
+          </div>
+        ) : null}
+        {complete ? (
+          <div className="flex items-center gap-2 rounded-md border border-green-200 bg-green-50 p-3 text-sm text-green-800" role="status">
+            <CheckCircle2 className="h-4 w-4" /> Everyone has signed this copy.
+          </div>
+        ) : null}
+        {!complete && !state.waitingFor && !state.myRole ? (
+          <p className="text-sm text-muted-foreground" role="status">There is nothing for you to sign on this copy right now.</p>
+        ) : null}
+      </CardContent>
+    </Card>
   )
 }
 

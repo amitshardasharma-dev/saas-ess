@@ -31,6 +31,9 @@ interface DocReport {
   employees: StatusEmployee[]
   doneCount: number
   total: number
+  /** MOS-720: set when the document has a signing order. */
+  versionId?: string
+  signingOrder?: Array<{ order: number; key: string; label: string; sign_once: boolean }>
 }
 
 type EditorState = { mode: 'closed' } | { mode: 'new' } | { mode: 'edit'; document: DocumentWithVersion }
@@ -135,7 +138,8 @@ export default function DocumentManagePage() {
           ...prev,
           [doc.id]: {
             mode: 'signature', total: r.total, doneCount: r.signed_count,
-            employees: r.employees.map((e) => ({ id: e.id, name: e.name, employee_no: e.employee_no, department: e.department, done: e.signed, doneAt: e.signed_at, signedDocumentId: e.signed_document_id })),
+            versionId: r.version_id, signingOrder: r.signing_order,
+            employees: r.employees.map((e) => ({ id: e.id, name: e.name, employee_no: e.employee_no, department: e.department, done: e.signed, doneAt: e.signed_at, signedDocumentId: e.signed_document_id, sequence: e.sequence ?? null })),
           },
         }))
       } else {
@@ -172,6 +176,19 @@ export default function DocumentManagePage() {
       toast.error('Failed to send reminders')
     } finally {
       setRemindingId(null)
+    }
+  }
+
+  const handleRestart = async (doc: DocumentWithVersion, recipientEmployeeId: string, name: string) => {
+    const versionId = reports[doc.id]?.versionId
+    if (!versionId) return
+    if (!window.confirm(`Restart signing for ${name}? Signatures already given on this copy will no longer count and signing starts again from step 1.`)) return
+    try {
+      await esignService.restartCopy(doc.id, versionId, recipientEmployeeId)
+      toast.success(`Signing restarted for ${name}`)
+      await loadReport(doc)
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not restart signing')
     }
   }
 
@@ -384,6 +401,8 @@ export default function DocumentManagePage() {
                           onRemind={() => handleRemind(doc)}
                           reminding={remindingId === doc.id}
                           downloadingId={downloadingId}
+                          signingOrder={reports[doc.id].signingOrder}
+                          onRestart={(id, name) => void handleRestart(doc, id, name)}
                         />
                       ) : null}
                     </div>

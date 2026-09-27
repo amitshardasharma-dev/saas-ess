@@ -6,7 +6,8 @@ import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { withAuth } from '@/lib/auth-middleware'
 import { assertModuleEnabled, ModuleDisabledError } from '@/lib/modules'
-import { listSignedDocuments } from '@/services/esign'
+import { listSignedDocuments, getVersionForCompany } from '@/services/esign'
+import { getVersionSigningConfig, isMultiSigner, remindCopies } from '@/services/signing-sequence'
 import { notifyEmployeeInbox, escapeHtml } from '@/lib/communications/notify'
 
 const APP_URL = (process.env.NEXT_PUBLIC_APP_URL || 'https://saas-ess.vercel.app').replace(/\/$/, '')
@@ -64,6 +65,16 @@ export const POST = withAuth(
       for (const a of acks || []) completed.add(a.employee_id as string)
     }
     const pending = (employees || []).filter((e) => !completed.has(e.id))
+
+    // MOS-720: with a signing order, remind whoever's turn it is on each copy.
+    if (isSignature && latestVersionId) {
+      const config = await getVersionSigningConfig(latestVersionId)
+      const ctx = isMultiSigner(config) ? await getVersionForCompany(companyId, latestVersionId) : null
+      if (isMultiSigner(config) && ctx) {
+        const reminded = await remindCopies(companyId, ctx, config, pending.map((e) => e.id as string), appUser.id)
+        return NextResponse.json({ reminded, pending: pending.length, mode: 'signature' })
+      }
+    }
 
     const title = (doc as { title?: string }).title ?? 'a document'
     const url = isSignature ? `${APP_URL}/dashboard/documents/${documentId}/sign` : `${APP_URL}/dashboard/documents/${documentId}`

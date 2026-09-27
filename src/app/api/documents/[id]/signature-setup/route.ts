@@ -17,6 +17,7 @@ import { withAuth } from '@/lib/auth-middleware'
 import { assertModuleEnabled, ModuleDisabledError } from '@/lib/modules'
 import { defineFields, getVersionForCompany, SOURCE_DOCUMENTS_BUCKET } from '@/services/esign'
 import { generateDocumentPdf } from '@/lib/documents/markdown-pdf'
+import { cancelInProgress } from '@/services/signing-sequence'
 import type { FieldDefinitionInput } from '@/types/esign'
 
 const SIGNATURE_FIELD: FieldDefinitionInput = {
@@ -141,6 +142,17 @@ export const POST = withAuth(
       return NextResponse.json({ error: 'Not found' }, { status: 404 })
     }
     await defineFields(companyId, employee.id, ctx, [SIGNATURE_FIELD])
+    // The single default field belongs to the recipient, so any signing order on
+    // this version no longer applies (MOS-720). Best-effort.
+    try {
+      const { data: cleared } = await supabaseAdmin
+        .from('ess_document_versions')
+        .update({ signing_config: null })
+        .eq('id', versionId)
+        .not('signing_config', 'is', null)
+        .select('id')
+      if (cleared?.length) await cancelInProgress(companyId, versionId, null, 'Signing reset to a single signer')
+    } catch { /* column may not exist before migration 070 */ }
 
     return NextResponse.json({ message: 'Document is now signable', versionId }, { status: 201 })
   },

@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button'
 import { documentService } from '@/services/document'
 import { esignService } from '@/services/esign-client'
 import { FieldDesigner } from '@/components/documents/signing/field-designer'
-import type { DocumentField } from '@/types/esign'
+import type { DocumentField, SigningConfig } from '@/types/esign'
 
 function authHeaders(): HeadersInit {
   const token = typeof window !== 'undefined' ? localStorage.getItem('ess_access_token') : null
@@ -29,6 +29,7 @@ export default function FieldDesignerPage() {
   const [versionId, setVersionId] = useState<string | null>(null)
   const [pdfData, setPdfData] = useState<ArrayBuffer | null>(null)
   const [initialFields, setInitialFields] = useState<DocumentField[]>([])
+  const [initialSigningConfig, setInitialSigningConfig] = useState<SigningConfig | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -43,14 +44,15 @@ export default function FieldDesignerPage() {
         setTitle(doc.document?.title ?? 'Document')
         setVersionId(latest.id)
 
-        const [fields, res] = await Promise.all([
-          esignService.getFields(documentId, latest.id),
+        const [{ fields, signingConfig }, res] = await Promise.all([
+          esignService.getFieldsAndOrder(documentId, latest.id),
           fetch(`/api/documents/${documentId}/file?versionId=${latest.id}`, { headers: authHeaders() }),
         ])
         if (!res.ok) throw new Error('Could not load the document PDF.')
         const bytes = await res.arrayBuffer()
         if (cancelled) return
         setInitialFields(fields)
+        setInitialSigningConfig(signingConfig)
         setPdfData(bytes)
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load document')
@@ -72,7 +74,7 @@ export default function FieldDesignerPage() {
             </Button>
             <div>
               <h1 className="text-xl font-semibold text-foreground">Prepare “{title || 'document'}”</h1>
-              <p className="text-sm text-muted-foreground">Place signature and information fields where signers should complete them.</p>
+              <p className="text-sm text-muted-foreground">Set who signs and in what order, then place each signer’s fields where they should complete them.</p>
             </div>
           </div>
 
@@ -91,6 +93,7 @@ export default function FieldDesignerPage() {
               versionId={versionId}
               pdfData={pdfData}
               initialFields={initialFields}
+              initialSigningConfig={initialSigningConfig}
             />
           ) : null}
         </div>
