@@ -13,6 +13,7 @@ declare module 'pdf-lib' {
 
   export interface PDFFont {
     widthOfTextAtSize(text: string, size: number): number;
+    encodeText(text: string): unknown;
   }
 
   export interface RGB {
@@ -68,6 +69,7 @@ declare module 'pdf-lib' {
     addPage(size?: [number, number]): PDFPage;
     embedFont(font: string): Promise<PDFFont>;
     embedPng(bytes: Uint8Array | ArrayBuffer | string): Promise<PDFImage>;
+    embedJpg(bytes: Uint8Array | ArrayBuffer | string): Promise<PDFImage>;
     save(): Promise<Uint8Array>;
   }
 }

@@ -5,13 +5,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { withAuth, type AuthContext } from '@/lib/auth-middleware'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { resolveOrgName } from '@/lib/branding'
-import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
-
-function fmtDate(iso: string | null): string {
-  const d = iso ? new Date(iso) : new Date()
-  if (Number.isNaN(d.getTime())) return new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
-  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
-}
+import { renderCertificatePdf, formatCompletionDate } from '@/lib/certificates/render'
+import { getTemplateInEffect } from '@/lib/certificates/template'
 
 export const GET = withAuth(
   async (_req: NextRequest, ctx: AuthContext, params) => {
@@ -41,48 +36,17 @@ export const GET = withAuth(
     const org = await resolveOrgName(ctx.companyId)
     const learner = ctx.employee.full_name || 'Volunteer'
     const moduleTitle = (mod as { title?: string }).title ?? 'Training'
-    const dateStr = fmtDate((prog as { completed_at?: string | null }).completed_at ?? null)
+    const completedAt = (prog as { completed_at?: string | null }).completed_at ?? null
 
-    // ---- Build the certificate (landscape A4) ----
-    const pdf = await PDFDocument.create()
-    const page = pdf.addPage([842, 595])
-    const { width, height } = page.getSize()
-    const bold = await pdf.embedFont(StandardFonts.HelveticaBold)
-    const font = await pdf.embedFont(StandardFonts.Helvetica)
-    const italic = await pdf.embedFont(StandardFonts.HelveticaOblique)
-    const teal = rgb(0.05, 0.6, 0.53)
-    const dark = rgb(0.12, 0.16, 0.23)
-    const grey = rgb(0.42, 0.45, 0.5)
-
-    // Border (drawn as lines — a decorative double frame)
-    const rectBorder = (x: number, y: number, w: number, h: number, color: ReturnType<typeof rgb>, thickness: number) => {
-      page.drawLine({ start: { x, y }, end: { x: x + w, y }, thickness, color })
-      page.drawLine({ start: { x: x + w, y }, end: { x: x + w, y: y + h }, thickness, color })
-      page.drawLine({ start: { x: x + w, y: y + h }, end: { x, y: y + h }, thickness, color })
-      page.drawLine({ start: { x, y: y + h }, end: { x, y }, thickness, color })
-    }
-    rectBorder(24, 24, width - 48, height - 48, teal, 2)
-    rectBorder(32, 32, width - 64, height - 64, rgb(0.8, 0.9, 0.88), 1)
-
-    const center = (text: string, y: number, f: typeof font, size: number, color = dark) => {
-      const w = f.widthOfTextAtSize(text, size)
-      page.drawText(text, { x: (width - w) / 2, y, size, font: f, color })
-    }
-
-    center(org.toUpperCase(), height - 90, bold, 18, teal)
-    center('Certificate of Completion', height - 150, bold, 34, dark)
-    center('This is to certify that', height - 205, italic, 14, grey)
-    center(learner, height - 250, bold, 30, dark)
-    center('has successfully completed the training module', height - 295, italic, 14, grey)
-    center(`“${moduleTitle}”`, height - 335, bold, 22, teal)
-    center(`Completed on ${dateStr}`, height - 385, font, 13, grey)
-
-    // Signature line
-    const lineY = 130
-    page.drawLine({ start: { x: width / 2 - 130, y: lineY }, end: { x: width / 2 + 130, y: lineY }, thickness: 1, color: grey })
-    center('Authorised by ' + org, lineY - 18, font, 11, grey)
-
-    const bytes = await pdf.save()
+    // MOS-721: use the tenant's template that was in effect when the learner
+    // completed, so later template edits never change an issued certificate.
+    const template = await getTemplateInEffect(ctx.companyId, completedAt)
+    const bytes = await renderCertificatePdf(template?.config ?? null, {
+      orgName: org,
+      learnerName: learner,
+      moduleTitle,
+      completedOn: formatCompletionDate(completedAt),
+    })
     const safe = moduleTitle.replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '')
     return new NextResponse(Buffer.from(bytes), {
       status: 200,

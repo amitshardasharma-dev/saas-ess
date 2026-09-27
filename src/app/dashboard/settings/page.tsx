@@ -3,6 +3,7 @@
 import { DashboardLayout } from '@/components/layout/dashboard-layout';
 import { SettingsForm } from '@/components/settings/settings-form';
 import { BrandingCard } from '@/components/settings/branding-card';
+import { CertificateTemplateCard } from '@/components/settings/certificate-template-card';
 import { useAuthStore } from '@/stores/auth';
 import { Toaster } from 'react-hot-toast';
 import { ShieldAlert } from 'lucide-react';
@@ -42,6 +43,7 @@ export default function SettingsPage() {
       <div className="min-h-screen fluid-bg">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
           <BrandingCard />
+          <CertificateTemplateCard />
           <SettingsForm />
         </div>
       </div>
