@@ -3,7 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { withAuth, type AuthContext } from '@/lib/auth-middleware'
 import { resolveOrgName } from '@/lib/branding'
-import { CertificateTemplateSchema } from '@/lib/certificates/template'
+import { CertificateTemplateSchema, templateAssetError } from '@/lib/certificates/template'
 import { renderCertificatePdf, formatCompletionDate } from '@/lib/certificates/render'
 
 export const POST = withAuth(
@@ -17,6 +17,8 @@ export const POST = withAuth(
         { status: 400 },
       )
     }
+    const assetError = templateAssetError(parsed.data, ctx.companyId)
+    if (assetError) return NextResponse.json({ error: assetError }, { status: 400 })
     const bytes = await renderCertificatePdf(parsed.data, {
       orgName: await resolveOrgName(ctx.companyId),
       learnerName: 'Alex Sample',

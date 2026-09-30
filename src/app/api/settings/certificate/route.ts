@@ -11,6 +11,7 @@ import {
   DEFAULT_CERTIFICATE_TEMPLATE,
   getLatestTemplate,
   saveTemplate,
+  templateAssetError,
 } from '@/lib/certificates/template'
 
 export const GET = withAuth(
@@ -44,6 +45,8 @@ export const PUT = withAuth(
         { status: 400 },
       )
     }
+    const assetError = templateAssetError(parsed.data, ctx.companyId)
+    if (assetError) return NextResponse.json({ error: assetError }, { status: 400 })
     try {
       const saved = await saveTemplate(ctx.companyId, parsed.data, ctx.appUser.id)
       await recordAudit({

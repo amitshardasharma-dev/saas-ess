@@ -4,58 +4,17 @@
 // name, the module title and the completion date are always drawn by the
 // renderer from real data and are not part of the template, so an admin can't
 // replace them with static text.
-import { z } from 'zod'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { isTenantAssetUrl, normalizeTemplate, type CertificateTemplate } from './template-schema'
 
-const HEX = /^#[0-9a-fA-F]{6}$/
-
-export const CertificateTemplateSchema = z
-  .object({
-    /** Organisation name printed at the top. null = the tenant's brand name. */
-    orgName: z.string().trim().max(80).nullable().optional(),
-    title: z.string().trim().min(1).max(60),
-    intro: z.string().trim().max(120),
-    body: z.string().trim().max(160),
-    /** Line under the signature rule. null = "Authorised by <org>". */
-    footer: z.string().trim().max(120).nullable().optional(),
-    signatoryName: z.string().trim().max(80).nullable().optional(),
-    signatoryTitle: z.string().trim().max(80).nullable().optional(),
-    /** Public URL of a PNG/JPEG logo, or null for no logo. */
-    logoUrl: z.string().url().max(1000).nullable().optional(),
-    accentColor: z.string().regex(HEX, 'Use a #RRGGBB colour'),
-    textColor: z.string().regex(HEX, 'Use a #RRGGBB colour'),
-    mutedColor: z.string().regex(HEX, 'Use a #RRGGBB colour'),
-  })
-  .strict()
-
-export type CertificateTemplate = z.infer<typeof CertificateTemplateSchema>
-
-/** Reproduces the certificate as it looked before templates existed. */
-export const DEFAULT_CERTIFICATE_TEMPLATE: CertificateTemplate = {
-  orgName: null,
-  title: 'Certificate of Completion',
-  intro: 'This is to certify that',
-  body: 'has successfully completed the training module',
-  footer: null,
-  signatoryName: null,
-  signatoryTitle: null,
-  logoUrl: null,
-  accentColor: '#0d9987',
-  textColor: '#1f293b',
-  mutedColor: '#6b7380',
-}
+// The schema, defaults and limits live in a client-safe module; re-exported
+// here so server code keeps a single import.
+export * from './template-schema'
 
 export interface StoredTemplate {
   version: number
   config: CertificateTemplate
   createdAt: string
-}
-
-/** Merge a stored config over the defaults so older/partial rows still render. */
-export function normalizeTemplate(raw: unknown): CertificateTemplate {
-  const merged = { ...DEFAULT_CERTIFICATE_TEMPLATE, ...((raw && typeof raw === 'object') ? raw : {}) }
-  const parsed = CertificateTemplateSchema.safeParse(merged)
-  return parsed.success ? parsed.data : DEFAULT_CERTIFICATE_TEMPLATE
 }
 
 /** The newest template version for a tenant, or null if they never saved one. */
@@ -111,4 +70,15 @@ export async function saveTemplate(companyId: string, config: CertificateTemplat
     if (error && !/duplicate key/i.test(error.message)) throw new Error(error.message)
   }
   throw new Error('Could not save the certificate template, please try again')
+}
+
+/**
+ * Reject logo/signature links that aren't this tenant's own uploads (the
+ * renderer fetches them server-side). Returns an error message, or null if OK.
+ */
+export function templateAssetError(t: CertificateTemplate, companyId: string): string | null {
+  const base = process.env.NEXT_PUBLIC_SUPABASE_URL
+  if (t.logoUrl && !isTenantAssetUrl(t.logoUrl, companyId, base)) return 'logoUrl: please upload the logo again'
+  if (t.signatureImageUrl && !isTenantAssetUrl(t.signatureImageUrl, companyId, base)) return 'signatureImageUrl: please upload the signature again'
+  return null
 }

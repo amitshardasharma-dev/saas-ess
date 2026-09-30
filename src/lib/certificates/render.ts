@@ -1,8 +1,14 @@
 // MOS-721 — renders a Certificate of Completion (landscape A4) from a template.
 // One renderer serves the learner download and the admin preview, so what the
 // admin previews is exactly what learners receive.
+//
+// MOS-748 — templates saved with `layoutVersion: 2` use the flexible layout
+// (adjustable logo/text sizes, serif option, signature image). Everything else,
+// including every template saved before MOS-748, uses the original fixed layout
+// below, unchanged, so certificates already issued never change.
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFImage, type RGB } from 'pdf-lib'
-import { DEFAULT_CERTIFICATE_TEMPLATE, type CertificateTemplate } from './template'
+import { DEFAULT_CERTIFICATE_TEMPLATE, resolveLayout, type CertificateTemplate } from './template-schema'
+import { planFlexibleLayout, type ColorKey, type FontKey } from './layout'
 
 export interface CertificateData {
   orgName: string
@@ -75,7 +81,12 @@ export async function renderCertificatePdf(
   template: CertificateTemplate | null,
   data: CertificateData,
 ): Promise<Uint8Array> {
-  const t = template ?? DEFAULT_CERTIFICATE_TEMPLATE
+  if (template?.layoutVersion === 2) return renderFlexible(template, data)
+  return renderFixed(template ?? DEFAULT_CERTIFICATE_TEMPLATE, data)
+}
+
+/** The original fixed layout (MOS-721). Do not change: issued certificates depend on it. */
+async function renderFixed(t: CertificateTemplate, data: CertificateData): Promise<Uint8Array> {
   const pdf = await PDFDocument.create()
   const page = pdf.addPage([842, 595])
   const { width, height } = page.getSize()
@@ -141,6 +152,79 @@ export async function renderCertificatePdf(
   } else {
     if (t.signatoryTitle) center(t.signatoryTitle, lineY - 18, font, 11, grey)
     if (footer) center(footer, t.signatoryTitle ? lineY - 40 : lineY - 18, font, 11, grey)
+  }
+
+  return pdf.save()
+}
+
+/** MOS-748 flexible layout: sizes from the template, positions from planFlexibleLayout. */
+async function renderFlexible(t: CertificateTemplate, data: CertificateData): Promise<Uint8Array> {
+  const L = resolveLayout(t)
+  const pdf = await PDFDocument.create()
+  const page = pdf.addPage([842, 595])
+  const { width, height } = page.getSize()
+  const serif = L.fontFamily === 'serif'
+  const [regular, bold, italic] = await Promise.all([
+    pdf.embedFont(serif ? StandardFonts.TimesRoman : StandardFonts.Helvetica),
+    pdf.embedFont(serif ? StandardFonts.TimesRomanBold : StandardFonts.HelveticaBold),
+    pdf.embedFont(serif ? StandardFonts.TimesRomanItalic : StandardFonts.HelveticaOblique),
+  ])
+  const fonts: Record<FontKey, PDFFont> = { regular, bold, italic }
+  const colors: Record<ColorKey, RGB> = { accent: hexToRgb(t.accentColor), dark: hexToRgb(t.textColor), grey: hexToRgb(t.mutedColor) }
+
+  const rectBorder = (x: number, y: number, w: number, h: number, color: RGB, thickness: number) => {
+    page.drawLine({ start: { x, y }, end: { x: x + w, y }, thickness, color })
+    page.drawLine({ start: { x: x + w, y }, end: { x: x + w, y: y + h }, thickness, color })
+    page.drawLine({ start: { x: x + w, y: y + h }, end: { x, y: y + h }, thickness, color })
+    page.drawLine({ start: { x, y: y + h }, end: { x, y }, thickness, color })
+  }
+  rectBorder(24, 24, width - 48, height - 48, colors.accent, 2)
+  rectBorder(32, 32, width - 64, height - 64, tint(t.accentColor, 0.8), 1)
+
+  const [logo, signature] = await Promise.all([
+    t.logoUrl ? loadLogo(pdf, t.logoUrl) : Promise.resolve(null),
+    t.signatureImageUrl ? loadLogo(pdf, t.signatureImageUrl) : Promise.resolve(null),
+  ])
+
+  // All three faces share WinAnsi encoding, so one sanitising pass covers them.
+  const clean = (s: string | null | undefined) => {
+    const v = s ? safeText(regular, s).trim() : ''
+    return v || null
+  }
+  const org = clean((t.orgName && t.orgName.trim()) || data.orgName)
+  const footer = clean((t.footer && t.footer.trim()) || (org ? `Authorised by ${org}` : ''))
+
+  const plan = planFlexibleLayout({
+    page: { width, height },
+    metrics: { width: (text, font, size) => fonts[font].widthOfTextAtSize(text, size) },
+    layout: L,
+    text: {
+      org: org ? org.toUpperCase() : null,
+      title: clean(t.title) ?? '',
+      intro: clean(t.intro),
+      name: clean(data.learnerName) ?? '',
+      body: clean(t.body),
+      module: `“${clean(data.moduleTitle) ?? ''}”`,
+      date: `Completed on ${data.completedOn}`,
+      signatoryName: clean(t.signatoryName),
+      signatoryTitle: clean(t.signatoryTitle),
+      footer,
+    },
+    logo: logo ? { width: logo.width, height: logo.height } : null,
+    signature: signature ? { width: signature.width, height: signature.height } : null,
+  })
+
+  for (const item of plan) {
+    if (item.kind === 'rule') {
+      page.drawLine({ start: { x: item.x1, y: item.y }, end: { x: item.x2, y: item.y }, thickness: 1, color: colors.grey })
+    } else if (item.kind === 'image') {
+      const img = item.key === 'logo' ? logo : signature
+      if (img) page.drawImage(img, { x: item.x, y: item.y, width: item.width, height: item.height })
+    } else {
+      for (const line of item.lines) {
+        page.drawText(line.text, { x: line.x, y: line.y, size: item.size, font: fonts[item.font], color: colors[item.color] })
+      }
+    }
   }
 
   return pdf.save()
