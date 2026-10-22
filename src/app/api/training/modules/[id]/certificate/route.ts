@@ -6,7 +6,7 @@ import { withAuth, type AuthContext } from '@/lib/auth-middleware'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { resolveOrgName } from '@/lib/branding'
 import { renderCertificatePdf, formatCompletionDate } from '@/lib/certificates/render'
-import { getTemplateInEffect } from '@/lib/certificates/template'
+import { getLatestTemplate } from '@/lib/certificates/template'
 
 export const GET = withAuth(
   async (_req: NextRequest, ctx: AuthContext, params) => {
@@ -38,9 +38,9 @@ export const GET = withAuth(
     const moduleTitle = (mod as { title?: string }).title ?? 'Training'
     const completedAt = (prog as { completed_at?: string | null }).completed_at ?? null
 
-    // MOS-721: use the tenant's template that was in effect when the learner
-    // completed, so later template edits never change an issued certificate.
-    const template = await getTemplateInEffect(ctx.companyId, completedAt)
+    // MOS-857: always the tenant's newest template, so an admin's change shows
+    // on every learner's certificate, including training completed earlier.
+    const template = await getLatestTemplate(ctx.companyId)
     const bytes = await renderCertificatePdf(template?.config ?? null, {
       orgName: org,
       learnerName: learner,

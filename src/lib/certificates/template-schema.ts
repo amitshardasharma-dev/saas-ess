@@ -46,7 +46,7 @@ export const CertificateTemplateSchema = z
 
     // --- MOS-748: flexible layout -----------------------------------------
     // Absent on templates saved before MOS-748, which keep the original fixed
-    // layout so certificates already issued never change.
+    // layout so they still render exactly as the admin designed them.
     layoutVersion: z.literal(2).optional(),
     fontFamily: z.enum(['sans', 'serif']).optional(),
     logoHeight: size('logoHeight').optional(),

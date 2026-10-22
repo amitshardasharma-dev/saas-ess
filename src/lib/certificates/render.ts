@@ -5,7 +5,7 @@
 // MOS-748 — templates saved with `layoutVersion: 2` use the flexible layout
 // (adjustable logo/text sizes, serif option, signature image). Everything else,
 // including every template saved before MOS-748, uses the original fixed layout
-// below, unchanged, so certificates already issued never change.
+// below, unchanged, so a template saved before MOS-748 still renders as it did.
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFImage, type RGB } from 'pdf-lib'
 import { DEFAULT_CERTIFICATE_TEMPLATE, resolveLayout, type CertificateTemplate } from './template-schema'
 import { planFlexibleLayout, type ColorKey, type FontKey } from './layout'

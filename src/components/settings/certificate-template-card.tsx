@@ -2,7 +2,8 @@
 // wording, text sizes and font, signatory with an optional signature image, and
 // colours for training-completion certificates. The preview is rendered by the
 // same server code learners download from, so it matches exactly. Saving
-// creates a new version; certificates already issued keep their version.
+// creates a new version, and every certificate downloaded after that uses it
+// (MOS-857), including training completed earlier.
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -188,7 +189,7 @@ export function CertificateTemplateCard() {
       setTpl(withLayout(d.template))
       setVersion(d.version)
       setDirty(false)
-      toast.success('Certificate template saved. New certificates will use it.')
+      toast.success('Certificate template saved. All certificates now use it.')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Save failed')
     } finally {
@@ -226,8 +227,8 @@ export function CertificateTemplateCard() {
         <CardTitle className="flex items-center gap-2 text-base"><Award className="h-4 w-4 text-muted-foreground" /> Training certificate</CardTitle>
         <CardDescription>
           Design the certificate people receive when they complete a training module. The person&apos;s name, the module and the
-          completion date are always filled in automatically. Changes apply to new certificates only; certificates already issued keep
-          their original design.
+          completion date are always filled in automatically. When you save, every certificate uses the new design, including
+          certificates for training completed before.
         </CardDescription>
       </CardHeader>
       <CardContent>

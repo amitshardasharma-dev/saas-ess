@@ -31,29 +31,10 @@ export async function getLatestTemplate(companyId: string): Promise<StoredTempla
 }
 
 /**
- * The template in effect at `at` (the completion time): the newest version saved
- * on or before it. Completions that pre-date every saved version keep the
- * built-in default, so historical certificates never change.
+ * Append a new template version (never updates an existing row). Certificates
+ * always render with the newest version (MOS-857); older versions stay as a
+ * record of past designs.
  */
-export async function getTemplateInEffect(companyId: string, at: string | null): Promise<StoredTemplate | null> {
-  if (!at) return getLatestTemplate(companyId)
-  try {
-    const { data } = await supabaseAdmin
-      .from('ess_certificate_templates')
-      .select('version, config, created_at')
-      .eq('company_id', companyId)
-      .lte('created_at', at)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-    if (!data) return null
-    return { version: data.version as number, config: normalizeTemplate(data.config), createdAt: data.created_at as string }
-  } catch {
-    return null
-  }
-}
-
-/** Append a new template version (never updates an existing row). */
 export async function saveTemplate(companyId: string, config: CertificateTemplate, actorId: string | null): Promise<StoredTemplate> {
   // Retry once on a version race (two admins saving at the same instant).
   for (let attempt = 0; attempt < 2; attempt++) {
