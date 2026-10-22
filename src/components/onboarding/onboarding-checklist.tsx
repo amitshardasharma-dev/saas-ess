@@ -51,7 +51,12 @@ const STEP_META: Record<OnboardingStepType, StepMeta> = {
   doc_sign: { icon: FileSignature, cta: 'Review & sign', href: (s) => `/dashboard/documents/${s.ref_id}` },
   doc_ack: { icon: ShieldCheck, cta: 'Read & acknowledge', href: (s) => `/dashboard/documents/${s.ref_id}` },
   certification: { icon: Upload, cta: 'Add certificate', href: () => '/dashboard/compliance' },
-  training: { icon: GraduationCap, cta: 'Start training', href: () => '/dashboard/training' },
+  training: {
+    icon: GraduationCap,
+    cta: 'Start training',
+    // Open the linked course itself, not just the training list (MOS-858).
+    href: (s) => (s.ref_id ? `/dashboard/training?module=${encodeURIComponent(s.ref_id)}` : '/dashboard/training'),
+  },
   manual: { icon: Clock, cta: null, href: null, staffMarked: true },
 };
 

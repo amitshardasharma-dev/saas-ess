@@ -14,6 +14,7 @@ jest.mock('@/lib/supabase-admin', () => {
     ess_app_users: [],
     ess_employees: [],
     ess_training_group_members: [],
+    ess_onboarding_steps: [],
   }
 
   function makeBuilder(table: string) {
@@ -32,8 +33,14 @@ jest.mock('@/lib/supabase-admin', () => {
       ins.push({ col, vals })
       return chain
     }
+    const notNull: string[] = []
+    chain.not = (col: string, op: string, val: unknown) => {
+      if (op === 'is' && val === null) notNull.push(col)
+      return chain
+    }
     const rows = () => {
       let data = db[table] ?? []
+      for (const c of notNull) data = data.filter((r) => r[c] !== null && r[c] !== undefined)
       for (const f of eqs) data = data.filter((r) => r[f.col] === f.val)
       for (const f of ins) data = data.filter((r) => (f.vals as unknown[]).includes(r[f.col]))
       return data
@@ -131,6 +138,49 @@ describe('resolveAssignees', () => {
     db.ess_employees.push({ id: 'e1', company_id: COMPANY_A, full_name: 'A', department: 'X' })
     const result = await resolveAssignees('mod-1')
     expect(result.map((r) => r.employee_id)).toEqual(['e1']) // appears once
+  })
+
+  // MOS-858: a training step in someone's onboarding checklist assigns the module.
+  it('includes people with a training step for the module in their onboarding', async () => {
+    db.ess_onboarding_steps.push(
+      { id: 's1', company_id: COMPANY_A, employee_id: 'e1', step_type: 'training', ref_id: 'mod-1' },
+      { id: 's2', company_id: COMPANY_A, employee_id: 'e2', step_type: 'training', ref_id: 'mod-other' },
+      { id: 's3', company_id: COMPANY_A, employee_id: 'e3', step_type: 'doc_sign', ref_id: 'mod-1' },
+      // The flow's template step: same table, no employee.
+      { id: 't1', company_id: COMPANY_A, employee_id: null, template_id: 'tpl-1', step_type: 'training', ref_id: 'mod-1' }
+    )
+    db.ess_employees.push(
+      { id: 'e1', company_id: COMPANY_A, full_name: 'Onboarding Vol', department: null },
+      { id: 'e2', company_id: COMPANY_A, full_name: 'Other course', department: null },
+      { id: 'e3', company_id: COMPANY_A, full_name: 'Not a training step', department: null }
+    )
+    const result = await resolveAssignees('mod-1')
+    expect(result.map((r) => r.employee_id)).toEqual(['e1'])
+  })
+
+  it('combines onboarding learners with rules and lists each person once', async () => {
+    db.ess_training_assignments.push({
+      id: 'as6', company_id: COMPANY_A, module_id: 'mod-1', target_type: 'user', target_value: 'e1',
+    })
+    db.ess_onboarding_steps.push(
+      { id: 's1', company_id: COMPANY_A, employee_id: 'e1', step_type: 'training', ref_id: 'mod-1' },
+      { id: 's2', company_id: COMPANY_A, employee_id: 'e2', step_type: 'training', ref_id: 'mod-1' }
+    )
+    db.ess_employees.push(
+      { id: 'e1', company_id: COMPANY_A, full_name: 'A', department: null },
+      { id: 'e2', company_id: COMPANY_A, full_name: 'B', department: null }
+    )
+    const result = await resolveAssignees('mod-1')
+    expect(result.map((r) => r.employee_id).sort()).toEqual(['e1', 'e2'])
+  })
+
+  it('ignores onboarding steps from another tenant', async () => {
+    db.ess_onboarding_steps.push({
+      id: 'sB', company_id: COMPANY_B, employee_id: 'eb', step_type: 'training', ref_id: 'mod-1',
+    })
+    db.ess_employees.push({ id: 'eb', company_id: COMPANY_B, full_name: 'B', department: null })
+    const result = await resolveAssignees('mod-1')
+    expect(result).toEqual([])
   })
 
   it('returns [] for a foreign/unknown module (no cross-tenant leak)', async () => {

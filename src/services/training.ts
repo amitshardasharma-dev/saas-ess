@@ -115,9 +115,14 @@ export const trainingService = {
   },
 
   // ---- Assignments ----
-  async getAssignments(
-    moduleId: string
-  ): Promise<{ assignments: TrainingAssignment[]; assignees: Assignee[] }> {
+  async getAssignments(moduleId: string): Promise<{
+    assignments: TrainingAssignment[]
+    assignees: Assignee[]
+    /** People who get the module as a step in their onboarding checklist. */
+    onboarding_count?: number
+    /** A compliance requirement makes the module required for a tier/group. */
+    compliance_required?: boolean
+  }> {
     const res = await fetch(`/api/training/modules/${moduleId}/assignments`, {
       headers: authHeaders(),
     })

@@ -14,6 +14,24 @@ import type { TrainingAssignment, Assignee } from '@/types/training'
 export type { Assignee }
 
 /**
+ * Employee ids whose onboarding checklist has a training step for this module
+ * (MOS-858). Adding a course to an onboarding flow assigns it to everyone who
+ * gets that step, so it shows in their learning view without a separate rule.
+ */
+async function onboardingLearnerIds(companyId: string, moduleId: string): Promise<string[]> {
+  // The flow's own template steps live in the same table with no employee_id;
+  // only per-person steps count.
+  const { data } = await supabaseAdmin
+    .from('ess_onboarding_steps')
+    .select('employee_id')
+    .eq('company_id', companyId)
+    .eq('step_type', 'training')
+    .eq('ref_id', moduleId)
+    .not('employee_id', 'is', null)
+  return Array.from(new Set((data ?? []).map((s) => s.employee_id as string | null).filter((id): id is string => !!id)))
+}
+
+/**
  * Resolve every employee assigned a module, de-duplicated, tenant-scoped.
  *
  * Supports all four target types:
@@ -21,6 +39,7 @@ export type { Assignee }
  *   - 'org_unit' -> employees whose department === target_value
  *   - 'group'    -> members of the custom group target_value
  *   - 'user'     -> the single employee target_value
+ * plus everyone with a training step for the module in their onboarding.
  *
  * Returns [] for an unknown/foreign module (no rows -> nothing leaks).
  */
@@ -35,15 +54,18 @@ export async function resolveAssignees(moduleId: string): Promise<Assignee[]> {
   if (!mod) return []
   const companyId = mod.company_id as string
 
-  // 2. Load all assignment rows for this module (tenant-scoped).
-  const { data: assignmentRows } = await supabaseAdmin
-    .from('ess_training_assignments')
-    .select('*')
-    .eq('module_id', moduleId)
-    .eq('company_id', companyId)
+  // 2. Load all assignment rows and onboarding learners for this module (tenant-scoped).
+  const [{ data: assignmentRows }, onboardingIds] = await Promise.all([
+    supabaseAdmin
+      .from('ess_training_assignments')
+      .select('*')
+      .eq('module_id', moduleId)
+      .eq('company_id', companyId),
+    onboardingLearnerIds(companyId, moduleId),
+  ])
 
   const assignments = (assignmentRows ?? []) as TrainingAssignment[]
-  if (assignments.length === 0) return []
+  if (assignments.length === 0 && onboardingIds.length === 0) return []
 
   const byType = (t: TrainingAssignment['target_type']) =>
     assignments.filter((a) => a.target_type === t).map((a) => a.target_value)
@@ -103,17 +125,24 @@ export async function resolveAssignees(moduleId: string): Promise<Assignee[]> {
     }
   }
 
-  // 3d. user -> direct employee ids.
-  if (userIds.length > 0) {
+  // 3d. user -> direct employee ids, and 3e. onboarding -> people with a
+  // training step for this module.
+  const directIds = Array.from(new Set([...userIds, ...onboardingIds]))
+  if (directIds.length > 0) {
     const { data: emps } = await supabaseAdmin
       .from('ess_employees')
       .select('id, full_name, department')
       .eq('company_id', companyId)
-      .in('id', userIds)
+      .in('id', directIds)
     for (const e of emps ?? []) add(e as Assignee & { id: string })
   }
 
   return Array.from(result.values())
+}
+
+/** How many people get a module through their onboarding checklist. */
+export async function onboardingLearnerCount(companyId: string, moduleId: string): Promise<number> {
+  return (await onboardingLearnerIds(companyId, moduleId)).length
 }
 
 /**
@@ -139,9 +168,7 @@ export async function assignedModuleIdsForEmployee(
     .eq('company_id', companyId)
     .eq('status', 'published')
 
-  const ids: string[] = []
-  for (const m of modules ?? []) {
-    if (await isAssigned(employeeId, m.id as string)) ids.push(m.id as string)
-  }
-  return ids
+  const ids = (modules ?? []).map((m) => m.id as string)
+  const assigned = await Promise.all(ids.map((id) => isAssigned(employeeId, id)))
+  return ids.filter((_, i) => assigned[i])
 }

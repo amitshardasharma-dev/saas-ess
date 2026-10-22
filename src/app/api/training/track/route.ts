@@ -1,7 +1,8 @@
 // src/app/api/training/track/route.ts
 //
 // Volunteer tracking endpoint: video watch ack, document download/ack, and
-// throttled+capped time ticks. The caller must be assigned the item's module.
+// throttled+capped time ticks. The caller must be able to take the item's module
+// (canTakeModule: assignment rule, onboarding step or compliance requirement).
 // Module-gated on 'training_tracking'.
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -9,9 +10,9 @@ import { supabaseAdmin } from '@/lib/supabase-server'
 import { withAuth } from '@/lib/auth-middleware'
 import { assertModuleEnabled, ModuleDisabledError } from '@/lib/modules'
 import { trackEventSchema } from '@/types/training'
-import { recordItemEvent, isAssigned } from '@/lib/training'
+import { recordItemEvent, canTakeModule } from '@/lib/training'
 
-export const POST = withAuth(async (request: NextRequest, { companyId, employee }) => {
+export const POST = withAuth(async (request: NextRequest, { companyId, employee, role }) => {
   try {
     await assertModuleEnabled(companyId, 'training_tracking')
   } catch (e) {
@@ -34,7 +35,7 @@ export const POST = withAuth(async (request: NextRequest, { companyId, employee 
     return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Invalid input' }, { status: 400 })
   }
 
-  // Verify the item belongs to this tenant and the caller is assigned its module.
+  // Verify the item belongs to this tenant and the caller can take its module.
   const { data: item } = await supabaseAdmin
     .from('ess_training_items')
     .select('id, company_id, module_id')
@@ -43,7 +44,7 @@ export const POST = withAuth(async (request: NextRequest, { companyId, employee 
   if (!item || item.company_id !== companyId) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
-  if (!(await isAssigned(employee.id, item.module_id as string))) {
+  if (!(await canTakeModule(companyId, employee.id, role, item.module_id as string))) {
     return NextResponse.json({ error: 'Not assigned' }, { status: 403 })
   }
 

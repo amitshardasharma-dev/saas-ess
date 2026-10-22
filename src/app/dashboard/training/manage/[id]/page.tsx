@@ -76,6 +76,8 @@ import {
   X,
   Save,
   Youtube,
+  AlertTriangle,
+  ListChecks,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -110,7 +112,13 @@ type PageState =
   | { kind: 'forbidden' }
   | { kind: 'notfound' }
   | { kind: 'error' }
-  | { kind: 'ok'; module: TrainingModuleWithItems; assignments: TrainingAssignment[]; assignees: Assignee[] }
+  | { kind: 'ok'; module: TrainingModuleWithItems; assignments: TrainingAssignment[]; assignees: Assignee[]; reach: Reach }
+
+/** Where a module's learners come from besides the assignment rules (MOS-858). */
+interface Reach {
+  onboardingCount: number
+  complianceRequired: boolean
+}
 
 export default function ModuleBuilderPage() {
   const params = useParams<{ id: string }>()
@@ -135,7 +143,16 @@ export default function ModuleBuilderPage() {
         return
       }
       const assn = await trainingService.getAssignments(moduleId)
-      setState({ kind: 'ok', module: mod, assignments: assn.assignments, assignees: assn.assignees })
+      setState({
+        kind: 'ok',
+        module: mod,
+        assignments: assn.assignments,
+        assignees: assn.assignees,
+        reach: {
+          onboardingCount: assn.onboarding_count ?? 0,
+          complianceRequired: assn.compliance_required ?? false,
+        },
+      })
     } catch {
       setState({ kind: 'error' })
     }
@@ -179,6 +196,7 @@ export default function ModuleBuilderPage() {
       module={state.module}
       assignments={state.assignments}
       assignees={state.assignees}
+      reach={state.reach}
       onChanged={load}
     />
   )
@@ -227,15 +245,19 @@ function Builder({
   module,
   assignments,
   assignees,
+  reach,
   onChanged,
 }: {
   module: TrainingModuleWithItems
   assignments: TrainingAssignment[]
   assignees: Assignee[]
+  reach: Reach
   onChanged: () => void | Promise<void>
 }) {
   const [busy, setBusy] = useState(false)
   const meta = STATUS_META[module.status]
+  // Published but nobody can open it: no rule, no onboarding step, not required.
+  const unreachable = module.status === 'published' && assignees.length === 0 && !reach.complianceRequired
 
   const setStatus = async (status: 'published' | 'archived' | 'draft', ok: string) => {
     setBusy(true)
@@ -292,12 +314,27 @@ function Builder({
         </div>
       </div>
 
+      {unreachable ? (
+        <div
+          role="status"
+          data-testid="module-unreachable"
+          className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-200"
+        >
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>
+            This module is published, but nobody can see it yet. Add an assignment below, or add it as a
+            training step to an onboarding flow.
+          </span>
+        </div>
+      ) : null}
+
       <DetailsCard module={module} onChanged={onChanged} />
       <ItemsCard module={module} onChanged={onChanged} />
       <AssignCard
         moduleId={module.id}
         assignments={assignments}
         assignees={assignees}
+        onboardingCount={reach.onboardingCount}
         onChanged={onChanged}
       />
     </div>
@@ -1114,11 +1151,13 @@ function AssignCard({
   moduleId,
   assignments,
   assignees,
+  onboardingCount,
   onChanged,
 }: {
   moduleId: string
   assignments: TrainingAssignment[]
   assignees: Assignee[]
+  onboardingCount: number
   onChanged: () => void | Promise<void>
 }) {
   // Tenant data for the value pickers (loaded once).
@@ -1240,10 +1279,22 @@ function AssignCard({
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Assignment rules
           </p>
-          {assignments.length === 0 ? (
-            <p className="rounded-lg border border-dashed px-3 py-4 text-sm text-muted-foreground">
-              Not assigned to anyone yet.
+          {onboardingCount > 0 ? (
+            <p
+              data-testid="assign-onboarding-note"
+              className="flex items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm text-muted-foreground"
+            >
+              <ListChecks className="h-4 w-4 shrink-0" />
+              {onboardingCount} {onboardingCount === 1 ? 'person gets' : 'people get'} this module as a step in
+              their onboarding checklist.
             </p>
+          ) : null}
+          {assignments.length === 0 ? (
+            onboardingCount > 0 ? null : (
+              <p className="rounded-lg border border-dashed px-3 py-4 text-sm text-muted-foreground">
+                Not assigned to anyone yet.
+              </p>
+            )
           ) : (
             <ul className="space-y-2">
               {assignments.map((a) => (

@@ -8,7 +8,7 @@ import { supabaseAdmin } from '@/lib/supabase-server'
 import { withAuth } from '@/lib/auth-middleware'
 import { recordAudit } from '@/lib/audit'
 import { createAssignmentSchema } from '@/types/training'
-import { resolveAssignees } from '@/lib/training'
+import { resolveAssignees, onboardingLearnerCount } from '@/lib/training'
 
 async function ownedModule(id: string, companyId: string) {
   const { data } = await supabaseAdmin
@@ -33,8 +33,25 @@ export const GET = withAuth(
       .eq('company_id', companyId)
       .order('assigned_at', { ascending: false })
 
-    const assignees = await resolveAssignees(moduleId)
-    return NextResponse.json({ assignments: assignments ?? [], assignees })
+    // Onboarding learners are already in `assignees`; the count and the
+    // compliance flag let the editor explain where learners come from and warn
+    // when a published module reaches nobody (MOS-858).
+    const [assignees, onboardingCount, { count: complianceCount }] = await Promise.all([
+      resolveAssignees(moduleId),
+      onboardingLearnerCount(companyId, moduleId),
+      supabaseAdmin
+        .from('ess_compliance_requirements')
+        .select('id', { count: 'exact', head: true })
+        .eq('company_id', companyId)
+        .eq('kind', 'training')
+        .eq('ref_id', moduleId),
+    ])
+    return NextResponse.json({
+      assignments: assignments ?? [],
+      assignees,
+      onboarding_count: onboardingCount,
+      compliance_required: (complianceCount ?? 0) > 0,
+    })
   },
   { minRole: 'hr' }
 )

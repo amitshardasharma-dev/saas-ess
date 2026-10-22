@@ -14,8 +14,11 @@ export {
   resolveAssignees,
   isAssigned,
   assignedModuleIdsForEmployee,
+  onboardingLearnerCount,
   type Assignee,
 } from './assignments'
+
+export { canTakeModule } from './access'
 
 export {
   recomputeModuleProgress,
