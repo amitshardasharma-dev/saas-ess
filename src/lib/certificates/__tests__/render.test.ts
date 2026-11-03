@@ -139,3 +139,70 @@ describe('isTenantAssetUrl', () => {
     expect(isTenantAssetUrl('not a url', co, base)).toBe(false)
   })
 })
+
+// ---------------------------------------------------------------------------
+// Issue and expiry dates
+// ---------------------------------------------------------------------------
+import { addMonthsClamped, certificateDates, certificateDateLine } from '@/lib/certificates/render'
+import { validityLabel, VALIDITY_MONTH_OPTIONS } from '@/lib/certificates/template-schema'
+
+describe('certificate issue and expiry dates', () => {
+  it('adds months and keeps the day', () => {
+    const d = addMonthsClamped(new Date(2026, 10, 3, 12), 12)
+    expect([d.getFullYear(), d.getMonth(), d.getDate()]).toEqual([2027, 10, 3])
+  })
+
+  it('limits the day to the end of a shorter month', () => {
+    const feb = addMonthsClamped(new Date(2027, 0, 31, 12), 1)
+    expect([feb.getFullYear(), feb.getMonth(), feb.getDate()]).toEqual([2027, 1, 28])
+    const leap = addMonthsClamped(new Date(2028, 1, 29, 12), 12)
+    expect([leap.getFullYear(), leap.getMonth(), leap.getDate()]).toEqual([2029, 1, 28])
+  })
+
+  it('gives an expiry date only when the template sets a validity period', () => {
+    const iso = '2026-11-03T12:00:00Z'
+    expect(certificateDates(iso, 12)).toEqual({ completedOn: '3 November 2026', expiresOn: '3 November 2027' })
+    expect(certificateDates(iso, 6)).toEqual({ completedOn: '3 November 2026', expiresOn: '3 May 2027' })
+    expect(certificateDates(iso, null)).toEqual({ completedOn: '3 November 2026', expiresOn: null })
+    expect(certificateDates(iso, undefined).expiresOn).toBeNull()
+  })
+
+  it('keeps the original "Completed on" line when there is no expiry', () => {
+    expect(certificateDateLine({ completedOn: '3 November 2026' })).toBe('Completed on 3 November 2026')
+    expect(certificateDateLine({ completedOn: '3 November 2026', expiresOn: null })).toBe('Completed on 3 November 2026')
+    expect(certificateDateLine({ completedOn: '3 November 2026', expiresOn: '3 November 2027' }))
+      .toBe('Issue date: 3 November 2026   ·   Expiry date: 3 November 2027')
+  })
+
+  it('renders the expiry line on both layouts', async () => {
+    const withExpiry = { ...data, expiresOn: '22 September 2027' }
+    for (const t of [null, { ...DEFAULT_CERTIFICATE_TEMPLATE, ...LAYOUT_DEFAULTS, fontFamily: 'serif' as const, validityMonths: 12 }]) {
+      const bytes = await renderCertificatePdf(t, withExpiry)
+      expect((await PDFDocument.load(bytes)).getPages()).toHaveLength(1)
+      const plain = await renderCertificatePdf(t, data)
+      expect(Buffer.from(bytes).equals(Buffer.from(plain))).toBe(false)
+    }
+  })
+
+  it('accepts a validity period in whole months between 1 and 120, or null', () => {
+    const ok = (v: unknown) => CertificateTemplateSchema.safeParse({ ...DEFAULT_CERTIFICATE_TEMPLATE, validityMonths: v }).success
+    expect(ok(12)).toBe(true)
+    expect(ok(null)).toBe(true)
+    expect(ok(120)).toBe(true)
+    expect(ok(0)).toBe(false)
+    expect(ok(121)).toBe(false)
+    expect(ok(1.5)).toBe(false)
+    expect(ok('12')).toBe(false)
+    expect(normalizeTemplate({ validityMonths: 12 }).validityMonths).toBe(12)
+    // A template saved before this setting has no expiry.
+    expect(normalizeTemplate({ title: 'Custom' }).validityMonths).toBeUndefined()
+  })
+
+  it('labels the periods offered in settings', () => {
+    expect(validityLabel(1)).toBe('1 month')
+    expect(validityLabel(6)).toBe('6 months')
+    expect(validityLabel(12)).toBe('12 months (1 year)')
+    expect(validityLabel(36)).toBe('36 months (3 years)')
+    expect(VALIDITY_MONTH_OPTIONS).toContain(12)
+  })
+})

@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { withAuth, type AuthContext } from '@/lib/auth-middleware'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { resolveOrgName } from '@/lib/branding'
-import { renderCertificatePdf, formatCompletionDate } from '@/lib/certificates/render'
+import { renderCertificatePdf, certificateDates } from '@/lib/certificates/render'
 import { getLatestTemplate } from '@/lib/certificates/template'
 
 export const GET = withAuth(
@@ -41,11 +41,13 @@ export const GET = withAuth(
     // MOS-857: always the tenant's newest template, so an admin's change shows
     // on every learner's certificate, including training completed earlier.
     const template = await getLatestTemplate(ctx.companyId)
+    // The issue date is the completion date. The expiry date (if the template
+    // sets a validity period) counts from it, so it never moves on re-download.
     const bytes = await renderCertificatePdf(template?.config ?? null, {
       orgName: org,
       learnerName: learner,
       moduleTitle,
-      completedOn: formatCompletionDate(completedAt),
+      ...certificateDates(completedAt, template?.config.validityMonths),
     })
     const safe = moduleTitle.replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '')
     return new NextResponse(Buffer.from(bytes), {

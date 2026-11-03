@@ -1,6 +1,6 @@
 // Certificate template settings (admin, MOS-721 + MOS-748): logo and its size,
-// wording, text sizes and font, signatory with an optional signature image, and
-// colours for training-completion certificates. The preview is rendered by the
+// wording, an optional expiry period, text sizes and font, signatory with an
+// optional signature image, and colours for training-completion certificates. The preview is rendered by the
 // same server code learners download from, so it matches exactly. Saving
 // creates a new version, and every certificate downloaded after that uses it
 // (MOS-857), including training completed earlier.
@@ -14,10 +14,13 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import toast from 'react-hot-toast'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
   LAYOUT_DEFAULTS,
   SIZE_LIMITS,
+  VALIDITY_MONTH_OPTIONS,
   resolveLayout,
+  validityLabel,
   type CertificateTemplate,
 } from '@/lib/certificates/template-schema'
 import { CertificateSignatureInput } from '@/components/settings/certificate-signature-input'
@@ -55,8 +58,12 @@ function toPayload(t: CertificateTemplate): CertificateTemplate {
     signatoryTitle: blank(t.signatoryTitle),
     logoUrl: t.logoUrl || null,
     signatureImageUrl: t.signatureImageUrl || null,
+    validityMonths: t.validityMonths ?? null,
   }
 }
+
+/** Radix Select items cannot have an empty value. */
+const NO_EXPIRY = 'none'
 
 type SizeKey = keyof typeof SIZE_LIMITS
 
@@ -199,7 +206,8 @@ export function CertificateTemplateCard() {
 
   const resetToDefault = () => {
     if (!defaults) return
-    setTpl(withLayout({ ...defaults }))
+    // Resets the design only. The expiry period is a policy, so it stays.
+    setTpl((prev) => withLayout({ ...defaults, validityMonths: prev?.validityMonths ?? null }))
     setDirty(true)
   }
 
@@ -227,7 +235,7 @@ export function CertificateTemplateCard() {
         <CardTitle className="flex items-center gap-2 text-base"><Award className="h-4 w-4 text-muted-foreground" /> Training certificate</CardTitle>
         <CardDescription>
           Design the certificate people receive when they complete a training module. The person&apos;s name, the module and the
-          completion date are always filled in automatically. When you save, every certificate uses the new design, including
+          dates are always filled in automatically. When you save, every certificate uses the new design, including
           certificates for training completed before.
         </CardDescription>
       </CardHeader>
@@ -286,6 +294,36 @@ export function CertificateTemplateCard() {
                 </Field>
                 <Field label="Footer" hint={`Leave blank for "Authorised by ${tpl.orgName?.trim() || orgName}".`}>
                   <Input value={tpl.footer ?? ''} maxLength={120} onChange={(e) => set('footer', e.target.value)} />
+                </Field>
+              </Section>
+
+              <Section title="Issue and expiry dates">
+                <Field
+                  label="Certificate expiry"
+                  hint={
+                    tpl.validityMonths
+                      ? `Certificates show the issue date (the day the training was completed) and an expiry date ${validityLabel(tpl.validityMonths)} later.`
+                      : 'Certificates show the completion date and do not expire.'
+                  }
+                >
+                  <Select
+                    value={tpl.validityMonths ? String(tpl.validityMonths) : NO_EXPIRY}
+                    onValueChange={(v) => set('validityMonths', v === NO_EXPIRY ? null : Number(v))}
+                  >
+                    <SelectTrigger className="w-full sm:w-72" data-testid="cert-validity">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NO_EXPIRY}>Does not expire</SelectItem>
+                      {VALIDITY_MONTH_OPTIONS.map((m) => (
+                        <SelectItem key={m} value={String(m)}>Valid for {validityLabel(m)}</SelectItem>
+                      ))}
+                      {/* A period saved outside the list (set through the API) still shows. */}
+                      {tpl.validityMonths && !(VALIDITY_MONTH_OPTIONS as readonly number[]).includes(tpl.validityMonths) ? (
+                        <SelectItem value={String(tpl.validityMonths)}>Valid for {validityLabel(tpl.validityMonths)}</SelectItem>
+                      ) : null}
+                    </SelectContent>
+                  </Select>
                 </Field>
               </Section>
 

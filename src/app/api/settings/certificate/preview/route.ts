@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { withAuth, type AuthContext } from '@/lib/auth-middleware'
 import { resolveOrgName } from '@/lib/branding'
 import { CertificateTemplateSchema, templateAssetError } from '@/lib/certificates/template'
-import { renderCertificatePdf, formatCompletionDate } from '@/lib/certificates/render'
+import { renderCertificatePdf, certificateDates } from '@/lib/certificates/render'
 
 export const POST = withAuth(
   async (request: NextRequest, ctx: AuthContext) => {
@@ -23,7 +23,7 @@ export const POST = withAuth(
       orgName: await resolveOrgName(ctx.companyId),
       learnerName: 'Alex Sample',
       moduleTitle: 'Sample Training Module',
-      completedOn: formatCompletionDate(null),
+      ...certificateDates(null, parsed.data.validityMonths),
     })
     return new NextResponse(Buffer.from(bytes), {
       status: 200,

@@ -118,6 +118,19 @@ describe('flexible certificate layout (MOS-748)', () => {
     expect(name.lines[0].y).toBeLessThan(rule.y)
   })
 
+  it('fits the issue and expiry date line on one line', () => {
+    const items = planFlexibleLayout({
+      page, metrics, layout: LAYOUT_DEFAULTS,
+      text: { ...text, date: 'Issue date: 22 September 2026   ·   Expiry date: 22 September 2027' },
+      logo: { width: 1024, height: 1024 }, signature: { width: 600, height: 200 },
+    })
+    const date = byKey(items, 'date') as PlannedText
+    expect(date.lines).toHaveLength(1)
+    expect(date.size).toBe(LAYOUT_DEFAULTS.textSize - 1)
+    expectInsideFrame(items)
+    expectStackedInOrder(items)
+  })
+
   it('keeps the learner name on one line', () => {
     const items = plan({ nameSize: 56 }, { text: { ...text, name: 'Maximilian Alexander Featherstonehaugh-Wolfeschlegel Junior' } })
     expect((byKey(items, 'name') as PlannedText).lines).toHaveLength(1)

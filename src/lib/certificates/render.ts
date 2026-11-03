@@ -14,16 +14,61 @@ export interface CertificateData {
   orgName: string
   learnerName: string
   moduleTitle: string
-  /** Already formatted, e.g. "22 September 2026". */
+  /** Already formatted, e.g. "22 September 2026". Also the issue date. */
   completedOn: string
+  /** Already formatted expiry date, or null/absent if the certificate does not expire. */
+  expiresOn?: string | null
 }
 
 export const LOGO_MAX_BYTES = 1024 * 1024
 
-export function formatCompletionDate(iso: string | null): string {
+function toDate(iso: string | null): Date {
   const d = iso ? new Date(iso) : new Date()
-  const safe = Number.isNaN(d.getTime()) ? new Date() : d
-  return safe.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+  return Number.isNaN(d.getTime()) ? new Date() : d
+}
+
+function formatDate(d: Date): string {
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+}
+
+export function formatCompletionDate(iso: string | null): string {
+  return formatDate(toDate(iso))
+}
+
+/**
+ * Add whole months. The day is kept, but is limited to the last day of the
+ * target month (31 January + 1 month = 28 or 29 February).
+ */
+export function addMonthsClamped(d: Date, months: number): Date {
+  const r = new Date(d.getTime())
+  const day = r.getDate()
+  r.setDate(1)
+  r.setMonth(r.getMonth() + months)
+  const lastDay = new Date(r.getFullYear(), r.getMonth() + 1, 0).getDate()
+  r.setDate(Math.min(day, lastDay))
+  return r
+}
+
+/**
+ * The formatted completion (issue) date and, if the template sets a validity
+ * period, the expiry date. null `completedAtIso` = today (used by the preview).
+ */
+export function certificateDates(
+  completedAtIso: string | null,
+  validityMonths: number | null | undefined,
+): { completedOn: string; expiresOn: string | null } {
+  const issued = toDate(completedAtIso)
+  return {
+    completedOn: formatDate(issued),
+    expiresOn: validityMonths ? formatDate(addMonthsClamped(issued, validityMonths)) : null,
+  }
+}
+
+/** The date line under the module name. Without an expiry it is the original "Completed on" line. */
+export function certificateDateLine(data: Pick<CertificateData, 'completedOn' | 'expiresOn'>): string {
+  return data.expiresOn
+    ? `Issue date: ${data.completedOn}   ·   Expiry date: ${data.expiresOn}`
+    : `Completed on ${data.completedOn}`
 }
 
 function hexToRgb(hex: string): RGB {
@@ -85,7 +130,10 @@ export async function renderCertificatePdf(
   return renderFixed(template ?? DEFAULT_CERTIFICATE_TEMPLATE, data)
 }
 
-/** The original fixed layout (MOS-721). Do not change: issued certificates depend on it. */
+/**
+ * The original fixed layout (MOS-721). Do not change: issued certificates depend
+ * on it. The date line only differs when the template sets a validity period.
+ */
 async function renderFixed(t: CertificateTemplate, data: CertificateData): Promise<Uint8Array> {
   const pdf = await PDFDocument.create()
   const page = pdf.addPage([842, 595])
@@ -139,7 +187,7 @@ async function renderFixed(t: CertificateTemplate, data: CertificateData): Promi
   center(data.learnerName, height - 250 - offset, bold, 30, dark)
   if (t.body) center(t.body, height - 295 - offset, italic, 14, grey)
   center(`“${data.moduleTitle}”`, height - 335 - offset, bold, 22, accent)
-  center(`Completed on ${data.completedOn}`, height - 385 - offset, font, 13, grey)
+  center(certificateDateLine(data), height - 385 - offset, font, 13, grey)
 
   // Signature area.
   const lineY = 130
@@ -205,7 +253,7 @@ async function renderFlexible(t: CertificateTemplate, data: CertificateData): Pr
       name: clean(data.learnerName) ?? '',
       body: clean(t.body),
       module: `“${clean(data.moduleTitle) ?? ''}”`,
-      date: `Completed on ${data.completedOn}`,
+      date: certificateDateLine(data),
       signatoryName: clean(t.signatoryName),
       signatoryTitle: clean(t.signatoryTitle),
       footer,

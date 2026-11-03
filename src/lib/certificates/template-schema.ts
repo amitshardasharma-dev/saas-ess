@@ -6,7 +6,8 @@
 // The template only controls the surrounding design and wording. The learner's
 // name, the module title and the completion date are always drawn by the
 // renderer from real data and are not part of the template, so an admin can't
-// replace them with static text.
+// replace them with static text. The template can set a validity period; the
+// expiry date itself is still calculated from the real completion date.
 import { z } from 'zod'
 
 const HEX = /^#[0-9a-fA-F]{6}$/
@@ -26,6 +27,20 @@ export const SIZE_LIMITS = {
 type SizeKey = keyof typeof SIZE_LIMITS
 
 const size = (k: SizeKey) => z.number().min(SIZE_LIMITS[k].min).max(SIZE_LIMITS[k].max)
+
+/** How long a certificate stays valid after its issue date, in months. */
+export const VALIDITY_LIMITS = { min: 1, max: 120 } as const
+
+/** The periods offered in the settings UI. */
+export const VALIDITY_MONTH_OPTIONS = [1, 3, 6, 12, 18, 24, 36, 48, 60] as const
+
+/** "12 months (1 year)", "6 months", "1 month". */
+export function validityLabel(months: number): string {
+  const base = `${months} month${months === 1 ? '' : 's'}`
+  if (months % 12 !== 0) return base
+  const years = months / 12
+  return `${base} (${years} year${years === 1 ? '' : 's'})`
+}
 
 export const CertificateTemplateSchema = z
   .object({
@@ -59,6 +74,15 @@ export const CertificateTemplateSchema = z
     /** Public URL of a PNG/JPEG signature image (e.g. the Director's), or null. */
     signatureImageUrl: z.string().url().max(1000).nullable().optional(),
     signatureHeight: size('signatureHeight').optional(),
+
+    // --- Issue and expiry dates -------------------------------------------
+    /**
+     * Months the certificate stays valid after the issue date (the day the
+     * training was completed). When set, the certificate shows "Issue date" and
+     * "Expiry date". null or absent = no expiry: the certificate shows
+     * "Completed on <date>", exactly as before this setting existed.
+     */
+    validityMonths: z.number().int().min(VALIDITY_LIMITS.min).max(VALIDITY_LIMITS.max).nullable().optional(),
   })
   .strict()
 
