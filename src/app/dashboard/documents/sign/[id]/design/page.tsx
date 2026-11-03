@@ -7,7 +7,6 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
-import { Toaster } from 'react-hot-toast'
 import { ArrowLeft, Loader2, AlertTriangle } from 'lucide-react'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { Button } from '@/components/ui/button'
@@ -65,7 +64,6 @@ export default function FieldDesignerPage() {
 
   return (
     <DashboardLayout>
-      <Toaster position="top-center" />
       <div className="min-h-screen">
         <div className="mx-auto max-w-[1400px] px-4 py-6 sm:px-6">
           <div className="mb-5 flex items-center gap-3">

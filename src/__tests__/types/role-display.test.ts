@@ -5,6 +5,7 @@ describe('role display mapping (Birch confirmed decision)', () => {
     expect(ROLE_DISPLAY.admin).toBe('Admin')
     expect(ROLE_DISPLAY.hr).toBe('Staff')
     expect(ROLE_DISPLAY.manager).toBe('Staff')
+    expect(ROLE_DISPLAY.staff).toBe('Staff')
     expect(ROLE_DISPLAY.employee).toBe('Volunteer')
     expect(ROLE_DISPLAY.super_admin).toBe('Super Admin')
   })

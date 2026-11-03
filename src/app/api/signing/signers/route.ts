@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server'
 import { withAuth } from '@/lib/auth-middleware'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 
-const STAFF = new Set(['super_admin', 'admin', 'hr', 'manager'])
+const STAFF = new Set(['super_admin', 'admin', 'hr', 'manager', 'staff'])
 
 export const GET = withAuth(
   async (_request, { companyId }) => {

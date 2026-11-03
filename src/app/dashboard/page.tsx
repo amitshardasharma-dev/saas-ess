@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react'
 import { FileText, Users } from 'lucide-react'
 import Link from 'next/link'
-import { Toaster } from 'react-hot-toast'
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useAuthStore } from '@/stores/auth'
@@ -42,8 +41,8 @@ export default function DashboardPage() {
 	const { user, isAuthenticated, checkAuth, isLoading } = useAuthStore()
 
 	const userRole = (user?.role || 'employee') as UserRole
-	// Staff (hr/manager) and admin keep the legacy module-driven dashboard;
-	// volunteers get the clean portal home. Roles are stable values — only the
+	// Managers, HR and admins keep the legacy module-driven dashboard;
+	// volunteers and the `staff` role get the clean portal home. Roles are stable values — only the
 	// display labels collapse hr/manager to "Staff" (see types/roles).
 	const isStaff = hasMinRole(userRole, 'manager')
 
@@ -70,7 +69,6 @@ export default function DashboardPage() {
 
 	return (
 		<>
-			<Toaster position="top-center" />
 			{isStaff ? (
 				<StaffDashboard userRole={userRole} />
 			) : (

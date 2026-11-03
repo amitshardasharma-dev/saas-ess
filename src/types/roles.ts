@@ -1,6 +1,10 @@
 // src/types/roles.ts
 
-export const USER_ROLES = ['admin', 'hr', 'manager', 'employee'] as const
+// `staff` (added 2026-11 for Birch) is a paid staff member with the same access as a volunteer:
+// no team-approval or HR powers. It exists so staff get the staff onboarding
+// flow, staff compliance tier and staff-only documents without being made
+// managers. Keep the order: pickers list roles from most to least access.
+export const USER_ROLES = ['admin', 'hr', 'manager', 'staff', 'employee'] as const
 export type UserRole = (typeof USER_ROLES)[number]
 
 /**
@@ -54,6 +58,7 @@ export const ROLE_HIERARCHY: Record<UserRole, number> = {
   admin: 40,
   hr: 30,
   manager: 20,
+  staff: 15,
   employee: 10,
 }
 
@@ -104,12 +109,13 @@ export function hasMinRole(userRole: UserRole, minRole: UserRole): boolean {
  * CONFIRMED role display mapping (client decision — see _SHARED_CONVENTIONS §3).
  *
  * Underlying role VALUES never change (data stays stable). These are only the
- * Birch-facing display labels. `hr` and `manager` both collapse to "Staff";
+ * Birch-facing display labels. `hr`, `manager` and `staff` all show as "Staff";
  * permission logic still distinguishes them internally via hasMinRole.
  *
  *   admin       -> Admin
  *   hr          -> Staff
  *   manager     -> Staff
+ *   staff       -> Staff
  *   employee    -> Volunteer
  *   super_admin -> Super Admin   (the is_super_admin flag, not a UserRole)
  *
@@ -120,6 +126,7 @@ export const ROLE_DISPLAY: Record<UserRole | 'super_admin', string> = {
   admin: 'Admin',
   hr: 'Staff',
   manager: 'Staff',
+  staff: 'Staff',
   employee: 'Volunteer',
   super_admin: 'Super Admin',
 }
@@ -140,6 +147,7 @@ export const ROLE_MANAGE_LABEL: Record<UserRole, string> = {
   admin: 'Admin',
   hr: 'HR',
   manager: 'Manager',
+  staff: 'Staff',
   employee: 'Volunteer',
 }
 

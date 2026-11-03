@@ -1234,8 +1234,8 @@ function AssignCard({
       toast.success('Assignment added')
       setTargetValue('')
       await onChanged()
-    } catch {
-      toast.error('Could not add assignment')
+    } catch (e) {
+      toast.error(e instanceof Error && e.message ? e.message : 'Could not add assignment')
     } finally {
       setAdding(false)
     }

@@ -16,7 +16,7 @@ import {
   PenSquare, Inbox as InboxIcon, Loader2, AlertCircle, Send, FileText, MessageSquare,
   RefreshCw, Eye, X, Settings2, Search,
 } from 'lucide-react'
-import toast, { Toaster } from 'react-hot-toast'
+import toast from 'react-hot-toast'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -39,7 +39,6 @@ export default function CommunicationsPage() {
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-6 p-6">
-      <Toaster position="top-center" />
       {isStaff ? <StaffConsole /> : <InboxView showHeader />}
     </div>
   )

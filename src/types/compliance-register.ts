@@ -38,11 +38,11 @@ export const requirementCreateSchema = z
 
 export type RequirementCreateInput = z.infer<typeof requirementCreateSchema>
 
-/** Display tiers map to underlying roles: volunteer=employee, staff=hr|manager. */
+/** Display tiers map to underlying roles: volunteer=employee, staff=staff|hr|manager. */
 export function tierMatchesRole(tier: string, role: UserRole): boolean {
   if (tier === 'all') return true
   if (tier === 'volunteer') return role === 'employee'
-  if (tier === 'staff') return role === 'hr' || role === 'manager'
+  if (tier === 'staff') return role === 'staff' || role === 'hr' || role === 'manager'
   return false
 }
 

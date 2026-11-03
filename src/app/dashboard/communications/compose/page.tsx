@@ -20,7 +20,7 @@ import {
   PenSquare, ArrowLeft, Send, FileText, Loader2, Eye, Code2, Mail, Inbox as InboxIcon,
   Settings2,
 } from 'lucide-react'
-import toast, { Toaster } from 'react-hot-toast'
+import toast from 'react-hot-toast'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -106,7 +106,6 @@ export default function ComposeMessagePage() {
 
   return (
     <div className="mx-auto w-full max-w-4xl space-y-6 p-6">
-      <Toaster position="top-center" />
 
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-3">

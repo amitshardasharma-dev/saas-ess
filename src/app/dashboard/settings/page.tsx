@@ -5,7 +5,6 @@ import { SettingsForm } from '@/components/settings/settings-form';
 import { BrandingCard } from '@/components/settings/branding-card';
 import { CertificateTemplateCard } from '@/components/settings/certificate-template-card';
 import { useAuthStore } from '@/stores/auth';
-import { Toaster } from 'react-hot-toast';
 import { ShieldAlert } from 'lucide-react';
 import { hasMinRole, type UserRole } from '@/types/roles';
 
@@ -23,7 +22,6 @@ export default function SettingsPage() {
   if (!hasMinRole(role, 'admin')) {
     return (
       <DashboardLayout>
-        <Toaster position="top-center" />
         <div className="min-h-screen fluid-bg">
           <div className="max-w-2xl mx-auto px-4 py-20 text-center">
             <ShieldAlert className="mx-auto h-12 w-12 text-destructive mb-4" />
@@ -39,7 +37,6 @@ export default function SettingsPage() {
 
   return (
     <DashboardLayout>
-      <Toaster position="top-center" />
       <div className="min-h-screen fluid-bg">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
           <BrandingCard />

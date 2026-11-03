@@ -36,22 +36,22 @@ import toast from 'react-hot-toast'
 type ContentMode = 'markdown' | 'file'
 
 // Access level -> the access_roles array persisted on the document. The GET list
-// filters by `access_roles.includes(role)`, so each level is the set of roles
-// at-or-above the chosen tier.
+// filters with documentVisibleTo (types/document), so each level is the set of
+// roles at-or-above the chosen tier.
 const ACCESS_LEVELS: { value: string; label: string; roles: string[] }[] = [
-  { value: 'all', label: 'All staff & volunteers', roles: ['employee', 'manager', 'hr', 'admin'] },
-  { value: 'staff', label: 'Staff only (managers, HR, admins)', roles: ['manager', 'hr', 'admin'] },
+  { value: 'all', label: 'All staff & volunteers', roles: ['employee', 'staff', 'manager', 'hr', 'admin'] },
+  { value: 'staff', label: 'Staff only (staff, managers, HR, admins)', roles: ['staff', 'manager', 'hr', 'admin'] },
   { value: 'hr', label: 'HR & admins only', roles: ['hr', 'admin'] },
   { value: 'admin', label: 'Admins only', roles: ['admin'] },
 ]
 
 function accessLevelFromRoles(roles: string[] | null | undefined): string {
   if (!roles || roles.length === 0) return 'all'
-  if (!roles.includes('employee') && !roles.includes('manager') && roles.includes('hr')) {
-    return roles.includes('manager') ? 'staff' : roles.length === 1 ? 'admin' : 'hr'
+  if (!roles.includes('employee') && !roles.includes('staff') && !roles.includes('manager') && roles.includes('hr')) {
+    return roles.length === 1 ? 'admin' : 'hr'
   }
   if (roles.includes('employee')) return 'all'
-  if (roles.includes('manager')) return 'staff'
+  if (roles.includes('staff') || roles.includes('manager')) return 'staff'
   if (roles.includes('hr')) return 'hr'
   return 'admin'
 }

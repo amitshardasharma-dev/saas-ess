@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Plus } from 'lucide-react';
-import { Toaster } from 'react-hot-toast';
 import { DashboardLayout } from '@/components/layout/dashboard-layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -58,7 +57,6 @@ export default function PeoplePage() {
 
   return (
     <DashboardLayout>
-      <Toaster position="top-center" />
       <div className="p-6 max-w-6xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -97,6 +95,19 @@ export default function PeoplePage() {
   );
 }
 
+/** True when a person with this email is already in the company's people list. */
+async function personExists(email: string, headers: Record<string, string>): Promise<boolean> {
+  try {
+    const res = await fetch('/api/people', { headers });
+    if (!res.ok) return false;
+    const data = (await res.json()) as { people?: PersonRow[] };
+    const want = email.trim().toLowerCase();
+    return (data.people ?? []).some((p) => (p.email ?? '').toLowerCase() === want);
+  } catch {
+    return false;
+  }
+}
+
 function AddPersonForm({ orgUnits, onClose, onCreated }: { orgUnits: string[]; onClose: () => void; onCreated: (notice: string) => void }) {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -109,14 +120,30 @@ function AddPersonForm({ orgUnits, onClose, onCreated }: { orgUnits: string[]; o
     e.preventDefault();
     setBusy(true);
     setErr(null);
+    const t = authToken();
+    const authHeader: Record<string, string> = t ? { Authorization: `Bearer ${t}` } : {};
     try {
-      const t = authToken();
-      const res = await fetch('/api/people', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...(t ? { Authorization: `Bearer ${t}` } : {}) },
-        body: JSON.stringify({ full_name: fullName, email, role, department }),
-      });
-      const data = await res.json();
+      let res: Response;
+      try {
+        res = await fetch('/api/people', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...authHeader },
+          body: JSON.stringify({ full_name: fullName, email, role, department }),
+        });
+      } catch {
+        // The connection dropped before the response arrived ("Failed to
+        // fetch"). The server may still have created the account, so check
+        // before reporting a failure.
+        if (await personExists(email, authHeader)) {
+          onCreated(
+            `Created “${fullName}”. The connection dropped before the temporary password arrived. ` +
+              'The invitation email has it, or use Reset password.'
+          );
+          return;
+        }
+        throw new Error('Could not reach the server. Check your connection and try again.');
+      }
+      const data = (await res.json().catch(() => ({}))) as { error?: string; temp_password?: string };
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
       onCreated(
         data.temp_password

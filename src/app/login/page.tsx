@@ -3,7 +3,6 @@
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Building, Sparkles } from 'lucide-react'
-import { Toaster } from 'react-hot-toast'
 
 import { LoginForm } from '@/components/auth/login-form'
 import { useAuthStore } from '@/stores/auth'
@@ -27,7 +26,6 @@ export default function LoginPage() {
 
 	return (
 		<div className="min-h-screen fluid-bg flex items-center justify-center p-4">
-			<Toaster position="top-center" />
 			
 			{/* Animated Background Elements */}
 			<div className="absolute inset-0 overflow-hidden pointer-events-none">

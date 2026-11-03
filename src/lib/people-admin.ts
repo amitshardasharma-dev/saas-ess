@@ -18,7 +18,7 @@ import type { OnboardingStatus } from '@/lib/onboarding'
  * Roles assignable by an admin (super-admin is the platform-level is_super_admin
  * flag and is intentionally NOT assignable here).
  */
-const ASSIGNABLE_ROLES: UserRole[] = ['employee', 'manager', 'hr', 'admin']
+const ASSIGNABLE_ROLES: UserRole[] = ['employee', 'staff', 'manager', 'hr', 'admin']
 
 export interface PersonSummary {
   id: string
@@ -126,12 +126,20 @@ export async function createPerson(input: {
   role?: unknown
   department?: unknown
   password?: unknown
+  /**
+   * Runs the invitation email after the HTTP response (the route passes
+   * next/server `after`). Without it the email is sent inline.
+   */
+  afterResponse?: (task: () => Promise<void>) => void
 }): Promise<CreateOk | Fail> {
   const { companyId } = input
   const email = typeof input.email === 'string' ? input.email.trim().toLowerCase() : ''
   const fullName = typeof input.full_name === 'string' ? input.full_name.trim() : ''
-  const department = typeof input.department === 'string' && input.department.trim() ? input.department.trim() : 'Volunteers'
   const role = (typeof input.role === 'string' ? input.role : 'employee') as UserRole
+  const department =
+    typeof input.department === 'string' && input.department.trim()
+      ? input.department.trim()
+      : role === 'staff' ? 'Staff' : 'Volunteers'
   const suppliedPassword = typeof input.password === 'string' ? input.password : undefined
 
   if (!EMAIL_RE.test(email)) return { ok: false, status: 400, error: 'A valid email is required' }
@@ -192,7 +200,12 @@ export async function createPerson(input: {
 
   // ISS-001: send the onboarding invitation email (best-effort — a failed send
   // never blocks account creation; no-ops in dev without MAILRELAY_API_KEY).
-  await sendInvitationEmail({ companyId, to: email, name: fullName, tempPassword: password })
+  // The route sends it after the response. A slow mail API kept the
+  // request open for ~5 s, and a dropped connection in that window showed
+  // "Failed to fetch" although the account already existed.
+  const invite = () => sendInvitationEmail({ companyId, to: email, name: fullName, tempPassword: password })
+  if (input.afterResponse) input.afterResponse(invite)
+  else await invite()
 
   return {
     ok: true,

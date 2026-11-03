@@ -1,6 +1,17 @@
 'use client'
 
+import { Toaster } from 'react-hot-toast'
+
+/**
+ * The one app-wide toast outlet. Every page calls `toast(...)` from
+ * react-hot-toast; without a mounted <Toaster /> those calls render nothing.
+ * Pages must NOT mount their own <Toaster /> — a second one shows each toast twice.
+ */
 export function ToastProvider({ children }: { children: React.ReactNode }) {
-	// No need to intercept toast globally, we'll use safeToast directly in components
-	return <>{children}</>
-} 
+	return (
+		<>
+			{children}
+			<Toaster position="top-center" />
+		</>
+	)
+}

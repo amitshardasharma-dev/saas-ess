@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-server'
 import { withAuth } from '@/lib/auth-middleware'
+import { ALL_DOCUMENT_ROLES, documentVisibleTo } from '@/types/document'
 
 interface DocumentVersionRow {
   id: string
@@ -55,10 +56,7 @@ export const GET = withAuth(async (request, { companyId, role, employee }) => {
   // Filter by role access (unless HR/admin managing)
   let filtered = (documents || []) as DocumentRow[]
   if (!manage) {
-    filtered = filtered.filter((doc) => {
-      const accessRoles = doc.access_roles || ['employee', 'manager', 'hr', 'admin']
-      return accessRoles.includes(role)
-    })
+    filtered = filtered.filter((doc) => documentVisibleTo(doc.access_roles, role))
   }
 
   // Get acknowledgment status for current employee
@@ -157,7 +155,7 @@ export const POST = withAuth(async (request, { companyId, employee }) => {
       // In-app authored content (markdown). Rendered inline by the XSS-safe
       // converter at read time; null when the doc is file-only.
       body_markdown: typeof body.body_markdown === 'string' ? body.body_markdown : null,
-      access_roles: body.access_roles || ['employee', 'manager', 'hr', 'admin'],
+      access_roles: body.access_roles || ALL_DOCUMENT_ROLES,
       is_published: false,
       requires_acknowledgment: body.requires_acknowledgment || false,
       created_by: employee.id,

@@ -26,6 +26,21 @@ export interface Document {
   updated_at: string
 }
 
+/** Default audience for a new document: every role. */
+export const ALL_DOCUMENT_ROLES = ['employee', 'staff', 'manager', 'hr', 'admin']
+
+/**
+ * Can a person with `role` see a document with these access_roles?
+ * Documents saved before the `staff` role existed (2026-11) list 'manager' as
+ * the lowest staff role, so `staff` also matches any document open to managers.
+ * A missing list means the document is open to everyone.
+ */
+export function documentVisibleTo(accessRoles: string[] | null | undefined, role: string): boolean {
+  const roles = accessRoles ?? ALL_DOCUMENT_ROLES
+  if (roles.includes(role)) return true
+  return role === 'staff' && roles.includes('manager')
+}
+
 export interface DocumentVersion {
   id: string
   document_id: string

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { withAuth } from '@/lib/auth-middleware';
 import { loadPeople } from '@/app/dashboard/people/people-data';
 import { createPerson } from '@/lib/people-admin';
@@ -25,7 +25,8 @@ export const POST = withAuth(
       return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
     }
 
-    const result = await createPerson({ companyId, ...body });
+    // companyId goes LAST so a body field can never retarget another tenant.
+    const result = await createPerson({ ...body, companyId, afterResponse: (task) => after(task) });
     if (!result.ok) {
       return NextResponse.json({ error: result.error }, { status: result.status });
     }

@@ -139,7 +139,12 @@ export const trainingService = {
       headers: authHeaders(),
       body: JSON.stringify(input),
     })
-    if (!res.ok) throw new Error('Failed to create assignment')
+    if (!res.ok) {
+      // Surface the server's reason (e.g. "Not found", a validation message) so
+      // the admin sees why the assignment did not save.
+      const body = (await res.json().catch(() => null)) as { error?: string } | null
+      throw new Error(body?.error || `Could not add assignment (HTTP ${res.status})`)
+    }
     return (await res.json()).assignment
   },
 
