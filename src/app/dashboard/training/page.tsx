@@ -35,6 +35,7 @@ import {
   Award,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { saveBlob, filenameFromDisposition } from '@/lib/save-blob'
 
 // Status chip presentation, keyed by the module's rolled-up progress status.
 const STATUS_CHIP: Record<TrainingProgressStatus, { label: string; className: string }> = {
@@ -146,15 +147,9 @@ export default function TrainingPage() {
       const token = typeof window !== 'undefined' ? localStorage.getItem('ess_access_token') : null
       const res = await fetch(`/api/training/modules/${moduleId}/certificate`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
       if (!res.ok) throw new Error()
-      const blob = await res.blob()
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = 'certificate.pdf'
-      document.body.appendChild(a)
-      a.click()
-      a.remove()
-      URL.revokeObjectURL(url)
+      // Each certificate is named after its module, so 15 downloads don't all
+      // land as certificate.pdf, certificate (1).pdf, ...
+      saveBlob(await res.blob(), filenameFromDisposition(res.headers.get('Content-Disposition'), 'certificate.pdf'))
     } catch {
       toast.error('Could not download the certificate')
     }

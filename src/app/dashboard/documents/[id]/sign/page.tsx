@@ -22,6 +22,7 @@ import { SignOverlay } from '@/components/documents/signing/sign-overlay'
 import { SignatureCaptureModal } from '@/components/documents/signing/signature-capture-modal'
 import type { SignatureValue } from '@/components/documents/signing/signature-field'
 import toast from 'react-hot-toast'
+import { saveBlob } from '@/lib/save-blob'
 
 interface DocMeta {
   title: string
@@ -72,10 +73,7 @@ function SignDocumentInner({ documentId }: { documentId: string }) {
       try {
         const pdf = await fetch(data.url as string)
         if (!pdf.ok) throw new Error()
-        const objUrl = URL.createObjectURL(await pdf.blob())
-        const a = document.createElement('a')
-        a.href = objUrl; a.download = filename
-        document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(objUrl)
+        saveBlob(await pdf.blob(), filename)
       } catch {
         window.open(data.url as string, '_blank', 'noopener,noreferrer')
       }

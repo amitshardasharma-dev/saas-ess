@@ -3,6 +3,8 @@
 // Phase 7 — thin client-side fetch helpers (matches the existing src/services/*
 // convention, _SHARED_CONVENTIONS §6.2). Bearer token from localStorage.
 
+import { saveBlob, filenameFromDisposition } from '@/lib/save-blob'
+
 const getToken = () => (typeof window !== 'undefined' ? localStorage.getItem('ess_access_token') : null)
 
 export const authHeaders = (): HeadersInit => {
@@ -32,16 +34,5 @@ export async function apiSend<T>(path: string, method: 'POST' | 'PATCH' | 'DELET
 export async function downloadExport(path: string, fallbackName: string): Promise<void> {
   const res = await fetch(path, { headers: authHeaders() })
   if (!res.ok) throw new Error(`Export ${path} failed: ${res.status}`)
-  const blob = await res.blob()
-  const disposition = res.headers.get('Content-Disposition') ?? ''
-  const match = /filename="([^"]+)"/.exec(disposition)
-  const filename = match ? match[1] : fallbackName
-  const objUrl = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = objUrl
-  a.download = filename
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
-  URL.revokeObjectURL(objUrl)
+  saveBlob(await res.blob(), filenameFromDisposition(res.headers.get('Content-Disposition'), fallbackName))
 }
