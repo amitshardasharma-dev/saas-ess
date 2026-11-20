@@ -20,6 +20,7 @@ import {
   refKindForStepType,
   syncOnboardingForPeople,
   loadStepOptions,
+  starterFlowSteps,
   type SyncStats,
 } from '@/lib/onboarding'
 import { listVolunteerTypes } from '@/lib/volunteer-types'
@@ -57,7 +58,13 @@ export const GET = withAuth(
     const typeFlows = await Promise.all(
       types.map(async (t) => ({ ...t, steps: await loadTemplateSteps(ctx.companyId, t.templateId) })),
     )
-    return NextResponse.json({ templates: { volunteer, staff }, types: typeFlows, options })
+    // An empty base flow gives new people the starter steps. Show them, so the
+    // admin sees what people get (starter: true = nothing saved yet).
+    const effective = <T extends { steps: unknown[] }>(t: T) =>
+      t.steps.length > 0
+        ? { ...t, starter: false }
+        : { ...t, steps: starterFlowSteps().map((st, i) => ({ ...st, sort_order: i })), starter: true }
+    return NextResponse.json({ templates: { volunteer: effective(volunteer), staff: effective(staff) }, types: typeFlows, options })
   },
   { minRole: 'admin' },
 )

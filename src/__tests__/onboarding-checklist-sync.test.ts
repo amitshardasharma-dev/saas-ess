@@ -11,7 +11,9 @@ jest.mock('@/lib/supabase-admin', () => ({
 import {
   computeOnboardingStatus,
   mergeFlowSteps,
+  pickBaseFlow,
   planChecklistSync,
+  starterFlowSteps,
   stepKey,
   type FlowStep,
   type PersonStep,
@@ -172,5 +174,31 @@ describe('planChecklistSync', () => {
     const plan = planChecklistSync([profile, opShopStep, opShopDone], mergeFlowSteps([base, events]), never);
     expect(plan.insert.map((s) => s.title)).toEqual(['First aid']);
     expect(plan.remove).toEqual([opShopStep.id]);
+  });
+});
+
+describe('pickBaseFlow (base flow for an audience)', () => {
+  const tpl = (id: string, audience: string, is_default = false) => ({ id, audience, is_default });
+  const steps = new Map<string, FlowStep[]>([
+    ['vol', [flow('Volunteer step')]],
+    ['staff-empty', []],
+  ]);
+
+  it('uses the audience template when it has steps', () => {
+    expect(pickBaseFlow([tpl('vol', 'volunteer', true)], steps, 'volunteer').map((s) => s.title)).toEqual(['Volunteer step']);
+  });
+
+  it('falls back to the default template when the audience has no template', () => {
+    expect(pickBaseFlow([tpl('vol', 'volunteer', true)], steps, 'staff').map((s) => s.title)).toEqual(['Volunteer step']);
+  });
+
+  it('an EMPTY template gives the starter steps, not an empty checklist', () => {
+    const out = pickBaseFlow([tpl('vol', 'volunteer', true), tpl('staff-empty', 'staff')], steps, 'staff');
+    expect(out.length).toBeGreaterThan(0);
+    expect(out).toEqual(starterFlowSteps());
+  });
+
+  it('no templates at all gives the starter steps', () => {
+    expect(pickBaseFlow([], steps, 'volunteer')).toEqual(starterFlowSteps());
   });
 });

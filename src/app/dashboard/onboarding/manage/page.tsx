@@ -97,6 +97,8 @@ export default function OnboardingFlowsPage() {
   const [error, setError] = useState(false)
   const [saving, setSaving] = useState(false)
   const [dirty, setDirty] = useState<Record<FlowKey, boolean>>({})
+  // Base flows with nothing saved yet: new people get the starter steps shown.
+  const [starter, setStarter] = useState<Record<FlowKey, boolean>>({})
 
   const load = useCallback(async () => {
     setLoading(true); setError(false)
@@ -113,6 +115,7 @@ export default function OnboardingFlowsPage() {
         return { id: t.id, name: t.name, description: t.description ?? null, memberCount: t.memberCount ?? 0 }
       })
       setFlows(next)
+      setStarter({ volunteer: Boolean(d.templates?.volunteer?.starter), staff: Boolean(d.templates?.staff?.starter) })
       setTypes(ts)
       setDirty({})
       setOptions(d.options ?? { documents: [], certTypes: [], modules: [] })
@@ -161,6 +164,7 @@ export default function OnboardingFlowsPage() {
       if (!res.ok) throw new Error(d?.error ?? 'save failed')
       setFlows((f) => ({ ...f, [active]: toSteps(d.template?.steps) }))
       setDirty((x) => ({ ...x, [active]: false }))
+      setStarter((x) => ({ ...x, [active]: false }))
       toast.success(`${flowName} flow saved${syncSummary(d.sync)}`)
     } catch (e) { toast.error(e instanceof Error ? e.message : 'Could not save') } finally { setSaving(false) }
   }
@@ -220,6 +224,7 @@ export default function OnboardingFlowsPage() {
           {active === 'volunteer'
             ? 'Steps that every volunteer gets, whatever their volunteer type.'
             : 'Steps for staff members.'}
+          {starter[active] ? ' No flow is saved yet, so new people get the starter steps below. Change them and save.' : null}
         </p>
       )}
 

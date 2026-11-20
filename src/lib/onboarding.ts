@@ -287,6 +287,27 @@ const DEFAULT_FLOW: FlowStep[] = DEFAULT_STEPS.map((s) => ({
   is_required: true,
 }));
 
+/**
+ * The base flow for an audience: its own template, else the default template.
+ * A missing or EMPTY base template gives the starter steps (DEFAULT_FLOW), as
+ * before volunteer types. Opening the Onboarding Flows page creates empty
+ * templates, so "empty" must not mean "no steps for new people".
+ */
+export function pickBaseFlow(
+  baseTemplates: Array<{ id: string; audience: string; is_default: boolean }>,
+  stepsByTemplate: Map<string, FlowStep[]>,
+  audience: OnboardingAudience
+): FlowStep[] {
+  const t = baseTemplates.find((x) => x.audience === audience) ?? baseTemplates.find((x) => x.is_default);
+  const steps = t ? stepsByTemplate.get(t.id) ?? [] : [];
+  return steps.length > 0 ? steps : DEFAULT_FLOW;
+}
+
+/** The starter steps, as an admin sees them on an empty base flow. */
+export function starterFlowSteps(): FlowStep[] {
+  return DEFAULT_FLOW.map((s) => ({ ...s }));
+}
+
 /* ================================ Helpers ================================= */
 
 const PAGE = 1000;
@@ -452,10 +473,7 @@ export async function syncOnboardingForPeople(
   }
 
   const baseTemplates = templates.filter((t) => !t.volunteer_type_id);
-  const baseFlowFor = (aud: OnboardingAudience): FlowStep[] => {
-    const t = baseTemplates.find((x) => x.audience === aud) ?? baseTemplates.find((x) => x.is_default);
-    return t ? stepsByTemplate.get(t.id) ?? [] : DEFAULT_FLOW;
-  };
+  const baseFlowFor = (aud: OnboardingAudience): FlowStep[] => pickBaseFlow(baseTemplates, stepsByTemplate, aud);
   const templateByType = new Map(
     templates.filter((t) => t.volunteer_type_id).map((t) => [t.volunteer_type_id as string, t.id])
   );

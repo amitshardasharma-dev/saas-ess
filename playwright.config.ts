@@ -69,5 +69,13 @@ export default defineConfig({
       testMatch: /\.birch\.spec\.ts$/,
       use: { ...devices['Desktop Chrome'] },
     },
+
+    // 5. Volunteer types acceptance test in the dedicated `vt-test` tenant
+    //    (made by tests/vt-test/setup-vt-test.mjs). Self-authenticating.
+    {
+      name: 'vt',
+      testMatch: /\.vt\.spec\.ts$/,
+      use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 900 } },
+    },
   ],
 })
