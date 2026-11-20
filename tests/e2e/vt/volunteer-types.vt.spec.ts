@@ -539,6 +539,10 @@ test('T19 UI: progress page filters and bulk "give this type"', async ({ page })
   await uiLogin(page, FX.admin.email)
   await page.goto(`${BASE}/dashboard/onboarding/progress`)
   await expect(page.getByTestId('progress-row')).toHaveCount(6)
+  // The status cards count the same people as the table (volunteers only).
+  for (const [s, n] of [['completed', 1], ['in_progress', 2], ['not_started', 2], ['approved', 1]] as const) {
+    await expect(page.getByTestId(`status-card-${s}`)).toContainText(String(n))
+  }
   await shot(page, '06-progress-all')
 
   await page.getByLabel('Filter by volunteer type').selectOption({ label: 'Op shop' })

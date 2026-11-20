@@ -80,7 +80,9 @@ export default function OnboardingProgressPage() {
 
   const typeName = useMemo(() => new Map(types.map((t) => [t.id, t.name])), [types])
 
-  const filtered = useMemo(() => {
+  // Every filter except status. The status cards use this, so they count the
+  // same people as the table (for example volunteers only).
+  const inScope = useMemo(() => {
     const q = query.trim().toLowerCase()
     return people.filter((p) => {
       if (!showInactive && !p.isActive) return false
@@ -88,17 +90,21 @@ export default function OnboardingProgressPage() {
       if (roleFilter === 'staff' && p.role === 'employee') return false
       if (typeFilter === 'none' && p.typeIds.length > 0) return false
       if (typeFilter !== 'all' && typeFilter !== 'none' && !p.typeIds.includes(typeFilter)) return false
-      if (statusFilter !== 'all' && p.status !== statusFilter) return false
       if (q && !`${p.name} ${p.email ?? ''}`.toLowerCase().includes(q)) return false
       return true
     })
-  }, [people, query, typeFilter, statusFilter, roleFilter, showInactive])
+  }, [people, query, typeFilter, roleFilter, showInactive])
+
+  const filtered = useMemo(
+    () => (statusFilter === 'all' ? inScope : inScope.filter((p) => p.status === statusFilter)),
+    [inScope, statusFilter]
+  )
 
   const counts = useMemo(() => {
     const c: Record<string, number> = {}
-    for (const p of people) if (p.isActive) c[p.status] = (c[p.status] ?? 0) + 1
+    for (const p of inScope) c[p.status] = (c[p.status] ?? 0) + 1
     return c
-  }, [people])
+  }, [inScope])
 
   const allSelected = filtered.length > 0 && filtered.every((p) => selected.has(p.employeeId))
   const toggleAll = () => setSelected(allSelected ? new Set() : new Set(filtered.map((p) => p.employeeId)))
@@ -151,6 +157,7 @@ export default function OnboardingProgressPage() {
           <button
             key={s}
             type="button"
+            data-testid={`status-card-${s}`}
             onClick={() => setStatusFilter(statusFilter === s ? 'all' : s)}
             className={`rounded-xl border bg-card p-4 text-left transition-colors hover:bg-muted/30 ${statusFilter === s ? 'ring-2 ring-primary' : ''}`}
           >
