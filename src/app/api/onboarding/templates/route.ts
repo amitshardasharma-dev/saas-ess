@@ -1,16 +1,28 @@
 // /api/onboarding/templates — manage the editable onboarding flows (admin).
-//   GET -> the Volunteer + Staff templates (with steps) plus the documents,
-//          certificate types and training modules a step can link to.
-//   PUT -> replace one audience's steps. The saved flow is then applied to the
-//          people who ALREADY exist, not just future joiners: missing steps are
-//          added (already-satisfied ones land done), wording is refreshed, and
-//          steps that left the flow are dropped unless they were completed.
+//   GET -> the Volunteer ("all volunteers") + Staff base templates, every
+//          volunteer type with its flow, plus the documents, certificate types
+//          and training modules a step can link to.
+//   PUT -> replace one flow's steps. Body: { audience: 'volunteer'|'staff', steps }
+//          or { type_id, steps }. The saved flow is then applied to the people
+//          who ALREADY exist, not just future joiners: missing steps are added
+//          (already-satisfied ones land done), wording is refreshed, and steps
+//          that left the flow are dropped unless they were completed.
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { withAuth, type AuthContext } from '@/lib/auth-middleware'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { recordAudit } from '@/lib/audit'
-import { loadTemplate, saveTemplateSteps, refKindForStepType, syncTemplateToExistingPeople } from '@/lib/onboarding'
+import {
+  loadTemplate,
+  loadTemplateSteps,
+  saveTemplateSteps,
+  saveStepsForTemplate,
+  refKindForStepType,
+  syncOnboardingForPeople,
+  loadStepOptions,
+  type SyncStats,
+} from '@/lib/onboarding'
+import { listVolunteerTypes } from '@/lib/volunteer-types'
 
 const STEP_TYPES = ['profile_field', 'doc_sign', 'doc_ack', 'certification', 'training', 'manual'] as const
 
@@ -21,35 +33,31 @@ const stepSchema = z
     step_type: z.enum(STEP_TYPES),
     ref_id: z.string().uuid().nullable().optional(),
     auto_complete: z.boolean().optional(),
+    is_required: z.boolean().optional(),
   })
   .strict()
 
 const saveSchema = z
   .object({
-    audience: z.enum(['volunteer', 'staff']),
+    audience: z.enum(['volunteer', 'staff']).optional(),
+    type_id: z.string().uuid().optional(),
     steps: z.array(stepSchema).max(50),
   })
   .strict()
+  .refine((d) => Boolean(d.audience) !== Boolean(d.type_id), { message: 'Give audience or type_id' })
 
 export const GET = withAuth(
   async (_req: NextRequest, ctx: AuthContext) => {
-    const [volunteer, staff] = await Promise.all([
+    const [volunteer, staff, types, options] = await Promise.all([
       loadTemplate(ctx.companyId, 'volunteer'),
       loadTemplate(ctx.companyId, 'staff'),
+      listVolunteerTypes(ctx.companyId),
+      loadStepOptions(ctx.companyId),
     ])
-    const [{ data: docs }, { data: certs }, { data: mods }] = await Promise.all([
-      supabaseAdmin.from('ess_documents').select('id, title').eq('company_id', ctx.companyId).order('title'),
-      supabaseAdmin.from('ess_cert_types').select('id, name').eq('company_id', ctx.companyId).order('name'),
-      supabaseAdmin.from('ess_training_modules').select('id, title').eq('company_id', ctx.companyId).eq('status', 'published').order('title'),
-    ])
-    return NextResponse.json({
-      templates: { volunteer, staff },
-      options: {
-        documents: (docs ?? []).map((d) => ({ id: d.id, title: (d as { title?: string }).title ?? '' })),
-        certTypes: (certs ?? []).map((c) => ({ id: c.id, name: (c as { name?: string }).name ?? '' })),
-        modules: (mods ?? []).map((m) => ({ id: m.id, title: (m as { title?: string }).title ?? '' })),
-      },
-    })
+    const typeFlows = await Promise.all(
+      types.map(async (t) => ({ ...t, steps: await loadTemplateSteps(ctx.companyId, t.templateId) })),
+    )
+    return NextResponse.json({ templates: { volunteer, staff }, types: typeFlows, options })
   },
   { minRole: 'admin' },
 )
@@ -59,6 +67,17 @@ export const PUT = withAuth(
     const body = await req.json().catch(() => null)
     const parsed = saveSchema.safeParse(body)
     if (!parsed.success) return NextResponse.json({ error: 'Invalid input' }, { status: 400 })
+    const { audience, type_id: typeId } = parsed.data
+
+    // A type flow: the type must belong to this company.
+    let typeTemplateId: string | null = null
+    let typeName = ''
+    if (typeId) {
+      const type = (await listVolunteerTypes(ctx.companyId)).find((t) => t.id === typeId)
+      if (!type) return NextResponse.json({ error: 'Volunteer type not found' }, { status: 404 })
+      typeTemplateId = type.templateId
+      typeName = type.name
+    }
 
     // Validate every provided ref belongs to this company + matches its kind.
     const need = { document: new Set<string>(), cert_type: new Set<string>(), training_module: new Set<string>() }
@@ -66,11 +85,9 @@ export const PUT = withAuth(
       const kind = refKindForStepType(s.step_type)
       if (kind && s.ref_id) need[kind].add(s.ref_id)
     }
-    const exists = async (table: string, ids: Set<string>, extraEq?: [string, string]) => {
+    const exists = async (table: string, ids: Set<string>) => {
       if (ids.size === 0) return true
-      let q = supabaseAdmin.from(table).select('id').eq('company_id', ctx.companyId).in('id', [...ids])
-      if (extraEq) q = q.eq(extraEq[0], extraEq[1])
-      const { data } = await q
+      const { data } = await supabaseAdmin.from(table).select('id').eq('company_id', ctx.companyId).in('id', [...ids])
       return (data ?? []).length === ids.size
     }
     const [okDoc, okCert, okMod] = await Promise.all([
@@ -80,23 +97,22 @@ export const PUT = withAuth(
     ])
     if (!okDoc || !okCert || !okMod) return NextResponse.json({ error: 'A linked item is invalid for this company' }, { status: 400 })
 
-    await saveTemplateSteps(
-      ctx.companyId,
-      parsed.data.audience,
-      parsed.data.steps.map((s) => ({
-        title: s.title,
-        description: s.description ?? null,
-        step_type: s.step_type,
-        ref_id: s.ref_id ?? null,
-        auto_complete: s.auto_complete ?? false,
-      })),
-    )
+    const steps = parsed.data.steps.map((s) => ({
+      title: s.title,
+      description: s.description ?? null,
+      step_type: s.step_type,
+      ref_id: s.ref_id ?? null,
+      auto_complete: s.auto_complete ?? false,
+      is_required: s.is_required ?? true,
+    }))
+    if (typeTemplateId) await saveStepsForTemplate(ctx.companyId, typeTemplateId, steps)
+    else await saveTemplateSteps(ctx.companyId, audience!, steps)
 
     // Apply the change to people who already exist. Best-effort: a sync failure
     // must not lose the admin's edit, which is already saved above.
-    let sync = { people: 0, added: 0, removed: 0, autoCompleted: 0 }
+    let sync: SyncStats = { people: 0, added: 0, removed: 0, autoCompleted: 0 }
     try {
-      sync = await syncTemplateToExistingPeople(ctx.companyId, parsed.data.audience)
+      sync = await syncOnboardingForPeople(ctx.companyId, typeId ? { volunteerTypeId: typeId } : { audience })
     } catch (err) {
       console.error('[onboarding] template sync failed (non-fatal):', (err as Error)?.message)
     }
@@ -105,11 +121,14 @@ export const PUT = withAuth(
       companyId: ctx.companyId,
       actorId: ctx.appUser.id,
       action: 'onboarding.template_updated',
-      target: { type: 'onboarding_template', id: parsed.data.audience },
-      meta: { audience: parsed.data.audience, steps: parsed.data.steps.length, sync },
+      target: { type: 'onboarding_template', id: typeId ?? audience ?? null },
+      meta: { audience: audience ?? 'type', typeId: typeId ?? null, typeName: typeName || null, steps: steps.length, sync },
     })
 
-    return NextResponse.json({ template: await loadTemplate(ctx.companyId, parsed.data.audience), sync })
+    const template = typeTemplateId
+      ? { id: typeTemplateId, name: typeName, audience: 'type', typeId, steps: await loadTemplateSteps(ctx.companyId, typeTemplateId) }
+      : await loadTemplate(ctx.companyId, audience!)
+    return NextResponse.json({ template, sync })
   },
   { minRole: 'admin' },
 )

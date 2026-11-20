@@ -1,6 +1,7 @@
 import { randomBytes } from 'crypto'
 import { supabaseAdmin } from '@/lib/supabase-server'
-import { initOnboarding } from '@/lib/onboarding'
+import { initOnboarding, syncOnboardingForPeople } from '@/lib/onboarding'
+import { writePersonTypes } from '@/lib/volunteer-types'
 import { sendInvitationEmail } from '@/lib/email/invitation'
 import { sendPasswordResetEmail } from '@/lib/email/password-reset'
 import { recordAudit } from '@/lib/audit'
@@ -49,8 +50,25 @@ export interface PersonDetail {
   onboarding: {
     status: OnboardingStatus
     completedAt: string | null
-    steps: { id: string; title: string; description: string | null; status: string; sortOrder: number; completedAt: string | null }[]
+    approvedAt: string | null
+    approvedBy: string | null
+    steps: {
+      id: string
+      title: string
+      description: string | null
+      status: string
+      sortOrder: number
+      completedAt: string | null
+      stepType: string
+      refId: string | null
+      isRequired: boolean
+      origin: string
+      waivedAt: string | null
+      waivedBy: string | null
+      waiveReason: string | null
+    }[]
   }
+  volunteerTypes: { id: string; name: string }[]
   certifications: { id: string; title: string; status: string; completionDate: string | null; expiryDate: string | null }[]
   documents: { id: string; title: string; signedAt: string }[]
   training: { moduleId: string; title: string; percent: number; status: string; completedAt: string | null }[]
@@ -73,13 +91,33 @@ export async function getPersonDetail(employeeId: string, companyId: string): Pr
   const [{ data: au }, { data: state }, { data: steps }, { data: certs }, { data: signed }, { data: training }, { data: activity }] =
     await Promise.all([
       supabaseAdmin.from('ess_app_users').select('role, is_active').eq('id', emp.app_user_id ?? '').maybeSingle(),
-      supabaseAdmin.from('ess_onboarding_states').select('status, completed_at').eq('company_id', companyId).eq('employee_id', employeeId).maybeSingle(),
-      supabaseAdmin.from('ess_onboarding_steps').select('id, title, description, status, sort_order, completed_at').eq('company_id', companyId).eq('employee_id', employeeId).order('sort_order', { ascending: true }),
+      supabaseAdmin.from('ess_onboarding_states').select('status, completed_at, approved_at, approved_by').eq('company_id', companyId).eq('employee_id', employeeId).maybeSingle(),
+      supabaseAdmin.from('ess_onboarding_steps').select('id, title, description, status, sort_order, completed_at, step_type, ref_id, is_required, origin, waived_at, waived_by, waive_reason').eq('company_id', companyId).eq('employee_id', employeeId).order('sort_order', { ascending: true }),
       supabaseAdmin.from('ess_certifications').select('id, title, status, completion_date, expiry_date').eq('company_id', companyId).eq('employee_id', employeeId).order('expiry_date', { ascending: true, nullsFirst: false }),
       supabaseAdmin.from('ess_signed_documents').select('id, signed_at, ess_documents ( title )').eq('company_id', companyId).eq('employee_id', employeeId).order('signed_at', { ascending: false }),
       supabaseAdmin.from('ess_training_progress').select('module_id, percent_complete, status, completed_at, ess_training_modules ( title )').eq('company_id', companyId).eq('employee_id', employeeId),
       supabaseAdmin.from('ess_audit_log').select('action, created_at, meta').eq('company_id', companyId).eq('target_id', employeeId).order('created_at', { ascending: false }).limit(20),
     ])
+
+  // Volunteer types + the names of who approved / marked steps not needed.
+  const { data: memberships } = await supabaseAdmin
+    .from('ess_employee_volunteer_types')
+    .select('ess_volunteer_types ( id, name, sort_order )')
+    .eq('company_id', companyId)
+    .eq('employee_id', employeeId)
+  const volunteerTypes = (memberships ?? [])
+    .map((m) => m.ess_volunteer_types as unknown as { id: string; name: string; sort_order: number } | null)
+    .filter((t): t is { id: string; name: string; sort_order: number } => Boolean(t))
+    .sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name))
+    .map((t) => ({ id: t.id, name: t.name }))
+
+  const actorIds = [...new Set([state?.approved_by, ...(steps ?? []).map((s) => s.waived_by)].filter(Boolean) as string[])]
+  const actorName = new Map<string, string>()
+  if (actorIds.length) {
+    const { data: actors } = await supabaseAdmin.from('ess_employees').select('app_user_id, full_name').eq('company_id', companyId).in('app_user_id', actorIds)
+    for (const a of actors ?? []) actorName.set(a.app_user_id as string, (a.full_name as string) ?? 'An admin')
+  }
+  const nameOf = (id: string | null | undefined) => (id ? actorName.get(id) ?? 'An admin' : null)
 
   return {
     id: emp.id,
@@ -96,10 +134,15 @@ export async function getPersonDetail(employeeId: string, companyId: string): Pr
     onboarding: {
       status: (state?.status as OnboardingStatus) ?? 'not_started',
       completedAt: state?.completed_at ?? null,
+      approvedAt: state?.approved_at ?? null,
+      approvedBy: nameOf(state?.approved_by),
       steps: (steps ?? []).map((s) => ({
         id: s.id, title: s.title, description: s.description ?? null, status: s.status, sortOrder: s.sort_order, completedAt: s.completed_at ?? null,
+        stepType: s.step_type ?? 'manual', refId: s.ref_id ?? null, isRequired: s.is_required !== false, origin: s.origin ?? 'flow',
+        waivedAt: s.waived_at ?? null, waivedBy: nameOf(s.waived_by), waiveReason: s.waive_reason ?? null,
       })),
     },
+    volunteerTypes,
     certifications: (certs ?? []).map((c) => ({
       id: c.id, title: c.title, status: c.status, completionDate: c.completion_date ?? null, expiryDate: c.expiry_date ?? null,
     })),
@@ -126,6 +169,10 @@ export async function createPerson(input: {
   role?: unknown
   department?: unknown
   password?: unknown
+  /** Volunteer types to give the person before their first checklist is built. */
+  volunteer_type_ids?: unknown
+  /** The admin who creates the person (recorded on the type assignment). */
+  actorAppUserId?: string
   /**
    * Runs the invitation email after the HTTP response (the route passes
    * next/server `after`). Without it the email is sent inline.
@@ -141,6 +188,16 @@ export async function createPerson(input: {
       ? input.department.trim()
       : role === 'staff' ? 'Staff' : 'Volunteers'
   const suppliedPassword = typeof input.password === 'string' ? input.password : undefined
+  const typeIds = Array.isArray(input.volunteer_type_ids)
+    ? [...new Set(input.volunteer_type_ids.filter((v): v is string => typeof v === 'string' && /^[0-9a-f-]{36}$/i.test(v)))]
+    : []
+  if (Array.isArray(input.volunteer_type_ids) && typeIds.length !== new Set(input.volunteer_type_ids).size) {
+    return { ok: false, status: 400, error: 'volunteer_type_ids must be a list of ids' }
+  }
+  if (typeIds.length) {
+    const { data: okTypes } = await supabaseAdmin.from('ess_volunteer_types').select('id').eq('company_id', companyId).in('id', typeIds)
+    if ((okTypes ?? []).length !== typeIds.length) return { ok: false, status: 400, error: 'A volunteer type is invalid for this company' }
+  }
 
   if (!EMAIL_RE.test(email)) return { ok: false, status: 400, error: 'A valid email is required' }
   if (!fullName) return { ok: false, status: 400, error: 'full_name is required' }
@@ -196,6 +253,8 @@ export async function createPerson(input: {
     return { ok: false, status: 500, error: `Failed to create employee: ${empErr?.message ?? 'unknown'}` }
   }
 
+  // Types first, so the first checklist already has their steps.
+  if (typeIds.length) await writePersonTypes(companyId, employee.id, typeIds, input.actorAppUserId ?? null)
   await initOnboarding(employee.id, companyId, role)
 
   // ISS-001: send the onboarding invitation email (best-effort — a failed send
@@ -286,6 +345,12 @@ export async function updatePerson(
   if (typeof patch.full_name === 'string' && patch.full_name.trim()) empUpdate.full_name = patch.full_name.trim()
   if (typeof patch.department === 'string' && patch.department.trim()) empUpdate.department = patch.department.trim()
 
+  const { data: before } = await supabaseAdmin
+    .from('ess_app_users')
+    .select('role')
+    .eq('id', employee.app_user_id ?? '')
+    .maybeSingle()
+
   const appUpdate: Record<string, unknown> = {}
   if (patch.role !== undefined) {
     const role = patch.role as UserRole
@@ -307,6 +372,15 @@ export async function updatePerson(
   if (Object.keys(appUpdate).length > 0 && employee.app_user_id) {
     const { error } = await supabaseAdmin.from('ess_app_users').update(appUpdate).eq('id', employee.app_user_id).eq('company_id', companyId)
     if (error) return { ok: false, status: 500, error: error.message }
+  }
+
+  // A role change can move the person between the volunteer and staff flows.
+  if (appUpdate.role !== undefined && appUpdate.role !== before?.role) {
+    try {
+      await syncOnboardingForPeople(companyId, { employeeIds: [employee.id] })
+    } catch (err) {
+      console.error('[people] onboarding re-sync after role change failed (non-fatal):', (err as Error)?.message)
+    }
   }
 
   // Read back the resolved role + active flag.

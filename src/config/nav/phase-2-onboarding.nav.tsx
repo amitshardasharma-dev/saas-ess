@@ -3,7 +3,7 @@
 // Phase 2 navigation — Onboarding + People (admin) sections.
 // Appended to the registry via the PHASE-2 markers in src/config/navigation.ts.
 
-import { Users, ClipboardList, ListChecks } from 'lucide-react'
+import { Users, ClipboardList, ListChecks, BarChart3 } from 'lucide-react'
 import type { NavSection } from './types'
 
 export const phase2OnboardingNav: NavSection[] = [
@@ -34,6 +34,20 @@ export const phase2OnboardingNav: NavSection[] = [
     },
   },
   {
+    id: 'onboarding-progress',
+    moduleId: 'profiles',
+    order: 21.5,
+    minRole: 'hr',
+    item: {
+      key: 'onboarding-progress',
+      title: 'Onboarding Progress',
+      href: '/dashboard/onboarding/progress',
+      icon: BarChart3,
+      description: 'Progress, volunteer types and approvals',
+      minRole: 'hr',
+    },
+  },
+  {
     id: 'onboarding-flows',
     moduleId: 'profiles',
     order: 22,
@@ -43,7 +57,7 @@ export const phase2OnboardingNav: NavSection[] = [
       title: 'Onboarding Flows',
       href: '/dashboard/onboarding/manage',
       icon: ListChecks,
-      description: 'Edit volunteer & staff onboarding',
+      description: 'Edit onboarding flows and volunteer types',
       minRole: 'admin',
     },
   },

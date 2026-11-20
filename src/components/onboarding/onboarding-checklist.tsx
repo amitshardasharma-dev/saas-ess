@@ -27,6 +27,7 @@ import { ProgressBar } from '@/components/training/progress-bar';
 interface OnboardingResponse {
   state: OnboardingState | null;
   steps: OnboardingStep[];
+  types?: { id: string; name: string }[];
 }
 
 // Bearer auth header — the API (withAuth) requires Authorization: Bearer <token>.
@@ -64,7 +65,8 @@ const STATE_BADGE: Record<string, { label: string; variant: 'default' | 'seconda
   not_started: { label: 'Not started', variant: 'outline' },
   in_progress: { label: 'In progress', variant: 'secondary' },
   blocked: { label: 'Blocked', variant: 'destructive' },
-  completed: { label: 'Completed', variant: 'default' },
+  completed: { label: 'Waiting for approval', variant: 'secondary' },
+  approved: { label: 'Approved', variant: 'default' },
 };
 
 export function OnboardingChecklist({ employeeId }: { employeeId?: string }) {
@@ -135,6 +137,21 @@ export function OnboardingChecklist({ employeeId }: { employeeId?: string }) {
           <p className="mt-2 text-sm text-muted-foreground">
             <span className="font-medium text-foreground">{resolved}</span> of {total} steps complete
           </p>
+          {data?.types && data.types.length > 0 ? (
+            <p className="mt-2 text-sm text-muted-foreground">
+              Your volunteer type{data.types.length === 1 ? '' : 's'}:{' '}
+              <span className="font-medium text-foreground">{data.types.map((t) => t.name).join(', ')}</span>
+            </p>
+          ) : null}
+          {stateStatus === 'completed' ? (
+            <p className="mt-2 text-sm text-foreground" data-testid="onboarding-waiting">
+              You completed all the mandatory steps. An admin will check them and approve you.
+            </p>
+          ) : stateStatus === 'approved' ? (
+            <p className="mt-2 text-sm text-green-700" data-testid="onboarding-approved">
+              You are approved. Thank you for completing your onboarding.
+            </p>
+          ) : null}
           {data?.state?.blocked_reason ? (
             <p className="mt-2 text-sm text-destructive">Blocked: {data.state.blocked_reason}</p>
           ) : null}
@@ -179,9 +196,12 @@ export function OnboardingChecklist({ employeeId }: { employeeId?: string }) {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
-                      <p className={`font-medium ${isDone ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
+                      <p className={`font-medium ${isDone || isSkipped ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
                         {step.title}
                       </p>
+                      {step.is_required === false ? (
+                        <Badge variant="outline" className="text-[11px] font-normal">Optional</Badge>
+                      ) : null}
                     </div>
                     {step.description ? (
                       <p className="mt-1 text-sm text-muted-foreground">{step.description}</p>
@@ -193,7 +213,7 @@ export function OnboardingChecklist({ employeeId }: { employeeId?: string }) {
                     {isDone ? (
                       <Badge variant="secondary" className="bg-green-100 text-green-800 hover:bg-green-100">Done</Badge>
                     ) : isSkipped ? (
-                      <Badge variant="outline">Skipped</Badge>
+                      <Badge variant="outline">Not needed</Badge>
                     ) : meta.staffMarked ? (
                       <Badge variant="outline">Awaiting staff</Badge>
                     ) : (

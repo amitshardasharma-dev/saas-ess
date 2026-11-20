@@ -115,6 +115,17 @@ function AddPersonForm({ orgUnits, onClose, onCreated }: { orgUnits: string[]; o
   const [department, setDepartment] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [types, setTypes] = useState<{ id: string; name: string }[]>([]);
+  const [typeIds, setTypeIds] = useState<string[]>([]);
+
+  // Volunteer types the new person can get (their steps join the checklist).
+  useEffect(() => {
+    const t = authToken();
+    fetch('/api/volunteer-types', { headers: t ? { Authorization: `Bearer ${t}` } : {} })
+      .then((r) => (r.ok ? r.json() : { types: [] }))
+      .then((d: { types?: { id: string; name: string }[] }) => setTypes(d.types ?? []))
+      .catch(() => setTypes([]));
+  }, []);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -128,7 +139,7 @@ function AddPersonForm({ orgUnits, onClose, onCreated }: { orgUnits: string[]; o
         res = await fetch('/api/people', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...authHeader },
-          body: JSON.stringify({ full_name: fullName, email, role, department }),
+          body: JSON.stringify({ full_name: fullName, email, role, department, volunteer_type_ids: typeIds }),
         });
       } catch {
         // The connection dropped before the response arrived ("Failed to
@@ -192,6 +203,27 @@ function AddPersonForm({ orgUnits, onClose, onCreated }: { orgUnits: string[]; o
           </datalist>
         </div>
       </div>
+      {types.length > 0 ? (
+        <fieldset className="mt-3">
+          <legend className="text-xs text-muted-foreground">Volunteer types (their onboarding steps are added to the checklist)</legend>
+          <div className="mt-1 flex flex-wrap gap-2">
+            {types.map((t) => {
+              const on = typeIds.includes(t.id);
+              return (
+                <label key={t.id} className={`flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1 text-sm ${on ? 'border-primary bg-primary/10 text-foreground' : 'text-muted-foreground'}`}>
+                  <input
+                    type="checkbox"
+                    className="sr-only"
+                    checked={on}
+                    onChange={(e) => setTypeIds((cur) => (e.target.checked ? [...cur, t.id] : cur.filter((x) => x !== t.id)))}
+                  />
+                  {t.name}
+                </label>
+              );
+            })}
+          </div>
+        </fieldset>
+      ) : null}
       {err ? <p role="alert" className="mt-3 text-sm text-destructive">{err}</p> : null}
       <div className="mt-4 flex gap-2">
         <Button type="submit" disabled={busy}>{busy ? 'Creating…' : 'Create person'}</Button>

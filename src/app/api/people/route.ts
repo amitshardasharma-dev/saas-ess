@@ -26,7 +26,7 @@ export const POST = withAuth(
     }
 
     // companyId goes LAST so a body field can never retarget another tenant.
-    const result = await createPerson({ ...body, companyId, afterResponse: (task) => after(task) });
+    const result = await createPerson({ ...body, companyId, actorAppUserId: appUser.id, afterResponse: (task) => after(task) });
     if (!result.ok) {
       return NextResponse.json({ error: result.error }, { status: result.status });
     }

@@ -2,8 +2,11 @@
 
 import { use, useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, CheckCircle2, Circle, Mail, Phone, Hash, Building2, CalendarDays } from 'lucide-react';
-import { roleManageLabel, type UserRole } from '@/types/roles';
+import { ArrowLeft, Mail, Phone, Hash, Building2, CalendarDays } from 'lucide-react';
+import { roleManageLabel, hasMinRole, type UserRole } from '@/types/roles';
+import { useAuthStore } from '@/stores/auth';
+import { ONBOARDING_STATUS_CHIP, onboardingStatusLabel, type OnboardingStatus } from '@/types/onboarding';
+import { PersonOnboardingPanel, type PanelStep } from '@/components/onboarding/person-onboarding-panel';
 
 function authToken(): string | null {
   return typeof window !== 'undefined' ? localStorage.getItem('ess_access_token') : null;
@@ -13,7 +16,8 @@ interface PersonDetail {
   id: string; name: string; email: string | null; phone: string | null; employeeNo: string | null;
   department: string | null; designation: string | null; status: string | null; dateOfJoining: string | null;
   role: UserRole; isActive: boolean;
-  onboarding: { status: string; completedAt: string | null; steps: { id: string; title: string; description: string | null; status: string; sortOrder: number; completedAt: string | null }[] };
+  onboarding: { status: string; completedAt: string | null; approvedAt: string | null; approvedBy: string | null; steps: PanelStep[] };
+  volunteerTypes: { id: string; name: string }[];
   certifications: { id: string; title: string; status: string; completionDate: string | null; expiryDate: string | null }[];
   documents: { id: string; title: string; signedAt: string }[];
   training: { moduleId: string; title: string; percent: number; status: string; completedAt: string | null }[];
@@ -25,12 +29,6 @@ const certChip: Record<string, string> = {
   expiring: 'bg-amber-100 text-amber-800',
   expired: 'bg-red-100 text-red-800',
   pending: 'bg-muted text-muted-foreground',
-};
-const onbChip: Record<string, string> = {
-  completed: 'bg-green-100 text-green-800',
-  in_progress: 'bg-blue-100 text-blue-800',
-  blocked: 'bg-amber-100 text-amber-800',
-  not_started: 'bg-muted text-muted-foreground',
 };
 const fmt = (d: string | null) => (d ? new Date(d).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' }) : '—');
 
@@ -44,9 +42,15 @@ export default function VolunteerProfilePage({ params }: { params: Promise<{ id:
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>('Overview');
+  const { user } = useAuthStore();
+  const myRole = ((user?.role as UserRole) || 'employee');
+  const isAdmin = !!user && (user.is_super_admin === true || myRole === 'admin');
+  const isStaff = !!user && (isAdmin || hasMinRole(myRole, 'manager'));
 
-  const load = useCallback(async () => {
-    setLoading(true); setError(null);
+  // silent = refresh after an action, without the page-wide "Loading…".
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
+    setError(null);
     try {
       const t = authToken();
       const res = await fetch(`/api/people/${id}`, { headers: t ? { Authorization: `Bearer ${t}` } : {} });
@@ -58,7 +62,7 @@ export default function VolunteerProfilePage({ params }: { params: Promise<{ id:
   }, [id]);
   useEffect(() => { load(); }, [load]);
 
-  const doneSteps = p ? p.onboarding.steps.filter((s) => s.status === 'done').length : 0;
+  const doneSteps = p ? p.onboarding.steps.filter((s) => s.status === 'done' || s.status === 'skipped').length : 0;
   const totalSteps = p ? p.onboarding.steps.length : 0;
   const onbPct = totalSteps ? Math.round((doneSteps / totalSteps) * 100) : 0;
   const expiringCount = p ? p.certifications.filter((c) => c.status === 'expiring').length : 0;
@@ -86,7 +90,10 @@ export default function VolunteerProfilePage({ params }: { params: Promise<{ id:
                 <div className="mt-1 flex flex-wrap items-center gap-2 text-sm">
                   <span className="inline-block rounded-full bg-secondary px-2 py-0.5 text-xs font-medium">{roleManageLabel(p.role)}</span>
                   <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${p.isActive ? 'bg-green-100 text-green-800' : 'bg-muted text-muted-foreground'}`}>{p.isActive ? 'Active' : 'Inactive'}</span>
-                  <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${onbChip[p.onboarding.status] ?? ''}`}>Onboarding: {p.onboarding.status.replace('_', ' ')}</span>
+                  <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${ONBOARDING_STATUS_CHIP[p.onboarding.status as OnboardingStatus] ?? ''}`}>Onboarding: {onboardingStatusLabel(p.onboarding.status)}</span>
+                  {p.volunteerTypes.map((t) => (
+                    <span key={t.id} className="inline-block rounded-full border px-2 py-0.5 text-xs font-medium text-muted-foreground">{t.name}</span>
+                  ))}
                 </div>
               </div>
             </div>
@@ -120,25 +127,7 @@ export default function VolunteerProfilePage({ params }: { params: Promise<{ id:
           )}
 
           {tab === 'Onboarding' && (
-            <div className="rounded-xl border bg-card p-5">
-              <div className="mb-4">
-                <div className="flex items-center justify-between mb-1 text-sm"><span className="font-medium">Progress</span><span className="text-muted-foreground">{doneSteps}/{totalSteps} ({onbPct}%)</span></div>
-                <div className="h-2 rounded-full bg-muted overflow-hidden"><div className="h-full bg-primary" style={{ width: `${onbPct}%` }} /></div>
-              </div>
-              <ul className="space-y-2">
-                {p.onboarding.steps.map((s) => (
-                  <li key={s.id} className="flex items-start gap-3 py-2 border-b last:border-0">
-                    {s.status === 'done' ? <CheckCircle2 className="h-5 w-5 text-green-600 mt-0.5" /> : <Circle className="h-5 w-5 text-muted-foreground mt-0.5" />}
-                    <div>
-                      <p className={`text-sm font-medium ${s.status === 'done' ? 'text-foreground' : ''}`}>{s.title}</p>
-                      {s.description ? <p className="text-xs text-muted-foreground">{s.description}</p> : null}
-                      {s.completedAt ? <p className="text-[11px] text-green-700">Completed {fmt(s.completedAt)}</p> : null}
-                    </div>
-                  </li>
-                ))}
-                {p.onboarding.steps.length === 0 ? <li className="text-sm text-muted-foreground">No onboarding steps.</li> : null}
-              </ul>
-            </div>
+            <PersonOnboardingPanel person={p} isAdmin={isAdmin} isStaff={isStaff} onChanged={() => load(true)} />
           )}
 
           {tab === 'Certifications' && (

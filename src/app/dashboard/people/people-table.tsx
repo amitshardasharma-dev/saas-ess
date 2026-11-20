@@ -7,10 +7,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { roleManageLabel, USER_ROLES } from '@/types/roles';
 import type { UserRole } from '@/types/roles';
-import type { OnboardingStatus } from '@/lib/onboarding';
+import {
+  ONBOARDING_STATUSES,
+  ONBOARDING_STATUS_CHIP,
+  onboardingStatusLabel,
+  type OnboardingStatus,
+} from '@/types/onboarding';
 import type { PersonRow } from './people-data';
-
-const ONBOARDING_STATUSES: OnboardingStatus[] = ['not_started', 'in_progress', 'blocked', 'completed'];
 
 const selectClass =
   'h-9 rounded-md border border-input bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring';
@@ -20,15 +23,9 @@ function authToken(): string | null {
 }
 
 function statusBadge(status: OnboardingStatus) {
-  const map: Record<OnboardingStatus, string> = {
-    not_started: 'bg-muted text-muted-foreground',
-    in_progress: 'bg-blue-100 text-blue-800',
-    blocked: 'bg-amber-100 text-amber-800',
-    completed: 'bg-green-100 text-green-800',
-  };
   return (
-    <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${map[status]}`}>
-      {status.replace('_', ' ')}
+    <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${ONBOARDING_STATUS_CHIP[status] ?? ''}`}>
+      {onboardingStatusLabel(status)}
     </span>
   );
 }
@@ -150,7 +147,7 @@ export function PeopleTable({
         </datalist>
         <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as OnboardingStatus | 'all')} aria-label="Filter by onboarding status" className={selectClass}>
           <option value="all">All statuses</option>
-          {ONBOARDING_STATUSES.map((s) => (<option key={s} value={s}>{s.replace('_', ' ')}</option>))}
+          {ONBOARDING_STATUSES.map((s) => (<option key={s} value={s}>{onboardingStatusLabel(s)}</option>))}
         </select>
         <span className="ml-auto text-sm text-muted-foreground">{filtered.length} of {people.length}</span>
       </div>
