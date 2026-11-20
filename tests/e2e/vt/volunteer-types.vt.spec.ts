@@ -634,7 +634,7 @@ test('T23 UI: admin works on one person (mark done, add a step, not needed) unti
   await page.getByRole('button', { name: /Add a step for this person/ }).click()
   await page.locator('#ps-title').fill('Building access card')
   await page.getByRole('button', { name: 'Add step', exact: true }).click()
-  await expect(page.getByText('Building access card')).toBeVisible()
+  await expect(page.getByTestId('person-step').filter({ hasText: 'Building access card' })).toBeVisible()
 
   // "Not needed" with a reason.
   const row = (t: string) => page.getByTestId('person-step').filter({ hasText: t })
